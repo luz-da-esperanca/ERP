@@ -6,13 +6,13 @@ Versão 1.0 · Dependências: [CORE](00-foundation.md), [CAD](02-registration.md
 
 Produzir `ELIGIBLE` (Apta), `INELIGIBLE` (Não apta) ou `PENDING` (Pendente) em uma data civil de referência, com critério, membro, atividade e fatos identificáveis. Somente presença em atividade periódica é evidência. Cadastro, inscrição, declaração de evangelização e atendimento pontual não substituem presença.
 
-A spec fecha o mecanismo matemático e o contrato de configuração. O valor do período/mínimo e as modalidades institucionais permanecem explicitamente configurados por coordenação, com referência de DEC-02/LAC-01. Não existe política inicial, fallback de 30 dias, percentual presumido ou ativação de uma política incompleta.
+A spec fecha o mecanismo matemático e o contrato de configuração, adotados em [MVP-D01](README.md). O valor do período/mínimo e as modalidades institucionais permanecem explicitamente configurados por coordenação, com referência de DEC-02/LAC-01. Não existe política inicial, fallback de 30 dias, percentual presumido ou ativação de uma política incompleta.
 
 ## 2. Modelo e formato de política
 
 `EligibilityPolicy`: `id`, `effectiveFrom`, `definition`, `decisionReference`, `reason`, `recordedAt`, `recordedBy`. Definições publicadas são imutáveis e `effectiveFrom` único; vigência termina no início da próxima versão. Não há exclusão ou edição de política publicada. Rascunho na tela não altera a política vigente.
 
-`PolicyDefinition` contém todos os campos abaixo explicitamente. As modalidades são propostas delimitadas para implementação; instituição escolhe entre elas ou mantém a política pendente se precisar de modalidade não suportada.
+`PolicyDefinition` contém todos os campos abaixo explicitamente. As modalidades delimitam o mecanismo a implementar; a instituição escolhe entre elas ou mantém a política pendente se precisar de modalidade não suportada.
 
 | Campo | Formato e validação |
 | --- | --- |
@@ -47,7 +47,7 @@ Resolver candidatos segundo `membershipScope`; separar identidade canônica de f
 
 Para cada pessoa/atividade, construir oportunidades `S` de encontros `COMPLETED`, distintos, no período e no intervalo de pertença permitido. Excluir cancelados, supersedidos e fatos fora do recorte. Inscrição não acrescenta presença; somente decide pertinência quando a política usa essa modalidade. Marcações explícitas distinguem presentes, ausentes e oportunidades sem lançamento.
 
-Cobertura completa significa que declarações vigentes de SPEC-FRQ cobrem o período necessário e suas revisões ainda correspondem às fontes. Sem ela, o banco não comprova que todos os encontros relevantes foram lançados. A necessidade desse mecanismo de declaração é proposta pendente de confirmação no registro do MVP; até fechá-la, nenhuma negativa depende de completude presumida.
+Cobertura completa significa que declarações vigentes de SPEC-FRQ cobrem o período necessário e suas revisões ainda correspondem às fontes. Sem ela, o banco não comprova que todos os encontros relevantes foram lançados. Esse mecanismo de declaração integra o contrato técnico [MVP-D07](README.md); nenhuma negativa depende de completude presumida.
 
 ## 4. Algoritmo de decisão
 

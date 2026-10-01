@@ -16,7 +16,7 @@ Organizar atividades em projetos e manter uma lista temporal simples de particip
 
 `status`: `ACTIVE` ou `CLOSED`. `nature`: `PERIODIC` ou `ONE_OFF`. Nome e descrição seguem CORE; `plannedSchedule` é texto até 500, não um gerador de agenda. Responsável aponta a conta do operador que assume a atividade, sem criar pessoa assistida para representá-lo. Pode ser desconhecido até designação; para registrar encontro, indicar executor/responsável conhecido conforme SPEC-FRQ.
 
-A associação de um projeto a um instituto e a lista simples são os tratamentos provisórios explícitos de LAC-04, adotados como proposta técnica de base nesta spec; não são aprovação institucional da cardinalidade. Confirmar a adoção no registro de decisões do MVP antes de declarar o contrato fechado.
+Um projeto pertence a exatamente um instituto, e atividades periódicas mantêm lista simples de participantes, conforme a decisão do MVP [MVP-D05](README.md). `instituteId` é obrigatório e referencia instituto existente; novo projeto não seleciona instituto inativo. Essa adoção concretiza o tratamento provisório da ERS; ratificação institucional de DEC-04/LAC-04 permanece separada.
 
 ## 2. Catálogos iniciais
 
@@ -85,3 +85,4 @@ Todas as escritas de catálogo/projeto requerem `projects.write`; inscrições r
 | ATV-AC10 | Alterar vigência conflitante com fatos exige resolução; nenhuma presença é movida silenciosamente |
 | ATV-AC11 | Encerramento retroativo com encontro ou início de inscrição posterior conflita; não cria intervalo invertido nem cancela fato |
 | ATV-AC12 | Encerrar projeto preserva encerramento anterior de atividade; audita somente as mudanças efetivas |
+| ATV-AC13 | Projeto exige exatamente um instituto existente e ativo na criação; instituto inativado depois não apaga sua associação histórica |

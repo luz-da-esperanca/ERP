@@ -14,7 +14,7 @@ Confirmar um encontro realizado e marcações explícitas por pessoa, em uma tel
 
 Encontro: `COMPLETED` ou `CANCELED`. Marcação: `PRESENT` ou `ABSENT`; ausência de linha não é enum `ABSENT`. `(sessionId, personId)` é único, com resolução de identidades canônicas/supersessão durante unificação. Encontros distintos na mesma atividade/dia têm IDs diferentes; não impor unicidade por data.
 
-`AttendanceCoverage` é uma proposta de contrato derivada da necessidade de evidência completa para concluir Não apta; não consta como fluxo aprovado nas fontes. Sua adoção precisa ser fechada no registro de decisões. Sem declaração vigente, o mecanismo pode demonstrar presença suficiente, mas não presume completude de encontros ausentes do banco para produzir uma negativa.
+`AttendanceCoverage` é o contrato técnico adotado em [MVP-D07](README.md) para demonstrar completude dos encontros; o levantamento não é apresentado como aprovação institucional desse fluxo. Sem declaração vigente, o mecanismo pode demonstrar presença suficiente, mas não presume completude de encontros ausentes do banco para produzir uma negativa.
 
 ## 2. Chamada e regras de escrita
 
@@ -36,13 +36,15 @@ Atividade encerrada aceita correção/registro tardio de encontro dentro da vig�
 
 ## 3. Consulta de frequência e cobertura
 
-Contrato `queryFrequency({ personId, activityId, from, toExclusive, familyId? })` identifica os encontros realizados no intervalo em que havia inscrição válida, mais os encontros com marcação avulsa válida. Essa é a proposta de denominador operacional desta spec, a confirmar junto com LAC-01/04. Não contar encontros anteriores à inscrição por omissão. Fatos ficam na família registrada no encontro, mesmo que a pessoa tenha mudado depois.
+Contrato `queryFrequency({ personId, activityId, from, toExclusive, familyId? })` identifica os encontros realizados no intervalo em que havia inscrição válida, mais os encontros com marcação avulsa válida. O denominador operacional `ENROLLMENT_OR_RECORDED` foi adotado em [MVP-D06](README.md); a modalidade de aptidão ainda é seleção explícita da política de SPEC-APT. Não contar encontros anteriores à inscrição por omissão. Fatos ficam na família registrada no encontro, mesmo que a pessoa tenha mudado depois.
 
 FRQ expõe internamente `FrequencyOpportunity` com pessoa/encontro canônicos, contexto familiar/vínculo, critério de pertinência, marcação opcional e revisões. Marcações usam o contexto factual persistido; oportunidades ainda não marcadas resolvem vínculo no instante do encontro e identificam contexto não resolvido quando necessário. Aplicar `familyId` a essa projeção antes dos contadores, sem usar vínculo atual para selecionar fatos antigos. Contextos não resolvidos não são atribuídos a uma família por inferência e impedem declarar completa a consulta que depende deles. REL consome a mesma projeção para total, detalhe e fingerprint.
 
 Saída: `sessionCount`, `presenceCount`, `absenceCount`, `unrecordedCount`, `attendanceRate`, `markingsComplete`, `coverageComplete`, `contextComplete`, `isComplete`, lista de oportunidades/revisões e critérios de pertinência. Sempre `sessionCount = presenceCount + absenceCount + unrecordedCount`, excluindo cancelados e duplicatas supersedidas. `markingsComplete` exige todas as oportunidades conhecidas marcadas; `coverageComplete` exige cobertura vigente dos encontros do período consultado; `contextComplete` exige contextos necessários resolvidos. `isComplete` é a conjunção dos três. `attendanceRate` é `null` se denominador zero ou consulta incompleta; contagens conhecidas são mostradas mesmo assim. Não calcular percentual sobre somente registros já marcados para esconder incompletude nem apresentar 100% dos encontros conhecidos como prova de frequência completa.
 
 Cobertura é um fato declarado por responsável autorizado, não inferido de “não encontrei registros”. O operador confirma que todos os encontros realizados no período foram registrados. A declaração aponta revisões dos encontros e da inscrição relevantes; mudança de encontro, cancelamento, inclusão tardia ou inscrição afetada invalida a declaração para o trecho atingido. Pode-se declarar um período sem encontros para distinguir recesso conhecido de falta de informação; isso não produz automaticamente Não apta, conforme SPEC-APT.
+
+Declarações aceitam apenas intervalos civis já encerrados: `periodEndExclusive` não ultrapassa o início do dia atual em APP_TIMEZONE. O dia em andamento ainda não prova seu conjunto completo de encontros; contagens conhecidas continuam disponíveis e presença suficiente pode demonstrar mínimo absoluto. Esse limite é do mecanismo de evidência, sem alterar os valores institucionais da política.
 
 Esse mecanismo não gera calendário nem obriga a converter horário previsto em fato. A declaração não atesta presença individual: cada marcação ainda precisa estar explícita para concluir ausência. No MVP não há justificação/tolerância de faltas; uma política que as exija não pode ser ativada como se fossem implementadas.
 
@@ -59,12 +61,14 @@ Esse mecanismo não gera calendário nem obriga a converter horário previsto em
 | `POST /sessions/:sessionId/cancellation` | Revisão, motivo; 200 |
 | `GET /people/:personId/frequency` | `activityId`, `from`, `toExclusive`, `familyId?`; contagens/lista no contexto histórico conforme o denominador declarado |
 | `GET /activities/:activityId/sessions` | Período/status, paginação; distingue cancelados |
-| `POST /activities/:activityId/coverage-declarations` | Intervalo civil, fingerprint de fontes/revisão da atividade, confirmação e motivo; contrato proposto de cobertura |
+| `POST /activities/:activityId/coverage-declarations` | Intervalo civil, fingerprint de fontes/revisão da atividade, confirmação e motivo; declaração de cobertura |
 | `GET /activities/:activityId/coverage` | Período; trechos confirmados, lacunas, invalidações e fingerprint atual das fontes para declaração |
 
 Escritas exigem `attendance.write`; leituras `attendance.read`. Criar chamada e mutações usam CORE para idempotência/revisões/transação. O frontend devolve o `rosterFingerprint` recebido como `expectedRosterFingerprint`, sem calcular outro hash. O servidor usa SHA-256 de instante normalizado, atividade/projeto e revisões, conjunto de inscrições válidas, identidades canônicas/aliases, pessoa/família/vínculo e revisões, avulsos incluídos no contexto e encontro/revisão quando existente. Conjuntos são ordenados por ID; a confirmação repete a seleção dentro da transação, detectando inserções/remoções. Avulso acrescentado depois exige nova prévia que o inclua. Mudança de fonte produz conflito para revisão; fingerprint não concede autorização.
 
 `/activities/:id/attendance` funciona em celular e tem uma única lista com marcação rápida, avulsos, prévia e confirmação. Rascunho é memória da página. Depois da confirmação, o operador vê ID do encontro, data do fato e data do lançamento; correção inicia pelo encontro existente. Listagem não oferece “novo encontro” como forma de corrigir presença já lançada.
+
+Na mesma área, “Cobertura dos encontros” permite selecionar período encerrado, revisar encontros/cancelamentos e lacunas, e confirmar explicitamente que todas as ocorrências realizadas foram lançadas. Mostrar autor/data da declaração e invalidações; não declarar cobertura ao salvar uma chamada nem marcar participantes ausentes em consequência dessa confirmação.
 
 ## 5. Critérios de aceite
 
@@ -86,3 +90,4 @@ Escritas exigem `attendance.write`; leituras `attendance.read`. Criar chamada e 
 | FRQ-AC14 | Filtro familiar separa oportunidades antes/depois de transferência, inclusive linhas não marcadas, pelo contexto histórico |
 | FRQ-AC15 | Primeira marcação em encontro existente conflita se vínculo/contexto mudou depois da prévia; correção de status mantém contexto original |
 | FRQ-AC16 | Frontend devolve fingerprint do servidor; inclusão de inscrição ou avulso sem renovar a prévia não confirma contexto obsoleto |
+| FRQ-AC17 | Cobertura não confirma dia em andamento ou período futuro; período encerrado sem encontros pode ser declarado sem inventar marcações |
