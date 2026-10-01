@@ -69,7 +69,7 @@ Contagens de crianças/adolescentes do papel podem ser representadas como `decla
 
 ## 4. Blocos sensíveis e ciência
 
-**Tratamento do MVP a confirmar:** proposta é especificar e desenvolver os blocos abaixo, mantendo-os desativados até aprovação específica. Isso preserva RF-FIC-06 condicionado, sem presumir aprovação.
+**Decisão do MVP ([MVP-D02](README.md)):** implementar os blocos abaixo com estruturas, validações e proteção, mantendo-os desativados por padrão até aprovação específica. Isso preserva RF-FIC-06 condicionado; a inclusão no código não habilita coleta nem leitura.
 
 | Bloco | Conteúdo e restrição |
 | --- | --- |
@@ -127,5 +127,6 @@ Não há PATCH de conteúdo publicado: corrigir publica outra versão completa c
 | FIC-AC13 | Alteração de tamanho entre prévia e publicação gera conflito, inclusive criação de perfil antes inexistente |
 | FIC-AC14 | Correção de uma ficha antiga exige motivo e referência própria; não altera predecessor/numeração do namespace atual |
 | FIC-AC15 | Fichas consolidadas mantêm sequência em empates de publicação; base da próxima versão pertence ao destino canônico |
+| FIC-AC16 | Instalação inicial mantém saúde, medicamentos e religião desativados; configuração sintética de teste só habilita esses blocos explicitamente, sem liberar dados reais |
 
 Vitest verifica schemas, flags, serialização, criptografia e projeção; integração verifica versão única, snapshots e atomicidade. A matriz de seleção e a liberação para dados reais permanecem sujeitas a DEC-05/08.

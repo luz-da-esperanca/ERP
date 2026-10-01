@@ -25,7 +25,7 @@ Família pode ser criada sem membros para iniciar um cadastro. Uma pessoa só é
 
 Um vínculo vale em `validFrom <= instant < validUntil`, com fim nulo aberto. Datas futuras não são aceitas para declarar composição já existente. A quantidade de membros em `asOf` conta pessoas canônicas distintas com vínculo vigente, excluindo vínculos reconhecidos como duplicados. Família sem titular conhecido mostra pendência; no máximo um titular por família e instante. `isReference=false` não significa que o parentesco foi informado.
 
-**Decisão de pertença a fechar com o responsável:** proposta do MVP é uma família ativa por pessoa, preservando todas as anteriores. A modelagem admite que a instituição ainda decida dupla pertença em DEC-01/LAC-02. Uma implementação não deve escolher outra família silenciosamente. O fechamento dessa decisão consta do registro em README.
+**Decisão do MVP ([MVP-D04](README.md)):** no máximo uma família vigente por pessoa em qualquer instante, preservando todas as anteriores. Validar sobreposições também entre aliases da mesma identidade canônica; mesmo intervalos de famílias diferentes não podem se sobrepor. Ausência de vínculo atual permanece possível, com pendência identificada. Dupla pertença não integra este MVP; ratificação institucional de DEC-01/LAC-02 continua exigida antes do uso real.
 
 Mudança de família real encerra o vínculo anterior e inicia outro no mesmo instante, com motivo; fatos anteriores conservam `familyId/membershipId`. Troca de titular/parentesco encerra a versão temporal aplicável e cria a sucessora, sem sobrescrever o passado. Informar parentescos após troca de titular é responsabilidade do operador: valores antigos não são recalculados por inferência de parentesco.
 
@@ -118,5 +118,6 @@ Confirmação grava mapeamento, reconciliações, destino, issues, revisões e a
 | CAD-AC15 | Unificação com perfis de tamanhos divergentes exige escolha explícita; leitura canônica e publicação usam o perfil escolhido sem reescrever snapshots |
 | CAD-AC16 | Transferência/encerramento retroativo não invalida marcação silenciosamente; conflito permite revisar corte ou reconciliar explicitamente |
 | CAD-AC17 | Reconciliação cria vínculo e corrige contexto na mesma transação; não exige sobreposição temporária nem deixa uma etapa confirmada sozinha |
+| CAD-AC18 | Duas famílias com vínculos sobrepostos para a mesma pessoa canônica são rejeitadas, inclusive sob concorrência e após unificação; vínculos históricos consecutivos são permitidos |
 
 Usar integração PostgreSQL para limites temporais, sequência única, unificação e concorrência; não validar histórico apenas por contagem de chamadas a mocks.
