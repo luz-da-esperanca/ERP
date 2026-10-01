@@ -28,6 +28,7 @@ As decisões atuais do responsável pelo projeto sobre recorte e stack prevalece
 
 Leia as seções relacionadas à tarefa antes de implementar ou alterar comportamento:
 
+- **Implementação do MVP:** [Índice das specs](docs/specs/README.md), SPEC-CORE e a spec do módulo alterado, incluindo os contratos de suas dependências. O índice registra as decisões de desenho adotadas; DEC/LAC ainda condicionam o uso real quando indicado.
 - **Escopo, regras e aceite:** [PRD 1.1](docs/PRD-ERP-Luz-da-Esperanca-v1.1.md), especialmente CAP, RN, AC e DEC pertinentes ao MVP.
 - **Funcionalidades:** [ERS](<docs/ERS — ERP Social Luz da Esperança.md>), §§3.2.1–3.2.5, 3.2.10–3.2.11 e lacunas relacionadas. Aplique apenas a parte de REL compatível com o recorte.
 - **Modelos e histórico:** [Modelagem](docs/MODELAGEM-DO-SISTEMA.md), convenções comuns, D-01–D-04, D-09–D-10 e contratos de duplicidade e relatórios. As frentes BC, FRQ e AD são divisões documentais de responsabilidade, não serviços independentes.
@@ -47,7 +48,7 @@ Quando uma divergência afetar a implementação, aplique essa hierarquia e regi
 
 Organize frontend, backend e código compartilhado em limites claros. Compartilhe contratos necessários, preservando modelos de persistência e segredos no backend. A interface acessa a API, nunca Prisma ou o banco diretamente. Rotas Fastify validam entradas e encaminham operações aos módulos de negócio; regras de aptidão e histórico não pertencem a componentes React.
 
-O repositório está na fase documental: ainda não há aplicações, manifestos ou scripts de execução. Na implementação, descubra os comandos nos manifestos e configurações existentes. Ao criar a base, documente os comandos realmente disponíveis; gerenciador de pacotes, versões, estrutura de diretórios e ferramentas adicionais ainda não foram definidos.
+O repositório está na fase documental: ainda não há aplicações, manifestos ou scripts de execução. A base a construir e os comandos previstos estão em SPEC-CORE. Ao implementar, fixe versões compatíveis e documente os comandos realmente disponíveis; descubra os comandos de execução nos manifestos e configurações criados, sem tratar entregáveis previstos como scripts já existentes.
 
 ## Invariantes do MVP
 
@@ -55,7 +56,7 @@ O repositório está na fase documental: ainda não há aplicações, manifestos
 
 - Diferencie pessoa assistida de conta de usuário. Ser operador não cria cadastro assistencial nem vínculo familiar.
 - Preserve a vigência dos vínculos e a família associada a cada fato histórico. Mudar a composição ou o titular atual não transfere fatos anteriores para outra família.
-- Conte membros por pessoas distintas com vínculo vigente na data consultada. Dupla pertença e critérios de titularidade dependem de DEC-01/LAC-02.
+- Conte membros por pessoas distintas com vínculo vigente na data consultada. A implementação segue a pertença vigente única de SPEC-CAD; a ratificação institucional de composição e titularidade permanece em DEC-01/LAC-02 antes do uso real.
 - Busque possíveis duplicidades antes de cadastrar; semelhança não autoriza fusão automática. Unificação exige autorização, motivo, reconciliação de conflitos e histórico recuperável.
 - Represente dados desconhecidos como desconhecidos: ausência não equivale a zero, falso ou ausência em encontro. Não invente nascimento, CPF ou outros valores para satisfazer validações; obrigatoriedade segue a decisão de campos pertinente.
 - Mantenha versões datadas da ficha e sua composição familiar. Dados individuais pertencem ao membro daquela versão; alterações no cadastro atual não reescrevem fichas antigas.

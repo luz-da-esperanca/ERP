@@ -4,7 +4,7 @@ Versão 1.0 · Base: PRD 1.1, ERS 1.0, modelagem 1.1 e recorte do [AGENTS.md](..
 
 ## 1. Objetivo e autoridade
 
-Esta especificação define os contratos técnicos compartilhados. O comportamento de cada módulo pertence à sua spec; políticas institucionais pertencem ao PRD e às decisões DEC/LAC. Uma capacidade estar pronta para desenvolvimento não libera seu uso com dados reais. As decisões técnicas abaixo são propostas de implementação para a stack escolhida, não afirmações extraídas do levantamento.
+Esta especificação define os contratos técnicos compartilhados. O comportamento de cada módulo pertence à sua spec; políticas institucionais pertencem ao PRD e às decisões DEC/LAC. Uma capacidade estar pronta para desenvolvimento não libera seu uso com dados reais. As decisões técnicas abaixo são contratos de implementação para a stack escolhida, não afirmações extraídas do levantamento. As escolhas de produto e derivações adotadas estão no [índice](README.md).
 
 Fontes: [PRD §9.2](../PRD-ERP-Luz-da-Esperanca-v1.1.md), [ERS §§3.1, 3.4–3.6](<../ERS — ERP Social Luz da Esperança.md>) e [modelagem §1.2, D-10](../MODELAGEM-DO-SISTEMA.md).
 
@@ -16,7 +16,7 @@ Monorepo TypeScript, com `apps/web`, `apps/api` e `packages/contracts`. O fronte
 
 As specs não exigem interfaces de repositório por entidade, filas, event sourcing ou serviços independentes. A trilha de auditoria exigida não é um barramento de eventos.
 
-Gerenciador proposto: pnpm workspaces. A implementação inicial deve fixar versões compatíveis de Node.js e dependências, e registrar scripts reais no README da aplicação. Os comandos desta seção descrevem entregáveis a criar, não comandos disponíveis hoje: `dev`, `build`, `typecheck`, `lint`, `test`, `test:integration`, `db:migrate` e `db:seed`. `test:integration` usa Vitest com PostgreSQL e Redis próprios de teste; nenhum teste pode depender de dados reais.
+Gerenciador: pnpm workspaces. A implementação inicial deve fixar versões compatíveis de Node.js e dependências, e registrar scripts reais no README da aplicação. Os comandos desta seção descrevem entregáveis a criar, não comandos disponíveis hoje: `dev`, `build`, `typecheck`, `lint`, `test`, `test:integration`, `db:migrate` e `db:seed`. `test:integration` usa Vitest com PostgreSQL e Redis próprios de teste; nenhum teste pode depender de dados reais.
 
 ## 3. Tipos, limites e datas
 

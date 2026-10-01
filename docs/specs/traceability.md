@@ -1,16 +1,16 @@
 # Rastreabilidade dos requisitos do MVP
 
-Fonte: [ERS 1.0](<../ERS — ERP Social Luz da Esperança.md>), catálogo de 101 requisitos funcionais. Autoridade do recorte: [AGENTS.md](../../AGENTS.md). Esta matriz identifica a cobertura prevista pelas specs, não testes executados ou aprovação institucional. Condições e decisões pendentes permanecem no [índice](README.md).
+Fonte: [ERS 1.0](<../ERS — ERP Social Luz da Esperança.md>), catálogo de 101 requisitos funcionais. Autoridade do recorte: [AGENTS.md](../../AGENTS.md). Esta matriz identifica a cobertura prevista pelas specs, não testes executados ou aprovação institucional. Decisões adotadas do MVP e condições institucionais pendentes estão no [índice](README.md).
 
 ## Requisitos incluídos
 
-São 53 requisitos funcionais no recorte, sendo 3 de relatórios parcialmente aplicáveis e RF-FIC-06 condicionado à decisão de inclusão/aprovação. Os cenários abaixo são locais às specs.
+São 53 requisitos funcionais no recorte, sendo 3 de relatórios parcialmente aplicáveis e RF-FIC-06 incluído para implementação, desativado até aprovação específica de uso. Os cenários abaixo são locais às specs.
 
 | Requisito da ERS | Spec proprietária / contrato | Aceite previsto |
 | --- | --- | --- |
 | RF-CAD-01 | CAD — Família e código único | CAD-AC02/10 |
 | RF-CAD-02 | CAD — Pessoa e dados opcionais | CAD-AC01/06 |
-| RF-CAD-03 | CAD — Vínculo temporal | CAD-AC01/02/03 |
+| RF-CAD-03 | CAD — Vínculo temporal e pertença única vigente | CAD-AC01/02/03/18 |
 | RF-CAD-04 | CAD — Troca de titular | CAD-AC04/05 |
 | RF-CAD-05 | CAD — Transferência/correção e histórico | CAD-AC03/04/16/17; FRQ-AC12 |
 | RF-CAD-06 | CAD — Busca prévia e revisão de candidatos | CAD-AC06/11 |
@@ -23,12 +23,12 @@ São 53 requisitos funcionais no recorte, sendo 3 de relatórios parcialmente ap
 | RF-FIC-02 | FIC — Economia familiar e por membro | FIC-AC04/05 |
 | RF-FIC-04 | FIC — Educação individual selecionada | FIC-AC05 |
 | RF-FIC-05 | FIC — Necessidades declaradas | FIC-AC01/03 |
-| RF-FIC-06 | FIC — Saúde/religião condicionadas, bloco protegido | FIC-AC06/07/12 |
+| RF-FIC-06 | FIC — Saúde/religião implementadas e desativadas até aprovação, bloco protegido | FIC-AC06/07/12/16 |
 | RF-FIC-07 | FIC — Situação encontrada com autoria/data | FIC-AC01/06; AUD-AC02 |
 | RF-FIC-08 | FIC — Publicação imutável versionada | FIC-AC02/03/09/11/13/14/15 |
 | RF-FIC-09 | FIC — Ciência conhecida sem consentimento presumido | FIC-AC08 |
 | RF-ATV-01 | ATV — Seis institutos | ATV-AC01/09 |
-| RF-ATV-02 | ATV — Projetos, instituto proposto e vigência | ATV-AC02/06/10 |
+| RF-ATV-02 | ATV — Projetos, instituto único e vigência | ATV-AC02/06/10/13 |
 | RF-ATV-03 | ATV — Natureza da atividade | ATV-AC02/03 |
 | RF-ATV-04 | ATV — Horário previsto e responsável | FRQ-AC01/05; cadastro de atividade |
 | RF-ATV-05 | ATV — Catálogo de tipo pontual, sem realização | ATV-AC03/09 |
@@ -39,7 +39,7 @@ São 53 requisitos funcionais no recorte, sendo 3 de relatórios parcialmente ap
 | RF-FRQ-02 | FRQ — PRESENT/ABSENT explícitos | FRQ-AC02/06/10/15/16 |
 | RF-FRQ-03 | FRQ — Presença avulsa | FRQ-AC04 |
 | RF-FRQ-04 | FRQ — Correção com motivo/revisão | FRQ-AC08; AUD-AC02 |
-| RF-FRQ-06 | FRQ — Consulta com denominador/completude | FRQ-AC03/09/10/13/14; REL-AC09/13 |
+| RF-FRQ-06 | FRQ — Consulta com denominador/completude | FRQ-AC03/09/10/13/14/17; REL-AC09/13 |
 | RF-FRQ-07 | FRQ — Cancelamento sem apagar | FRQ-AC09 |
 | RF-APT-01 | APT — Avaliação em data e três situações | APT-AC01/02/06/09 |
 | RF-APT-02 | APT — Política configurável sem defaults | APT-AC01/11/12 |

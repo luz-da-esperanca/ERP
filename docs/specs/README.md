@@ -2,7 +2,7 @@
 
 Base documental: PRD 1.1 (18/09/2026), ERS 1.0 (24/09/2026), modelagem 1.1 (28/09/2026), ficha de famílias 2025 e decisões de escopo/stack do [AGENTS.md](../../AGENTS.md).
 
-**Situação:** contratos redigidos para revisão; as decisões de produto da seção 3 ainda precisam de resposta para declarar todas as specs prontas para implementação. Aprovar o desenho do MVP não equivale a aprovação institucional para usar dados reais. Não há aplicação implementada nem testes da aplicação executados nesta entrega.
+**Situação:** contratos fechados para implementação do MVP, com as recomendações aceitas pelo responsável pelo projeto em 01/10/2026 e as derivações técnicas registradas na seção 3. As políticas institucionais ainda abertas têm comportamento configurável, desativado ou Pendente definido nas specs. Não há aplicação implementada nem testes da aplicação executados nesta entrega.
 
 ## 1. Specs e propriedade dos contratos
 
@@ -29,7 +29,7 @@ O MVP não implementa ATD, EST, ENT, BAZ nem MIG, embora sejam essenciais no pro
 | Divergência ou lacuna | Tratamento nas specs |
 | --- | --- |
 | Nascimento no cadastro mínimo da ERS versus dados ausentes do PRD/modelagem | Nome e vínculo exigidos; nascimento/sexo/documentos desconhecidos permitidos; seleção final em DEC-01 |
-| Instituto obrigatório/exclusivo apresentado pela ERS versus pendência do PRD | Base proposta de um instituto por projeto, identificada como tratamento provisório de LAC-04 |
+| Instituto obrigatório/exclusivo apresentado pela ERS versus pendência do PRD | Um instituto por projeto adotado para o MVP em MVP-D05; ratificação institucional de LAC-04 permanece separada |
 | Campo existente no formulário versus aprovação de coleta | Matriz campo a campo e flags; nenhum bloco real habilitado automaticamente |
 | Renda “mensal” no nome de atributo da modelagem versus papel sem periodicidade | `incomeAmount` declarado; não presumir periodicidade nem consolidar rendas |
 | Lista de participantes versus presença | Inscrição temporal e marcação explícita são contratos distintos |
@@ -37,21 +37,23 @@ O MVP não implementa ATD, EST, ENT, BAZ nem MIG, embora sejam essenciais no pro
 | Avaliação antiga versus correção atual | Avaliação/revisões preservadas; nova avaliação usa conhecimento atual e recebe novo ID |
 | Histórico e unificação versus duplicação de contagens | Mapeamento canônico e supersessão explícita, com proveniência e reconciliação |
 
-## 3. Decisões de produto em esclarecimento
+## 3. Decisões do MVP
 
-As respostas devem escolher o desenho do MVP, sem declarar que o responsável pelo desenvolvimento aprovou políticas institucionais em nome da instituição. Nenhum item abaixo é registrado como aceito antes da resposta.
+Em 01/10/2026, o responsável pelo projeto escolheu as recomendações de todas as cinco perguntas apresentadas. MVP-D01–05 registram essa escolha de produto. MVP-D06–07 são derivações técnicas adotadas para concretizar os contratos de frequência e evidência, sob o mesmo desenho; não são regras institucionais atribuídas ao levantamento.
 
-| ID local | Pergunta / proposta | Efeito |
+| ID local | Decisão adotada | Efeito |
 | --- | --- | --- |
-| MVP-D01 | Aptidão com configuração completa, sem default e Pendente sem política, conforme PRD/ERS | Fecha formato da política e comportamento sem configuração; valores de DEC-02 continuam institucionais |
-| MVP-D02 | Especificar saúde/medicamentos/religião desativados até aprovação, ou excluí-los deste MVP | Define implementação dos blocos condicionais FIC |
-| MVP-D03 | Adotar quatro perfis aplicáveis, combináveis, sem social automático para Administrador | Fecha matriz ACS para implementação; validação institucional de DEC-08 continua pendente |
-| MVP-D04 | Uma família ativa por pessoa ou dupla pertença | Fecha integridade de vínculo e necessidade de contexto explícito nos comandos |
+| MVP-D01 | Aptidão configurável, sem valores padrão e Pendente sem política | Fecha formato e comportamento do mecanismo; valores de DEC-02 continuam institucionais |
+| MVP-D02 | Implementar saúde, medicamentos e religião desativados por padrão até aprovação específica | Inclui estruturas/validações/proteção FIC; não habilita coleta ou leitura automaticamente |
+| MVP-D03 | Quatro perfis combináveis: Coordenação, Assistência Social, Responsável por Atividade e Administrador | Fecha matriz ACS sem acesso social automático para Administrador; validação institucional de DEC-08 continua pendente |
+| MVP-D04 | No máximo uma família vigente por pessoa, preservando os vínculos anteriores | Proíbe sobreposição de pertença na mesma identidade canônica; família atual pode ser desconhecida quando não houver vínculo vigente |
 | MVP-D05 | Um instituto por projeto e lista simples de participantes, conforme tratamento provisório da ERS | Fecha cardinalidade ATV no MVP, mantendo turmas/vagas/espera fora; validação institucional de DEC-04/LAC-04 continua pendente |
+| MVP-D06 | Denominador operacional `ENROLLMENT_OR_RECORDED` | Frequência considera inscrição válida no encontro ou marcação avulsa explícita; não presume faltas anteriores à inscrição |
+| MVP-D07 | Declaração explícita e versionada de cobertura dos encontros | Permite comprovar completude sem inferir que a ausência de registros é ausência factual; alterações relevantes invalidam a declaração |
 
-Após as escolhas anteriores, a próxima rodada deve confirmar as derivações necessárias que as fontes não decidem: denominador `ENROLLMENT_OR_RECORDED` para consulta operacional e declaração explícita de cobertura para sustentar negativas de aptidão. Ambas estão escritas como propostas em FRQ/APT, não requisitos institucionais inventados. Não é necessário escolher um valor de período/mínimo para implementar o mecanismo configurável.
+Essas decisões fecham as alternativas estruturais das specs. MVP-D06 define a consulta operacional; uma política de aptidão continua exigindo seleção explícita de sua modalidade de oportunidades conforme SPEC-APT, sem herdar um default oculto. MVP-D07 não transforma declaração de cobertura em presença individual nem força uma negativa sem evidência suficiente. Não é necessário escolher um valor institucional de período/mínimo para implementar o mecanismo configurável.
 
-Campo a campo da ficha, finalidades, guarda, acesso a dados reais e enquadramento institucional continuam em DEC-05/08; volumes/metas/implantação, em DEC-10. Cada função permanece restrita a dados sintéticos ou desativada enquanto a decisão pertinente não existir. O detalhamento técnico não resolve essas decisões silenciosamente.
+Ratificação institucional de composição familiar e organização de projetos continua em DEC-01/04; período/mínimo/atividades de aptidão, em DEC-02; campo a campo da ficha, finalidades, guarda, acesso a dados reais e enquadramento institucional, em DEC-05/08; volumes/metas/implantação, em DEC-10. Desenvolvimento e demonstração usam dados sintéticos; a liberação real depende da decisão pertinente. A escolha do desenho pelo responsável pelo projeto não declara aprovação institucional em nome da instituição.
 
 ## 4. Sequência de implementação
 
@@ -70,6 +72,6 @@ Esta ordem não autoriza liberar unificação incompleta como se tratasse confli
 
 Cada arquivo define seus cenários observáveis e identifica fonte/ID. Cenários locais `*-ACnn` são derivados para implementação, não novos IDs oficiais do PRD. AC-01/02/03/08/09 do PRD e AC-14/15/18 da ERS são cobertos no recorte; AC-04–07/10–13/16/17 ligados aos módulos excluídos não são reivindicados como aceites completos deste MVP.
 
-Uma spec fica pronta para implementação quando as escolhas locais que mudam seu contrato estão fechadas, todos os campos/comandos/erros e cenários têm interpretação única e os contratos entre módulos concordam. Uma política ainda não escolhida pode permanecer configurável/desabilitada com resultado definido; uma alternativa estrutural ainda não escolhida não deve ser disfarçada de contrato pronto.
+As escolhas locais que alteram os contratos estão fechadas na seção 3. Implementar os modelos/comandos/erros e cenários definidos, preservando os contratos entre módulos. Políticas ainda não escolhidas permanecem configuráveis/desativadas com resultado definido; sua ausência não autoriza inventar obrigatoriedade, valores de aptidão ou liberação de dados reais.
 
 Uma implementação fica concluída quando entrega persistência, API e UI especificadas e passa pelos cenários aplicáveis. Uso real/piloto exige as decisões institucionais, matriz de campos/perfis e condições operacionais previstas nas fontes. Não declarar testes, migração, conformidade ou aprovação que ainda não ocorreram.
