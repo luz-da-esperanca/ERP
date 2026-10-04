@@ -50,3 +50,17 @@ build
 
 .cache
 .tmp
+
+# Imported prototype tooling
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
+.next/
+
+# Workspace artifacts
+**/dist/
+apps/api/src/generated/
+*.tsbuildinfo

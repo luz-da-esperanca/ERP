@@ -1,0 +1,37 @@
+{
+  "name": "erp-social",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @erp/api dev",
+    "dev:web": "pnpm --filter @erp/web dev",
+    "dev:api": "pnpm --filter @erp/api dev",
+    "build": "pnpm typecheck && pnpm build:api",
+    "build:api": "pnpm --filter @erp/api build",
+    "typecheck": "pnpm db:generate && pnpm -r typecheck",
+    "lint": "eslint apps packages --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "pnpm db:generate && vitest run --config vitest.integration.config.ts",
+    "db:generate": "pnpm --filter @erp/api db:generate",
+    "db:migrate": "pnpm --filter @erp/api db:migrate",
+    "db:bootstrap": "pnpm --filter @erp/api db:bootstrap",
+    "format": "prettier --write apps packages *.json *.mjs *.ts pnpm-workspace.yaml",
+    "format:check": "prettier --check apps packages *.json *.mjs *.ts pnpm-workspace.yaml"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "24.19.1",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "5.0.3"
+  }
+}
