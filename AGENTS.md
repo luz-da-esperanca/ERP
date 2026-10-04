@@ -1,5 +1,10 @@
 # ERP Social Luz da Esperança
 
+## Forma de trabalho
+
+- Mantenha alterações limitadas à tarefa, verificáveis e reversíveis; preserve comportamento não afetado e evite refatorações paralelas.
+- Em tarefas técnicas com comportamento definido, implemente e valide diretamente. Para ambiguidades locais, registre a premissa adotada. Se uma lacuna sem decisão vigente afetar comportamento, contratos, autorização, estados ou arquitetura, esclareça-a antes de implementar a parte dependente; prossiga com o trabalho independente já autorizado.
+
 ## Comunicação
 
 - Responda e escreva explicações e documentação do projeto em português do Brasil, de forma direta e técnica.
@@ -24,18 +29,23 @@ Captação financeira, CRM, vendas, contabilidade, prontuários clínicos, gest�
 
 ## Autoridade e leitura da documentação
 
-As decisões atuais do responsável pelo projeto sobre recorte e stack prevalecem sobre propostas anteriores. Para regras de negócio, o PRD é canônico; a ERS detalha os requisitos e a modelagem fornece contratos lógicos. Diagramas e propostas não comprovam aprovação institucional.
+Em caso de conflito, aplique esta ordem:
 
-Leia as seções relacionadas à tarefa antes de implementar ou alterar comportamento:
+1. Instrução explícita atual do usuário, incluindo decisões de recorte e stack.
+2. Documentação vigente pertinente à tarefa, respeitando a autoridade das fontes abaixo.
+3. Testes que representam comportamento intencionalmente preservado.
+4. Implementação existente.
 
-- **Implementação do MVP:** [Índice das specs](docs/specs/README.md), SPEC-CORE e a spec do módulo alterado, incluindo os contratos de suas dependências. O índice registra as decisões de desenho adotadas; DEC/LAC ainda condicionam o uso real quando indicado.
+Para regras de negócio, o PRD é canônico; a ERS detalha os requisitos e a modelagem fornece contratos lógicos. As specs consolidam as decisões de implementação adotadas. Código ou teste desatualizado não substitui uma decisão explícita; registre o tratamento da divergência na documentação pertinente. Diagramas e propostas não comprovam aprovação institucional. Políticas abertas permanecem identificadas por DEC/LAC.
+
+Leia os arquivos diretamente afetados e as instruções aplicáveis ao seu caminho. Carregue apenas as seções e dependências necessárias para a tarefa, sem reler documentos inteiros já conhecidos. Quando existirem, consulte `package.json` para scripts/dependências, README para convenções de execução e configurações TypeScript ao alterar build, resolução de módulos, imports, aliases ou checagem de tipos.
+
+- **Implementação do MVP:** consulte o [Índice das specs](docs/specs/README.md), as seções pertinentes de [SPEC-CORE](docs/specs/00-foundation.md) e a spec do módulo alterado, incluindo os contratos das dependências afetadas. O índice registra as decisões adotadas; DEC/LAC ainda condicionam o uso real quando indicado.
 - **Escopo, regras e aceite:** [PRD 1.1](docs/PRD-ERP-Luz-da-Esperanca-v1.1.md), especialmente CAP, RN, AC e DEC pertinentes ao MVP.
 - **Funcionalidades:** [ERS](<docs/ERS — ERP Social Luz da Esperança.md>), §§3.2.1–3.2.5, 3.2.10–3.2.11 e lacunas relacionadas. Aplique apenas a parte de REL compatível com o recorte.
 - **Modelos e histórico:** [Modelagem](docs/MODELAGEM-DO-SISTEMA.md), convenções comuns, D-01–D-04, D-09–D-10 e contratos de duplicidade e relatórios. As frentes BC, FRQ e AD são divisões documentais de responsabilidade, não serviços independentes.
 - **Campos da ficha:** [Ficha de Cadastro de Famílias 2025](docs/ficha_cadastro_familias_2025.md). Sua presença no formulário não torna o campo obrigatório nem autoriza sua coleta digital.
 - **Fundamentação ou comparação de sistemas:** [Bibliografia](docs/Bibliografia-ERP-Social-v1.1.md) e [Pesquisa documental](docs/Pesquisa-Documental-Sistemas-ERP-Social.md). São contexto, não novas fontes de requisitos.
-
-Quando uma divergência afetar a implementação, aplique essa hierarquia e registre o tratamento na documentação pertinente. Políticas institucionais ainda abertas permanecem identificadas por DEC/LAC; não as apresente como aprovadas.
 
 ## Stack e arquitetura
 
@@ -48,7 +58,29 @@ Quando uma divergência afetar a implementação, aplique essa hierarquia e regi
 
 Organize frontend, backend e código compartilhado em limites claros. Compartilhe contratos necessários, preservando modelos de persistência e segredos no backend. A interface acessa a API, nunca Prisma ou o banco diretamente. Rotas Fastify validam entradas e encaminham operações aos módulos de negócio; regras de aptidão e histórico não pertencem a componentes React.
 
-O repositório está na fase documental: ainda não há aplicações, manifestos ou scripts de execução. A base a construir e os comandos previstos estão em SPEC-CORE. Ao implementar, fixe versões compatíveis e documente os comandos realmente disponíveis; descubra os comandos de execução nos manifestos e configurações criados, sem tratar entregáveis previstos como scripts já existentes.
+O repositório está na fase documental: ainda não há aplicações, manifestos ou scripts de execução. Documentação fica em `docs/`; SPEC-CORE prevê `apps/web`, `apps/api` e `packages/contracts`. Use **pnpm workspaces** para dependências e scripts, conforme esse contrato. Ao criar a base, fixe versões compatíveis e documente comandos reais; comandos previstos não são scripts já disponíveis. Descubra pontos de entrada e localização dos testes nas configurações criadas.
+
+### Organização do código
+
+Organize cada aplicação por feature/responsabilidade de negócio. No backend, quando a feature precisar dessa separação, use:
+
+| Diretório na feature | Responsabilidade |
+| --- | --- |
+| `domain` | Regras e conceitos de negócio, sem dependência de framework, I/O ou infraestrutura |
+| `application` | Casos de uso e orquestração; contratos necessários nas fronteiras com efeitos externos |
+| `infra` | Implementações de adaptadores, gateways, repositórios e controllers/rotas |
+
+Crie apenas as pastas necessárias; camadas globais `domain`, `application` e `infra` não substituem a divisão por feature. Mantenha erros, contratos e testes específicos próximos da responsabilidade que verificam, respeitando a configuração do pacote. Compartilhe somente contratos usados entre módulos/aplicações.
+
+Dependências apontam para as regras e contratos internos; efeitos externos ficam explícitos nas fronteiras. Prefira composição e abstrações justificadas pelo contrato ou pela necessidade de teste; não crie interface/repositório por entidade ou camadas vazias por padrão. Regras de negócio não ficam em controllers, gateways ou implementações de persistência.
+
+### Nomenclatura e TypeScript
+
+- Use `camelCase` para variáveis, funções, métodos, propriedades, parâmetros e constantes locais; `PascalCase` para classes, interfaces, tipos, enums e componentes React.
+- Use `kebab-case` em novos arquivos e diretórios de código, preservando nomes exigidos por ferramentas e arquivos documentais existentes. Identificadores e contratos não mudam de convenção por causa do caminho: `socialForms` pode corresponder à pasta `social-forms`; códigos/enums de API continuam conforme CORE.
+- Conceitos de domínio representados por uniões de literais recebem tipos nomeados, próximos de sua feature ou no pacote de contratos quando compartilhados.
+- Configure TypeScript estrito na base e preserve essa configuração. Siga o sistema de módulos e os aliases efetivamente configurados; use `#src/*` somente se adotado pelo pacote. Imports de módulos nativos Node.js usam o prefixo `node:`.
+- Justifique novas dependências pelo problema concreto. ESLint, Prettier e bibliotecas auxiliares de teste só são tratados como disponíveis após sua configuração nos manifestos.
 
 ## Invariantes do MVP
 
@@ -69,7 +101,7 @@ O repositório está na fase documental: ainda não há aplicações, manifestos
 - Avalie aptidão na data de referência e exponha política, membro, atividade, período e evidências utilizados. Preserve as versões e a vigência do critério.
 - Frequência mínima, período e atividades válidas dependem de DEC-02/LAC-01, sem valores presumidos. Sem política configurada, a situação é Pendente. Evidência insuficiente não equivale automaticamente a Não apta.
 - Cadastro, inscrição, atendimento pontual e recebimento de doação não constituem presença nem renovam aptidão. O efeito de justificativas de ausência depende de decisão institucional.
-- Se reutilizar avaliações via Redis, invalide resultados quando tempo, política, vínculos, presenças ou cancelamentos afetarem sua validade.
+- SPEC-APT não usa cache de aptidão no MVP. Se essa evolução for incluída, a reutilização exige invalidação por tempo, política, vínculos, inscrições, presenças, cancelamentos, cobertura e unificação que afetem o resultado.
 
 ### Consultas, acesso e auditoria
 
@@ -83,25 +115,19 @@ O repositório está na fase documental: ainda não há aplicações, manifestos
 
 ## Implementação e validação
 
-- Mantenha regras de negócio testáveis separadas de React, Fastify e persistência. Valide entradas externas com Zod e use restrições e transações de banco para integridade sob concorrência.
-- Segredos e credenciais vêm de variáveis de ambiente. Use bcrypt para senhas e jose para validar tokens conforme a configuração de autenticação definida no backend.
-- Ao mudar comportamento, valide com Vitest as regras e limites afetados. Priorize vínculos históricos, versões da ficha, presença versus inscrição, aptidão pendente, autorização e atomicidade da auditoria conforme a tarefa.
-- Execute os scripts de teste, verificação de tipos, lint e build pertinentes que existirem. Informe verificações executadas e limitações reais; alterações apenas documentais exigem revisão de conteúdo e links, sem testes que fixem a redação.
+- Valide entradas externas com Zod e use restrições e transações de banco para integridade sob concorrência. Segredos e credenciais vêm de variáveis de ambiente; autenticação segue SPEC-ACS.
+- Para comportamento novo ou alterado, adicione/ajuste testes Vitest de resultados, contratos e limites. Correções incluem regressão quando viável. Priorize vínculos históricos, versões da ficha, presença versus inscrição, aptidão pendente, autorização e auditoria conforme a tarefa; preserve testes intencionais, sem enfraquecê-los apenas para obter sucesso.
+- Teste regras de `domain` e orquestração de `application` por unidade; contratos HTTP com Fastify `inject`; fronteiras de `infra` por integração quando pertinente. Use PostgreSQL de teste para atomicidade, concorrência, unicidade e vigências, e Redis de teste para sessões/revogação. Mocks não comprovam essas garantias.
+- Mantenha testes determinísticos e isolados, verificando comportamento observável. Use doubles nas fronteiras externas, sem substituir regras internas do domínio. Prefira stub, fake ou `vi.fn()` quando suficientes; `vitest-mock-extended` cabe quando mocks tipados de fronteiras trouxerem ganho concreto, com dependência justificada. Dificuldade de testar uma regra é motivo para revisar seu acoplamento.
+- Execute scripts oficiais do pacote com pnpm: testes direcionados, verificação de tipos, lint, suíte pertinente e build quando afetado, conforme os comandos existentes. Amplie para todo o repositório quando contratos compartilhados, mudanças transversais, falhas ou verificações obrigatórias exigirem.
+- Informe verificações executadas, limitações e a razão quando não houver teste automatizado novo/ajustado. Alterações apenas documentais exigem revisão de conteúdo e links, sem testes que fixem a redação. A tarefa termina com o escopo autorizado concluído e a validação pertinente realizada, ou com um impedimento concreto identificado.
 
 ## Commits
 
-Após cada atualização de código, configuração ou documentação do projeto, inclua na resposta final uma sugestão de mensagem de commit em inglês, no padrão abaixo, que descreva as alterações realizadas.
-
-Mensagens seguem Conventional Commits:
+Após alterar código, testes, configuração ou documentação, sugira na resposta final um commit conciso em inglês, alinhado ao escopo, seguindo Conventional Commits:
 
 ```text
 <type>[optional scope]: <description>
 ```
 
-Escreva todas as mensagens de commit em inglês, incluindo escopo, descrição e corpo, quando houver. Use tipos como `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci` e `chore`; escopo, quando usado, identifica o módulo alterado. Exemplos:
-
-```text
-feat(registration): add family memberships with validity periods
-fix(eligibility): keep assessment pending without a configured policy
-docs: define MVP scope and project conventions
-```
+Escopo, descrição e eventual corpo ficam em inglês. Use o tipo correspondente à mudança (`feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci` ou `chore`); o escopo identifica o módulo quando aplicável.
