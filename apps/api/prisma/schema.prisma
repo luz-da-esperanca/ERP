@@ -1,0 +1,103 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ActorType {
+  USER
+  SYSTEM_BOOTSTRAP
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  ACTIVATE
+  DEACTIVATE
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+}
+
+model UserAccount {
+  id                 String            @id @default(uuid()) @db.Uuid
+  login              String            @unique @db.VarChar(100)
+  displayName        String            @db.VarChar(200)
+  passwordHash       String
+  active             Boolean           @default(true)
+  mustChangePassword Boolean           @default(true)
+  authVersion        Int               @default(1)
+  revision           Int               @default(1)
+  createdAt          DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(3)
+  roles              RoleAssignment[]
+  operations         OperationRecord[]
+  auditEntries       AuditEntry[]
+  decisions          FeatureDecision[]
+}
+
+model Role {
+  code        String           @id @db.VarChar(40)
+  label       String           @db.VarChar(100)
+  assignments RoleAssignment[]
+}
+
+model RoleAssignment {
+  userId   String      @db.Uuid
+  roleCode String      @db.VarChar(40)
+  user     UserAccount @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role     Role        @relation(fields: [roleCode], references: [code], onDelete: Restrict)
+
+  @@id([userId, roleCode])
+}
+
+model OperationRecord {
+  id                 String       @id @default(uuid()) @db.Uuid
+  type               String       @db.VarChar(100)
+  key                String       @db.Uuid
+  actorType          ActorType
+  actorId            String?      @db.Uuid
+  actor              UserAccount? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  fingerprintKeyId   String?      @db.VarChar(100)
+  requestFingerprint String       @db.VarChar(64)
+  resultReference    Json?
+  completedAt        DateTime?    @db.Timestamptz(3)
+  entries            AuditEntry[]
+
+  @@unique([type, key])
+}
+
+model AuditEntry {
+  id             String          @id @default(uuid()) @db.Uuid
+  operationId    String          @db.Uuid
+  operation      OperationRecord @relation(fields: [operationId], references: [id], onDelete: Restrict)
+  entityType     String          @db.VarChar(100)
+  entityId       String          @db.Uuid
+  revision       Int
+  action         AuditAction
+  actorType      ActorType
+  actorId        String?         @db.Uuid
+  actor          UserAccount?    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  recordedAt     DateTime        @default(now()) @db.Timestamptz(3)
+  occurredAt     DateTime?       @db.Timestamptz(3)
+  before         Json?
+  after          Json
+  reason         String?         @db.VarChar(2000)
+  classification String          @db.VarChar(100)
+
+  @@unique([entityType, entityId, revision])
+  @@index([entityType, recordedAt, id])
+}
+
+model FeatureDecision {
+  code              String      @id @db.VarChar(100)
+  enabled           Boolean
+  decisionReference String      @db.VarChar(2000)
+  decidedAt         DateTime    @db.Timestamptz(3)
+  decidedBy         String      @db.Uuid
+  actor             UserAccount @relation(fields: [decidedBy], references: [id], onDelete: Restrict)
+  revision          Int         @default(1)
+}
