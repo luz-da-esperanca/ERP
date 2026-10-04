@@ -58,7 +58,7 @@ Leia os arquivos diretamente afetados e as instruções aplicáveis ao seu camin
 
 Organize frontend, backend e código compartilhado em limites claros. Compartilhe contratos necessários, preservando modelos de persistência e segredos no backend. A interface acessa a API, nunca Prisma ou o banco diretamente. Rotas Fastify validam entradas e encaminham operações aos módulos de negócio; regras de aptidão e histórico não pertencem a componentes React.
 
-O repositório está na fase documental: ainda não há aplicações, manifestos ou scripts de execução. Documentação fica em `docs/`; SPEC-CORE prevê `apps/web`, `apps/api` e `packages/contracts`. Use **pnpm workspaces** para dependências e scripts, conforme esse contrato. Ao criar a base, fixe versões compatíveis e documente comandos reais; comandos previstos não são scripts já disponíveis. Descubra pontos de entrada e localização dos testes nas configurações criadas.
+O monorepo usa `apps/web`, `apps/api` e `packages/contracts`, com **pnpm workspaces**. Documentação fica em `docs/`; comandos de execução e o estado dos módulos estão no [README](README.md). Mantenha versões compatíveis fixadas e documente comandos reais. Descubra pontos de entrada e localização dos testes nas configurações dos pacotes. A demonstração em memória do frontend não comprova implementação nem autorização no backend.
 
 ### Organização do código
 
@@ -70,7 +70,9 @@ Organize cada aplicação por feature/responsabilidade de negócio. No backend, 
 | `application` | Casos de uso e orquestração; contratos necessários nas fronteiras com efeitos externos |
 | `infra` | Implementações de adaptadores, gateways, repositórios e controllers/rotas |
 
-Crie apenas as pastas necessárias; camadas globais `domain`, `application` e `infra` não substituem a divisão por feature. Mantenha erros, contratos e testes específicos próximos da responsabilidade que verificam, respeitando a configuração do pacote. Compartilhe somente contratos usados entre módulos/aplicações.
+Crie apenas as pastas necessárias; camadas globais `domain`, `application` e `infra` não substituem a divisão por feature. Mantenha erros e contratos próximos da responsabilidade a que pertencem. Compartilhe somente contratos usados entre módulos/aplicações.
+
+Os testes ficam em `test/` na raiz da respectiva aplicação ou pacote, espelhando a hierarquia de `src/`. Por exemplo, `src/features/access/domain/permissions.ts` é verificado em `test/features/access/domain/permissions.test.ts`; integrações seguem o mesmo caminho com sufixo `.integration.test.ts`. Separe os arquivos por módulo e responsabilidade; fixtures e preparação compartilhadas ficam em `test/support/`.
 
 Dependências apontam para as regras e contratos internos; efeitos externos ficam explícitos nas fronteiras. Prefira composição e abstrações justificadas pelo contrato ou pela necessidade de teste; não crie interface/repositório por entidade ou camadas vazias por padrão. Regras de negócio não ficam em controllers, gateways ou implementações de persistência.
 
