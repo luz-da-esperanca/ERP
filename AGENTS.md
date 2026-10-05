@@ -58,7 +58,7 @@ Leia os arquivos diretamente afetados e as instruções aplicáveis ao seu camin
 
 Organize frontend, backend e código compartilhado em limites claros. Compartilhe contratos necessários, preservando modelos de persistência e segredos no backend. A interface acessa a API, nunca Prisma ou o banco diretamente. Rotas Fastify validam entradas e encaminham operações aos módulos de negócio; regras de aptidão e histórico não pertencem a componentes React.
 
-O monorepo usa `apps/web`, `apps/api` e `packages/contracts`, com **pnpm workspaces**. Documentação fica em `docs/`; comandos de execução e o estado dos módulos estão no [README](README.md). Mantenha versões compatíveis fixadas e documente comandos reais. Descubra pontos de entrada e localização dos testes nas configurações dos pacotes. A demonstração em memória do frontend não comprova implementação nem autorização no backend.
+A API principal fica na raiz: `src/`, `test/`, `prisma/` e o `package.json` principal. A UI fica em `apps/web` e os contratos públicos em `packages/contracts`, com **pnpm workspaces**. Documentação fica em `docs/`; comandos de execução e o estado dos módulos estão no [README](README.md). Mantenha versões compatíveis fixadas e documente comandos reais. Descubra pontos de entrada e localização dos testes nas configurações dos pacotes. A demonstração em memória do frontend não comprova implementação nem autorização no backend.
 
 ### Organização do código
 
@@ -76,6 +76,10 @@ Crie apenas as pastas necessárias; camadas globais `domain`, `application` e `i
 Os testes ficam em `test/` na raiz da respectiva aplicação ou pacote, espelhando a hierarquia de `src/`. Por exemplo, `src/features/access/domain/permissions.ts` é verificado em `test/features/access/domain/permissions.test.ts`; integrações seguem o mesmo caminho com sufixo `.integration.test.ts`. Separe os arquivos por módulo e responsabilidade; fixtures e preparação compartilhadas ficam em `test/support/`.
 
 Dependências apontam para as regras e contratos internos; efeitos externos ficam explícitos nas fronteiras. Prefira composição e abstrações justificadas pelo contrato ou pela necessidade de teste; não crie interface/repositório por entidade ou camadas vazias por padrão. Regras de negócio não ficam em controllers, gateways ou implementações de persistência.
+
+`domain` e `application` usam modelos e erros internos, sem schemas HTTP, status codes ou tipos gerados pelo Prisma. `presentation` valida os contratos públicos e traduz os erros para HTTP/CLI. `infra` implementa as portas; `src/runtime.ts` compõe os módulos e injeta os adaptadores. As restrições de importação dessas camadas são verificadas pelo ESLint.
+
+Os casos de uso de escrita executam suas decisões dentro da unidade de trabalho PostgreSQL, após o bloqueio e a revalidação do autor. Alteração, revisão, auditoria e conclusão da operação usam a mesma transação. Hash de senha permanece fora dela. Não transfira essa orquestração para rotas ou adaptadores Prisma.
 
 ### Nomenclatura e TypeScript
 

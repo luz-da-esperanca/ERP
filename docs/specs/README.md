@@ -2,7 +2,7 @@
 
 Base documental: PRD 1.1 (18/09/2026), ERS 1.0 (24/09/2026), modelagem 1.1 (28/09/2026), ficha de famílias 2025 e decisões de escopo/stack do [AGENTS.md](../../AGENTS.md).
 
-**Situação:** contratos fechados para implementação do MVP, com as recomendações aceitas pelo responsável pelo projeto em 01/10/2026 e as derivações técnicas registradas na seção 3. As políticas institucionais ainda abertas têm comportamento configurável, desativado ou Pendente definido nas specs. Não há aplicação implementada nem testes da aplicação executados nesta entrega.
+**Situação:** contratos fechados para implementação do MVP, com as recomendações aceitas pelo responsável pelo projeto em 01/10/2026 e as derivações técnicas registradas na seção 3. As políticas institucionais ainda abertas têm comportamento configurável, desativado ou Pendente definido nas specs. CORE, ACS e auditoria de contas têm implementação e testes; o [README](../../README.md) registra o estado e os comandos de validação. Os demais módulos do MVP continuam pendentes.
 
 ## 1. Specs e propriedade dos contratos
 
@@ -52,6 +52,8 @@ Em 01/10/2026, o responsável pelo projeto escolheu as recomendações de todas 
 | MVP-D07 | Declaração explícita e versionada de cobertura dos encontros | Permite comprovar completude sem inferir que a ausência de registros é ausência factual; alterações relevantes invalidam a declaração |
 
 Essas decisões fecham as alternativas estruturais das specs. MVP-D06 define a consulta operacional; uma política de aptidão continua exigindo seleção explícita de sua modalidade de oportunidades conforme SPEC-APT, sem herdar um default oculto. MVP-D07 não transforma declaração de cobertura em presença individual nem força uma negativa sem evidência suficiente. Não é necessário escolher um valor institucional de período/mínimo para implementar o mecanismo configurável.
+
+A organização vigente, por decisão do responsável pelo projeto, mantém a API principal na raiz, a UI em `apps/web` e os contratos em `packages/contracts`. Cada módulo separa domínio, aplicação, apresentação e infraestrutura quando necessário, conforme SPEC-CORE. Essa mudança de organização não altera o recorte nem aprova políticas institucionais.
 
 Ratificação institucional de composição familiar e organização de projetos continua em DEC-01/04; período/mínimo/atividades de aptidão, em DEC-02; campo a campo da ficha, finalidades, guarda, acesso a dados reais e enquadramento institucional, em DEC-05/08; volumes/metas/implantação, em DEC-10. Desenvolvimento e demonstração usam dados sintéticos; a liberação real depende da decisão pertinente. A escolha do desenho pelo responsável pelo projeto não declara aprovação institucional em nome da instituição.
 

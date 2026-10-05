@@ -23,25 +23,37 @@ Os comandos padrão `pnpm dev` e `pnpm build` operam a API nesta etapa. A aplica
 ## Organização
 
 ```text
-apps/api/src/
+src/
   main.ts                   # entrada do servidor
   app.ts                    # composição HTTP e proteções comuns
-  core/                     # configuração, erros e transações
+  runtime.ts                # composição dos módulos e adaptadores
+  core/
+    application/            # erros internos e habilitação de dados
+    presentation/           # tradução de erros e contratos HTTP internos
+    infra/                  # configuração, banco e HMAC
   features/access/
-    domain/                 # capacidades e invariantes de contas
-    application/            # autenticação e contratos das fronteiras
-    infra/                  # rotas, Prisma, Redis, jose e bcrypt
-  features/audit/infra/      # auditoria transacional e consulta de contas
-apps/api/prisma/             # schema e migrations
-apps/api/test/               # espelha src/: core, features/access, features/audit
-  support/                  # fixtures e preparação da integração
-apps/web/                    # protótipo React
+    domain/                 # modelos, capacidades e invariantes de contas
+    application/            # autenticação, casos de uso e portas
+    presentation/           # rotas HTTP e comando de bootstrap
+    infra/                  # Prisma, Redis, jose e bcrypt
+  features/audit/
+    domain/                 # modelo da auditoria de contas
+    application/            # consulta autorizada e portas transacionais
+    presentation/           # rotas HTTP
+    infra/                  # leitura e escrita PostgreSQL
+prisma/                     # schema e migrations
+test/                       # espelha src/: core, features/access, features/audit
+  support/                  # doubles, fixtures e preparação da integração
+apps/web/                   # protótipo React organizado por feature
+  src/features/             # regras, fluxos, apresentação e adaptadores em memória
 packages/contracts/          # contratos públicos; sem Prisma ou segredos
   test/                     # testes espelhando src/ do pacote
 docs/specs/                  # especificações vigentes do MVP
 ```
 
-O backend é um monólito modular. As transações de contas compartilham um bloqueio PostgreSQL para bootstrap e proteção do último administrador. As linhas de autor/alvo são bloqueadas em ordem de ID. O isolamento é serializable, com até três tentativas somente para serialização/deadlock. Comparação e hash bcrypt acontecem fora da transação. Auditoria e conclusão da operação confirmam junto com a alteração; replay e no-op não geram nova revisão/evento.
+O backend é um monólito modular. Domínio e aplicação usam modelos, erros e portas internos, sem depender de HTTP, Fastify ou tipos Prisma. A apresentação valida os contratos públicos e converte erros para HTTP. Os adaptadores implementam as portas, e `runtime.ts` faz a composição. O ESLint verifica as direções dessas dependências e impede que a UI importe Prisma ou implementações da API.
+
+As regras e a orquestração de contas ficam na aplicação, dentro de uma unidade de trabalho PostgreSQL. O adaptador compartilha um bloqueio para bootstrap e proteção do último administrador e bloqueia as linhas de autor/alvo em ordem de ID. O isolamento é serializable, com até três tentativas somente para serialização/deadlock. O caso de uso revalida o autor sob esses bloqueios. Comparação e hash bcrypt acontecem fora da transação. Auditoria e conclusão da operação confirmam junto com a alteração; replay e no-op não geram nova revisão/evento.
 
 ## Executar a API local
 
@@ -50,10 +62,10 @@ Pré-requisitos: Node.js da [.node-version](.node-version), pnpm da propriedade 
 ```bash
 pnpm install
 docker compose up -d --wait
-cp apps/api/.env.example apps/api/.env
+cp .env.example .env
 ```
 
-Preencha `JWT_SECRET_BASE64` e a chave `v1` de `OPERATION_HMAC_KEYS_JSON` em `apps/api/.env` com **dois valores diferentes**, gerados separadamente:
+Preencha `JWT_SECRET_BASE64` e a chave `v1` de `OPERATION_HMAC_KEYS_JSON` em `.env` com **dois valores diferentes**, gerados separadamente:
 
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
@@ -65,7 +77,7 @@ Mantenha `DATA_MODE=SYNTHETIC`. Em seguida:
 pnpm db:generate
 pnpm db:migrate
 pnpm db:bootstrap
-pnpm dev:api
+pnpm dev
 ```
 
 O bootstrap local pede login, nome e senha com entrada oculta; funciona apenas se não existir nenhuma conta. Cria um administrador que precisa trocar a senha no primeiro acesso. Não há usuário/senha padrão nem seed de pessoas ou aprovações. O catálogo fixo de perfis é criado nessa mesma transação.
@@ -100,7 +112,7 @@ Disponibilidade: `GET http://127.0.0.1:3001/api/v1/health`. Essa rota verifica o
 | GET       | `/audit-entries?entityType=UserAccount` | `audit.read` e `accounts.manage`                      |
 | GET       | `/audit-entries/:entryId`               | Mesma autorização; detalhe fora do acesso retorna 404 |
 
-As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
+As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts) e [account-audit-api.ts](packages/contracts/src/account-audit-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
 
 ## Validar
 
@@ -108,10 +120,11 @@ As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da pró
 pnpm typecheck
 pnpm lint
 pnpm test
-pnpm build:api
+pnpm build
+pnpm format:check
 ```
 
-Os testes unitários são separados dos de integração. **A integração requer banco exclusivo cujo nome termine em `_test` e apaga seus registros.** O Redis recebe prefixo único por execução; o teste não usa `FLUSHDB`.
+Os testes unitários verificam regras puras, casos de uso com doubles nas portas externas, mapeamento de erros, contratos e restrições de importação. Ficam em `test/` e espelham os módulos de `src/`; o teste da configuração ESLint fica diretamente em `test/`. Os testes de integração usam o sufixo `.integration.test.ts` e são executados separadamente. **A integração requer banco exclusivo cujo nome termine em `_test` e apaga seus registros.** O Redis recebe prefixo único por execução; o teste não usa `FLUSHDB`.
 
 ```bash
 docker compose -f compose.test.yaml up -d --wait
@@ -127,7 +140,7 @@ Para executar o artefato compilado:
 
 ```bash
 pnpm build:api
-pnpm --filter @erp/api start
+pnpm start
 ```
 
 ## Próximas etapas do MVP
