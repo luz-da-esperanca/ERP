@@ -123,6 +123,20 @@ export function Submit({
 export function PendingBadge() {
   return <span className="status pending">Pendente</span>;
 }
+export function StatusBadge({
+  icon,
+  children,
+}: {
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <span className="status-badge">
+      {icon}
+      {children}
+    </span>
+  );
+}
 export function BackLink({
   to,
   children = 'Voltar',
