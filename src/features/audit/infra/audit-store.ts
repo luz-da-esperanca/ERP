@@ -1,3 +1,5 @@
+import { auditScopes, auditScope } from '../domain/audit-scopes.js';
+import { attendanceAuditEntrySchema } from '@erp/contracts/audit-api';
 import { z } from 'zod';
 import { userDtoSchema } from '@erp/contracts/access-api';
 import { accountAuditActionSchema } from '@erp/contracts/account-audit-api';
@@ -104,6 +106,12 @@ function projectSnapshot(value: Prisma.JsonValue): AccountAuditSnapshot {
 }
 
 function projectEntry(entry: SelectedEntry): AuditEntry {
+  if (entry.classification === 'ATTENDANCE')
+    return attendanceAuditEntrySchema.parse({
+      ...entry,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+    });
   if (entry.classification === 'PROJECTS')
     return projectsAuditEntrySchema.parse({
       ...entry,
@@ -174,18 +182,7 @@ export class PrismaAuditReader implements AuditReader {
     return databaseOperation(async () => {
       const where: Prisma.AuditEntryWhereInput = {
         entityType: input.entityType,
-        classification:
-          input.entityType === 'UserAccount'
-            ? 'ACCOUNTS'
-            : [
-                  'Institute',
-                  'ServiceType',
-                  'Project',
-                  'Activity',
-                  'ParticipantEnrollment',
-                ].includes(input.entityType)
-              ? 'PROJECTS'
-              : 'REGISTRATION',
+        classification: auditScope(input.entityType).classification,
         entityId: input.entityId,
         actorId: input.actorId,
         action: input.action,
@@ -219,34 +216,12 @@ export class PrismaAuditReader implements AuditReader {
       const entry = await this.database.auditEntry.findFirst({
         where: {
           id,
-          OR: [
-            {
-              entityType: {
-                in: entityTypes.filter((type) => type === 'UserAccount'),
-              },
-              classification: 'ACCOUNTS',
+          OR: auditScopes.map((scope) => ({
+            classification: scope.classification,
+            entityType: {
+              in: entityTypes.filter((type) => scope.entities.includes(type)),
             },
-            {
-              entityType: {
-                in: entityTypes.filter((type) => type !== 'UserAccount'),
-              },
-              classification: 'REGISTRATION',
-            },
-            {
-              entityType: {
-                in: entityTypes.filter((type) =>
-                  [
-                    'Institute',
-                    'ServiceType',
-                    'Project',
-                    'Activity',
-                    'ParticipantEnrollment',
-                  ].includes(type),
-                ),
-              },
-              classification: 'PROJECTS',
-            },
-          ],
+          })),
         },
         select: auditSelect,
       });

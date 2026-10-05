@@ -1,3 +1,7 @@
+import type {
+  AttendanceEntity,
+  AttendanceSnapshot,
+} from '../../attendance/domain/attendance.js';
 import type { AccountAuditEntry } from './account-audit.js';
 import type {
   RegisteredFamily,
@@ -13,7 +17,7 @@ import type {
 export type RegistrationAuditEntity =
   'Family' | 'Person' | 'FamilyMembership' | 'SizeProfile' | 'DataQualityIssue';
 export type AuditEntity =
-  'UserAccount' | RegistrationAuditEntity | ProjectsEntity;
+  'UserAccount' | RegistrationAuditEntity | ProjectsEntity | AttendanceEntity;
 export type RegistrationAuditAction = 'CREATE' | 'UPDATE' | 'CLOSE' | 'CORRECT';
 export type RegistrationSnapshot =
   | RegisteredFamily
@@ -41,5 +45,20 @@ export type ProjectsAuditEntry = Omit<
   after: ProjectsSnapshot;
   classification: 'PROJECTS';
 };
+export type AttendanceAuditAction =
+  'CREATE' | 'CORRECT' | 'CANCEL' | 'INVALIDATE';
+export type AttendanceAuditEntry = Omit<
+  AccountAuditEntry,
+  'entityType' | 'action' | 'before' | 'after' | 'classification'
+> & {
+  entityType: AttendanceEntity;
+  action: AttendanceAuditAction;
+  before: AttendanceSnapshot | null;
+  after: AttendanceSnapshot;
+  classification: 'ATTENDANCE';
+};
 export type AuditEntry =
-  AccountAuditEntry | RegistrationAuditEntry | ProjectsAuditEntry;
+  | AccountAuditEntry
+  | RegistrationAuditEntry
+  | ProjectsAuditEntry
+  | AttendanceAuditEntry;

@@ -1,3 +1,8 @@
+import {
+  sessionDtoSchema,
+  attendanceDtoSchema,
+  coverageDtoSchema,
+} from './attendance-api';
 import { z } from 'zod';
 import { accountAuditEntrySchema, auditQuerySchema } from './account-audit-api';
 import { paginationSchema } from './access-api';
@@ -103,15 +108,53 @@ export const projectsAuditEntrySchema = z.discriminatedUnion('entityType', [
 export const projectsAuditQuerySchema = recordAuditQuerySchema
   .extend({ entityType: projectsAuditEntitySchema })
   .refine(validAuditPeriod);
+export const attendanceAuditEntitySchema = z.enum([
+  'ActivitySession',
+  'Attendance',
+  'AttendanceCoverage',
+]);
+export const attendanceAuditActionSchema = z.enum([
+  'CREATE',
+  'CORRECT',
+  'CANCEL',
+  'INVALIDATE',
+]);
+const attendanceEntry = <
+  T extends z.infer<typeof attendanceAuditEntitySchema>,
+  S extends z.ZodType,
+>(
+  entityType: T,
+  snapshot: S,
+) =>
+  entryFields.extend({
+    entityType: z.literal(entityType),
+    action: attendanceAuditActionSchema,
+    classification: z.literal('ATTENDANCE'),
+    before: snapshot.nullable(),
+    after: snapshot,
+  });
+export const attendanceAuditEntrySchema = z.discriminatedUnion('entityType', [
+  attendanceEntry('ActivitySession', sessionDtoSchema),
+  attendanceEntry('Attendance', attendanceDtoSchema),
+  attendanceEntry('AttendanceCoverage', coverageDtoSchema),
+]);
+export const attendanceAuditQuerySchema = recordAuditQuerySchema
+  .extend({
+    entityType: attendanceAuditEntitySchema,
+    action: attendanceAuditActionSchema.optional(),
+  })
+  .refine(validAuditPeriod);
 export const auditEntrySchema = z.union([
   accountAuditEntrySchema,
   registrationAuditEntrySchema,
   projectsAuditEntrySchema,
+  attendanceAuditEntrySchema,
 ]);
 export const authorizedAuditQuerySchema = z.union([
   auditQuerySchema,
   registrationAuditQuerySchema,
   projectsAuditQuerySchema,
+  attendanceAuditQuerySchema,
 ]);
 export const auditPageSchema = z.object({
   data: z.array(auditEntrySchema),

@@ -3,6 +3,7 @@ import type {
   AuditEntity,
   AuditEntry,
   RegistrationAuditAction,
+  AttendanceAuditAction,
 } from '../domain/audit-entry.js';
 
 export interface AuditQueryInput {
@@ -13,7 +14,7 @@ export interface AuditQueryInput {
   actorId?: string;
   from?: string;
   to?: string;
-  action?: AccountAuditAction | RegistrationAuditAction;
+  action?: AccountAuditAction | RegistrationAuditAction | AttendanceAuditAction;
 }
 export interface AuditPage {
   data: AuditEntry[];

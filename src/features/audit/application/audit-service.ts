@@ -1,3 +1,4 @@
+import { auditScopes, auditScope } from '../domain/audit-scopes.js';
 import type { Principal } from '../../access/application/ports.js';
 import {
   assertPermission,
@@ -17,17 +18,7 @@ export class AuditService {
     assertPermission(
       principal.user.roleCodes,
       principal.user.mustChangePassword,
-      entityType === 'UserAccount'
-        ? 'accounts.manage'
-        : [
-              'Institute',
-              'ServiceType',
-              'Project',
-              'Activity',
-              'ParticipantEnrollment',
-            ].includes(entityType)
-          ? 'projects.read'
-          : 'registration.read',
+      auditScope(entityType).capability,
     );
     assertPermission(principal.user.roleCodes, false, 'audit.read');
   }
@@ -39,25 +30,9 @@ export class AuditService {
 
   async get(principal: Principal, id: string) {
     const capabilities = capabilitiesFor(principal.user.roleCodes);
-    const entityTypes: AuditEntity[] = [];
-    if (capabilities.includes('accounts.manage'))
-      entityTypes.push('UserAccount');
-    if (capabilities.includes('registration.read'))
-      entityTypes.push(
-        'Family',
-        'Person',
-        'FamilyMembership',
-        'SizeProfile',
-        'DataQualityIssue',
-      );
-    if (capabilities.includes('projects.read'))
-      entityTypes.push(
-        'Institute',
-        'ServiceType',
-        'Project',
-        'Activity',
-        'ParticipantEnrollment',
-      );
+    const entityTypes = auditScopes
+      .filter((scope) => capabilities.includes(scope.capability))
+      .flatMap((scope) => scope.entities);
     if (!principal.user.mustChangePassword && !entityTypes.length)
       throw new ResourceNotFoundError();
     assertPermission(
