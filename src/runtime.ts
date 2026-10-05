@@ -21,6 +21,8 @@ import { AccessService } from './features/access/application/access-service.js';
 import { createApp } from './app.js';
 import { PrismaRegistration } from './features/registration/infra/prisma-registration.js';
 import { RegistrationService } from './features/registration/application/registration-service.js';
+import { PrismaProjects } from './features/projects/infra/prisma-projects.js';
+import { ProjectsService } from './features/projects/application/projects-service.js';
 
 export function createAccounts(database: Database, config: ApiConfig) {
   const persistence = new PrismaAccounts(
@@ -73,16 +75,33 @@ export async function createRuntime(config: ApiConfig, logging = false) {
           day: '2-digit',
         }).format(new Date()),
     );
+    const projectsPersistence = new PrismaProjects(database);
+    const projects = new ProjectsService(
+      projectsPersistence,
+      projectsPersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
     const app = createApp(
       config,
-      { access, accounts, audit, dataMode, registration },
+      { access, accounts, audit, dataMode, registration, projects },
       logging,
     );
     app.addHook('onClose', async () => {
       if (redis.isOpen) await redis.close();
       await database.$disconnect();
     });
-    return { app, database, redis, accounts, access, sessions, registration };
+    return {
+      app,
+      database,
+      redis,
+      accounts,
+      access,
+      sessions,
+      registration,
+      projects,
+    };
   } catch {
     if (redis.isOpen) redis.destroy();
     await database.$disconnect();

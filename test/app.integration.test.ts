@@ -18,6 +18,7 @@ describe('Application data mode and dependency errors', () => {
       access: runtime.access,
       accounts: runtime.accounts,
       registration: runtime.registration,
+      projects: runtime.projects,
       audit: new AuditService(new PrismaAuditReader(database)),
       dataMode: new DataModeGuard(
         config.DATA_MODE,
@@ -87,6 +88,7 @@ describe('Application data mode and dependency errors', () => {
       access: runtime.access,
       accounts: runtime.accounts,
       registration: runtime.registration,
+      projects: runtime.projects,
       audit: new AuditService(new PrismaAuditReader(runtime.database)),
       dataMode: new DataModeGuard(
         'REAL',

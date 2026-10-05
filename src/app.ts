@@ -14,6 +14,8 @@ import { registerAccessRoutes } from './features/access/presentation/access-rout
 import { registerAuditRoutes } from './features/audit/presentation/audit-routes.js';
 import type { RegistrationService } from './features/registration/application/registration-service.js';
 import { registerRegistrationRoutes } from './features/registration/presentation/registration-routes.js';
+import type { ProjectsService } from './features/projects/application/projects-service.js';
+import { registerProjectsRoutes } from './features/projects/presentation/projects-routes.js';
 
 export interface AppServices {
   access: AccessService;
@@ -21,6 +23,7 @@ export interface AppServices {
   audit: AuditService;
   dataMode: DataModeGuard;
   registration: RegistrationService;
+  projects: ProjectsService;
 }
 
 export function createApp(
@@ -138,5 +141,6 @@ export function createApp(
   );
   registerAuditRoutes(app, services.audit, principal);
   registerRegistrationRoutes(app, services.registration, principal);
+  registerProjectsRoutes(app, services.projects, principal);
   return app;
 }

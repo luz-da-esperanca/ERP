@@ -21,8 +21,34 @@ import {
   RegistrationRevisionConflictError,
   RegistrationRuleError,
 } from '../../features/registration/domain/registration-errors.js';
+import {
+  ProjectsConflictError,
+  ProjectsRevisionConflictError,
+  ProjectsRuleError,
+} from '../../features/projects/domain/project-errors.js';
 
 export function mapError(error: unknown): HttpFailure {
+  if (error instanceof ProjectsRevisionConflictError)
+    return {
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: error.message,
+      details: { currentRevision: error.currentRevision },
+    };
+  if (error instanceof ProjectsConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule, ids: error.ids },
+    };
+  if (error instanceof ProjectsRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
   if (error instanceof RegistrationRevisionConflictError)
     return {
       status: 409,
