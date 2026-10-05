@@ -1,3 +1,8 @@
+import {
+  AttendanceRuleError,
+  AttendanceConflictError,
+  AttendanceRevisionConflictError,
+} from '../../features/attendance/domain/attendance-errors.js';
 import { z } from 'zod';
 import {
   AccountRevisionConflictError,
@@ -28,6 +33,27 @@ import {
 } from '../../features/projects/domain/project-errors.js';
 
 export function mapError(error: unknown): HttpFailure {
+  if (error instanceof AttendanceRevisionConflictError)
+    return {
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: error.message,
+      details: { currentRevision: error.currentRevision },
+    };
+  if (error instanceof AttendanceConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule, ids: error.ids },
+    };
+  if (error instanceof AttendanceRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
   if (error instanceof ProjectsRevisionConflictError)
     return {
       status: 409,

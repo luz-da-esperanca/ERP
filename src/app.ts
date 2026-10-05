@@ -1,3 +1,7 @@
+import type { MembershipReconciliationService } from './features/registration/application/membership-reconciliation-service.js';
+import { registerMembershipReconciliationRoutes } from './features/registration/presentation/membership-reconciliation-routes.js';
+import type { AttendanceService } from './features/attendance/application/attendance-service.js';
+import { registerAttendanceRoutes } from './features/attendance/presentation/attendance-routes.js';
 import Fastify, { LogController, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import { randomUUID } from 'node:crypto';
@@ -24,6 +28,8 @@ export interface AppServices {
   dataMode: DataModeGuard;
   registration: RegistrationService;
   projects: ProjectsService;
+  attendance: AttendanceService;
+  membershipReconciliation: MembershipReconciliationService;
 }
 
 export function createApp(
@@ -142,5 +148,11 @@ export function createApp(
   registerAuditRoutes(app, services.audit, principal);
   registerRegistrationRoutes(app, services.registration, principal);
   registerProjectsRoutes(app, services.projects, principal);
+  registerAttendanceRoutes(app, services.attendance, principal);
+  registerMembershipReconciliationRoutes(
+    app,
+    services.membershipReconciliation,
+    principal,
+  );
   return app;
 }

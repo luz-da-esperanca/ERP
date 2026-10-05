@@ -1,3 +1,7 @@
+import { MembershipReconciliationService } from './features/registration/application/membership-reconciliation-service.js';
+import { PrismaMembershipReconciliation } from './features/registration/infra/prisma-membership-reconciliation.js';
+import { AttendanceService } from './features/attendance/application/attendance-service.js';
+import { PrismaAttendance } from './features/attendance/infra/prisma-attendance.js';
 import type { ApiConfig } from './core/infra/config.js';
 import { randomUUID } from 'node:crypto';
 import { createDatabase, type Database } from './core/infra/database.js';
@@ -74,6 +78,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
           month: '2-digit',
           day: '2-digit',
         }).format(new Date()),
+      config.APP_TIMEZONE,
     );
     const projectsPersistence = new PrismaProjects(database);
     const projects = new ProjectsService(
@@ -83,9 +88,36 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       () => new Date().toISOString(),
       config.APP_TIMEZONE,
     );
+    const attendancePersistence = new PrismaAttendance(database);
+    const attendance = new AttendanceService(
+      attendancePersistence,
+      attendancePersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
+    const reconciliationPersistence = new PrismaMembershipReconciliation(
+      database,
+    );
+    const membershipReconciliation = new MembershipReconciliationService(
+      reconciliationPersistence,
+      reconciliationPersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
     const app = createApp(
       config,
-      { access, accounts, audit, dataMode, registration, projects },
+      {
+        access,
+        accounts,
+        audit,
+        dataMode,
+        registration,
+        projects,
+        attendance,
+        membershipReconciliation,
+      },
       logging,
     );
     app.addHook('onClose', async () => {
@@ -101,6 +133,8 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       sessions,
       registration,
       projects,
+      attendance,
+      membershipReconciliation,
     };
   } catch {
     if (redis.isOpen) redis.destroy();
