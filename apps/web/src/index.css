@@ -625,6 +625,62 @@ tr:last-child td {
   color: var(--color-text-muted);
   font-size: 0.875rem;
 }
+.family-detail-history {
+  margin-top: 24px;
+}
+.audit-timeline {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.audit-timeline li {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding-bottom: 20px;
+}
+.audit-timeline li:last-child {
+  padding-bottom: 0;
+}
+.audit-timeline li:not(:last-child)::before {
+  position: absolute;
+  top: 20px;
+  bottom: 0;
+  left: 8px;
+  content: '';
+  border-left: 1px solid var(--color-border);
+}
+.audit-timeline-icon {
+  z-index: 1;
+  display: grid;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--color-primary);
+  background: #ebf3e6;
+  border-radius: 50%;
+  place-items: center;
+}
+.audit-timeline-content {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 2px;
+}
+.audit-timeline-content strong {
+  color: var(--color-text-strong);
+  font-size: 0.875rem;
+}
+.audit-timeline-content span,
+.audit-timeline-content small,
+.audit-timeline-content p {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+.audit-timeline-content p {
+  margin: 2px 0 0;
+}
 dl {
   display: grid;
   grid-template-columns: minmax(120px, 0.75fr) 1fr;

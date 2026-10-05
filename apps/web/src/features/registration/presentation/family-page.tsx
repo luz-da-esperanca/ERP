@@ -12,16 +12,23 @@ import {
 } from '../../../shared/ui';
 import { civilToday, displayInstant } from '../../../shared/time';
 import { FamilyForm } from './family-form';
+import { FamilyAuditTimeline } from './family-audit-timeline';
 export function FamilyPage({ edit = false }: { edit?: boolean }) {
   const { id = '' } = useParams();
-  const { client } = useErp();
+  const { client, session } = useErp();
   const [asOf, setAsOf] = useState(civilToday());
   const at = `${asOf}T23:59:59.999-03:00`;
+  const canReadAudit = Boolean(session?.capabilities.includes('audit.read'));
   const load = useCallback(
     () => client.registration.getFamily(id, at),
     [client, id, at],
   );
+  const loadAudit = useCallback(
+    () => (canReadAudit ? client.audit.list() : Promise.resolve([])),
+    [canReadAudit, client],
+  );
   const state = useQuery(load);
+  const auditState = useQuery(loadAudit);
   return (
     <>
       <BackLink to="/families">Famílias</BackLink>
@@ -57,12 +64,6 @@ export function FamilyPage({ edit = false }: { edit?: boolean }) {
                     to={`/families/${id}/eligibility`}
                   >
                     Aptidão familiar
-                  </Link>
-                  <Link
-                    className="button secondary"
-                    to={`/audit?entityId=${id}`}
-                  >
-                    Histórico de alterações
                   </Link>
                   <Link
                     className="button primary"
@@ -124,6 +125,14 @@ export function FamilyPage({ edit = false }: { edit?: boolean }) {
                     )}
                   </Panel>
                 </div>
+                {canReadAudit ? (
+                  <div className="family-detail-history">
+                    <FamilyAuditTimeline
+                      state={auditState}
+                      familyId={family.id}
+                    />
+                  </div>
+                ) : null}
               </>
             )}
           </Page>
