@@ -1,18 +1,57 @@
-import type { CreateRegisteredFamily, CreateRegisteredPerson, FamilyPatch, PeopleQuery, MembershipTransfer, ReferenceChange, RegisteredMembership } from '../domain/registration.js';
-import type { RegistrationReader, RegistrationUnitOfWork } from './registration-ports.js';
-import type { CommandContext, Principal } from '../../access/application/ports.js';
+import type {
+  CreateRegisteredFamily,
+  CreateRegisteredPerson,
+  FamilyPatch,
+  PeopleQuery,
+  MembershipTransfer,
+  ReferenceChange,
+  RegisteredMembership,
+} from '../domain/registration.js';
+import type {
+  RegistrationReader,
+  RegistrationUnitOfWork,
+} from './registration-ports.js';
+import type {
+  CommandContext,
+  Principal,
+} from '../../access/application/ports.js';
 import type { OperationFingerprints } from '../../access/application/account-transactions.js';
-import { assertPermission, capabilitiesFor } from '../../access/domain/permissions.js';
+import {
+  assertPermission,
+  capabilitiesFor,
+} from '../../access/domain/permissions.js';
 import { PermissionDeniedError } from '../../access/domain/account-errors.js';
 import { AuthenticationRequiredError } from '../../access/application/access-errors.js';
-import { ResourceNotFoundError, IdempotencyConflictError } from '../../../core/application/errors.js';
-import { RegistrationRevisionConflictError, RegistrationRuleError, RegistrationConflictError } from '../domain/registration-errors.js';
-import { assertMembershipPlan, isMembershipCurrent } from '../domain/membership-rules.js';
-import { identifyDuplicateCandidates, assertDuplicateReview } from '../domain/duplicate-rules.js';
+import {
+  ResourceNotFoundError,
+  IdempotencyConflictError,
+} from '../../../core/application/errors.js';
+import {
+  RegistrationRevisionConflictError,
+  RegistrationRuleError,
+  RegistrationConflictError,
+} from '../domain/registration-errors.js';
+import {
+  assertMembershipPlan,
+  isMembershipCurrent,
+} from '../domain/membership-rules.js';
+import {
+  identifyDuplicateCandidates,
+  assertDuplicateReview,
+} from '../domain/duplicate-rules.js';
 import type { DuplicateQuery } from '../domain/duplicate-rules.js';
-import type { FamiliesQuery, MembershipClosure, PersonPatch } from '../domain/registration.js';
+import type {
+  FamiliesQuery,
+  MembershipClosure,
+  PersonPatch,
+  SizesInput,
+} from '../domain/registration.js';
 import type { RegistrationTransaction } from './registration-ports.js';
 import type { MembershipCorrection } from '../domain/registration.js';
+import type {
+  QualityQuery,
+  ResolveQualityIssue,
+} from '../domain/data-quality.js';
 
 export class RegistrationService {
   constructor(
@@ -723,6 +762,78 @@ export class RegistrationService {
       [personId],
     );
   }
+  async saveSizes(
+    context: CommandContext,
+    personId: string,
+    input: SizesInput,
+  ) {
+    return this.unitOfWork.run(
+      context.actor.user.id,
+      [],
+      async (tx) => {
+        const actor = await this.authorizedActor(tx, context);
+        const type = 'registration.people.sizes.update';
+        const fingerprint = this.fingerprints.calculate(
+          { type, personId, input },
+          null,
+        );
+        const existing = await tx.findOperation(type, context.key);
+        if (existing) {
+          if (
+            existing.actorId !== actor.user.id ||
+            !this.fingerprints.matches(existing.fingerprint, fingerprint) ||
+            !('entityId' in existing.resultReference)
+          )
+            throw new IdempotencyConflictError();
+          return tx.readSizeRevision(
+            existing.resultReference.entityId,
+            existing.resultReference.revision,
+          );
+        }
+        if (!(await tx.findPerson(personId))) throw new ResourceNotFoundError();
+        const before = await tx.sizeProfile(personId);
+        const { expectedRevision, ...fields } = input;
+        if ((before?.revision ?? null) !== expectedRevision)
+          throw new RegistrationRevisionConflictError(before?.revision ?? null);
+        if ((input.shoeSize || input.clothingSize) && !input.informedOn)
+          throw new RegistrationRuleError('SIZE_DATE_REQUIRED');
+        if (input.informedOn && input.informedOn > this.today())
+          throw new RegistrationRuleError('FUTURE_SIZE_DATE');
+        const changed =
+          !before ||
+          (Object.keys(fields) as Array<keyof typeof fields>).some(
+            (key) => before[key] !== fields[key],
+          );
+        const operationId = await tx.createOperation(
+          type,
+          context.key,
+          actor.user.id,
+          fingerprint,
+        );
+        const profile = changed
+          ? await tx.saveSizes({
+              ...fields,
+              personId,
+              revision: (before?.revision ?? 0) + 1,
+            })
+          : before;
+        if (changed)
+          await tx.appendSizesAudit(
+            operationId,
+            actor.user.id,
+            before,
+            profile,
+          );
+        await tx.completeOperation(operationId, {
+          entityType: 'SizeProfile',
+          entityId: personId,
+          revision: profile.revision,
+        });
+        return profile;
+      },
+      [personId],
+    );
+  }
   closeMembership(
     context: CommandContext,
     membershipId: string,
@@ -860,5 +971,75 @@ export class RegistrationService {
       },
       [initial.personId],
     );
+  }
+  async qualityIssues(actor: Principal, query: QualityQuery) {
+    assertPermission(
+      actor.user.roleCodes,
+      actor.user.mustChangePassword,
+      'registration.read',
+    );
+    return this.reader.qualityIssues(query);
+  }
+  async resolveQualityIssue(
+    context: CommandContext,
+    issueId: string,
+    input: ResolveQualityIssue,
+  ) {
+    return this.unitOfWork.run(context.actor.user.id, [], async (tx) => {
+      const actor = await this.authorizedActor(tx, context);
+      const type = 'registration.quality.resolve';
+      const fingerprint = this.fingerprints.calculate(
+        { type, issueId, input },
+        null,
+      );
+      const existing = await tx.findOperation(type, context.key);
+      if (existing) {
+        if (
+          existing.actorId !== actor.user.id ||
+          !this.fingerprints.matches(existing.fingerprint, fingerprint) ||
+          !('entityId' in existing.resultReference)
+        )
+          throw new IdempotencyConflictError();
+        return tx.readQualityRevision(
+          existing.resultReference.entityId,
+          existing.resultReference.revision,
+        );
+      }
+      const before = await tx.findQualityIssue(issueId);
+      if (!before) throw new ResourceNotFoundError();
+      if (before.revision !== input.expectedRevision)
+        throw new RegistrationRevisionConflictError(before.revision);
+      if (before.kind !== 'POSSIBLE_DUPLICATE')
+        throw new RegistrationRuleError('INVALID_ISSUE_RESOLUTION');
+      const changed = before.resolvedAt === null;
+      if (
+        !changed &&
+        (before.resolution !== input.resolution ||
+          before.reason !== input.reason)
+      )
+        throw new RegistrationConflictError('ISSUE_ALREADY_RESOLVED');
+      const operationId = await tx.createOperation(
+        type,
+        context.key,
+        actor.user.id,
+        fingerprint,
+      );
+      const issue = changed
+        ? await tx.resolveQualityIssue(issueId, actor.user.id, input.reason)
+        : before;
+      if (changed)
+        await tx.appendQualityResolutionAudit(
+          operationId,
+          actor.user.id,
+          before,
+          issue,
+        );
+      await tx.completeOperation(operationId, {
+        entityType: 'DataQualityIssue',
+        entityId: issueId,
+        revision: issue.revision,
+      });
+      return issue;
+    });
   }
 }
