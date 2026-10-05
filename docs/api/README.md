@@ -1,12 +1,12 @@
 # Integração com o backend
 
-Referência para quem integra a interface do MVP à API. A base normativa é [CORE](../specs/00-foundation.md), [ACS](../specs/01-access.md), [CAD](../specs/02-registration.md) e [AUD](../specs/08-audit.md). Este diretório documenta os contratos implementados; a existência de uma rota na spec não comprova sua entrega.
+Referência para quem integra a interface do MVP à API. A base normativa é [CORE](../specs/00-foundation.md), [ACS](../specs/01-access.md), [CAD](../specs/02-registration.md), [ATV](../specs/04-projects-activities.md) e [AUD](../specs/08-audit.md). Este diretório documenta os contratos implementados; a existência de uma rota na spec não comprova sua entrega.
 
 ## Disponibilidade
 
-Estão entregues autenticação, contas/perfis, auditoria de contas e a primeira etapa de cadastro, descrita em [Cadastro](registration.md). Projetos/atividades, ficha, frequência, aptidão e relatórios ainda não têm endpoints. Unificação e reconciliação cadastral com frequência serão concluídas quando essas dependências existirem, conforme o [índice das specs](../specs/README.md#4-sequência-de-implementação).
+Estão entregues autenticação, contas/perfis, a primeira etapa de [Cadastro](registration.md), [Projetos, atividades e inscrições](projects.md) e auditoria dessas entidades. Para integrar ATV, siga também o [guia de integração](integrating-projects.md). Ficha, frequência, aptidão e relatórios ainda não têm endpoints. Unificação e reconciliação com frequência serão concluídas quando essas dependências existirem, conforme o [índice das specs](../specs/README.md#4-sequência-de-implementação).
 
-A interface existente permanece em memória e não foi integrada nesta etapa. Os DTOs HTTP novos estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api` e `@erp/contracts/audit-api`. O arquivo legado `@erp/contracts/registration` atende ao protótipo e não define os payloads desta API.
+A interface existente permanece em memória e não foi integrada nesta etapa. Os DTOs HTTP estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api`, `@erp/contracts/projects-api` e `@erp/contracts/audit-api`. Os contratos legados `registration` e `projects` atendem ao protótipo e não definem os payloads HTTP.
 
 ## Preparar o ambiente e a conta
 
@@ -34,7 +34,7 @@ O navegador envia `Origin` automaticamente. Em produção, use a origem HTTPS co
 4. Se `user.mustChangePassword=true`, envie `PUT /auth/password` com `expectedRevision`, `currentPassword` e `newPassword`; a troca revoga a sessão e exige novo login.
 5. Para sair, envie `POST /auth/logout` com `{}`; sucesso retorna 204.
 
-Todas as escritas de CAD também exigem `Idempotency-Key` com UUID gerado pelo cliente. Login, logout e troca da própria senha seguem as exceções de ACS. `GET` não exige chave nem cria registros de negócio.
+Todas as escritas de CAD e ATV também exigem `Idempotency-Key` com UUID gerado pelo cliente. Login, logout e troca da própria senha seguem as exceções de ACS. `GET` não exige chave nem cria registros de negócio.
 
 ## Envelope, datas e revisões
 
@@ -71,10 +71,11 @@ Traduza `code`, `details.rule` e os caminhos de `details.fields` para pt-BR; `me
 
 `GET /audit-entries` exige `entityType`. Aceita `entityId`, `actorId`, `from`, `to`, `action` e paginação. `from` inclui o instante inicial; `to` exclui o final, ambos sobre a data de lançamento `recordedAt`. Ordenação: `recordedAt desc`, `id desc`.
 
-| Entidade                                                                  | Permissões cumulativas             |
-| ------------------------------------------------------------------------- | ---------------------------------- |
-| `UserAccount`                                                             | `audit.read` e `accounts.manage`   |
-| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue` | `audit.read` e `registration.read` |
+| Entidade                                                                   | Permissões cumulativas             |
+| -------------------------------------------------------------------------- | ---------------------------------- |
+| `UserAccount`                                                              | `audit.read` e `accounts.manage`   |
+| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue`  | `audit.read` e `registration.read` |
+| `Institute`, `ServiceType`, `Project`, `Activity`, `ParticipantEnrollment` | `audit.read` e `projects.read`     |
 
 `GET /audit-entries/:entryId` devolve `{ data: entry }`; um ID fora do universo autorizado retorna 404. Lista e detalhe contêm `operationId`, ação, revisão, autor, `recordedAt`, `occurredAt`, `before`, `after`, motivo e classificação. `occurredAt` pode ser `null`; não substitua por `recordedAt`. Vários eventos podem pertencer à mesma operação composta.
 
