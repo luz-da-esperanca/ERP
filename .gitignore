@@ -62,5 +62,5 @@ __v0_jsx-dev-runtime.ts
 
 # Workspace artifacts
 **/dist/
-apps/api/src/generated/
+src/generated/
 *.tsbuildinfo
