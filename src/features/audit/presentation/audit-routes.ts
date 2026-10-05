@@ -2,10 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AuthenticateRequest } from '../../../core/presentation/authenticate-request.js';
 import {
-  auditQuerySchema,
-  accountAuditEntrySchema,
-  accountAuditPageSchema,
-} from '@erp/contracts/account-audit-api';
+  authorizedAuditQuerySchema,
+  auditEntrySchema,
+  auditPageSchema,
+} from '@erp/contracts/audit-api';
 import type { AuditService } from '../application/audit-service.js';
 export function registerAuditRoutes(
   app: FastifyInstance,
@@ -13,10 +13,10 @@ export function registerAuditRoutes(
   principal: AuthenticateRequest,
 ) {
   app.get('/api/v1/audit-entries', async (request) =>
-    accountAuditPageSchema.parse(
+    auditPageSchema.parse(
       await audit.list(
         await principal(request, 'audit.read'),
-        auditQuerySchema.parse(request.query),
+        authorizedAuditQuerySchema.parse(request.query),
       ),
     ),
   );
@@ -27,7 +27,7 @@ export function registerAuditRoutes(
       .strict()
       .parse(request.params);
     return {
-      data: accountAuditEntrySchema.parse(await audit.get(actor, entryId)),
+      data: auditEntrySchema.parse(await audit.get(actor, entryId)),
     };
   });
 }

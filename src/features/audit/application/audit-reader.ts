@@ -1,23 +1,28 @@
+import type { AccountAuditAction } from '../domain/account-audit.js';
 import type {
-  AccountAuditAction,
-  AccountAuditEntry,
-} from '../domain/account-audit.js';
+  AuditEntity,
+  AuditEntry,
+  RegistrationAuditAction,
+} from '../domain/audit-entry.js';
 
 export interface AuditQueryInput {
-  entityType: 'UserAccount';
+  entityType: AuditEntity;
   page: number;
   pageSize: number;
   entityId?: string;
   actorId?: string;
   from?: string;
   to?: string;
-  action?: AccountAuditAction;
+  action?: AccountAuditAction | RegistrationAuditAction;
 }
-export interface AccountAuditPage {
-  data: AccountAuditEntry[];
+export interface AuditPage {
+  data: AuditEntry[];
   pagination: { page: number; pageSize: number; total: number };
 }
 export interface AuditReader {
-  list(input: AuditQueryInput): Promise<AccountAuditPage>;
-  get(id: string): Promise<AccountAuditEntry | null>;
+  list(input: AuditQueryInput): Promise<AuditPage>;
+  get(
+    id: string,
+    entityTypes?: readonly AuditEntity[],
+  ): Promise<AuditEntry | null>;
 }

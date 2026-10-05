@@ -1,6 +1,18 @@
 import { z } from 'zod';
 import { userDtoSchema } from '@erp/contracts/access-api';
 import { accountAuditActionSchema } from '@erp/contracts/account-audit-api';
+import {
+  familyDtoSchema,
+  personDtoSchema,
+  membershipDtoSchema,
+  sizeProfileSchema,
+} from '@erp/contracts/registration-api';
+import { dataQualityIssueSchema } from '@erp/contracts/audit-api';
+import type {
+  AuditEntity,
+  AuditEntry,
+  RegistrationAuditEntry,
+} from '../domain/audit-entry.js';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ResourceNotFoundError } from '../../../core/application/errors.js';
 import {
@@ -16,10 +28,7 @@ import type {
   AuditReader,
   AuditQueryInput,
 } from '../application/audit-reader.js';
-import type {
-  AccountAuditEntry,
-  AccountAuditSnapshot,
-} from '../domain/account-audit.js';
+import type { AccountAuditSnapshot } from '../domain/account-audit.js';
 
 export class PrismaAccountAudit implements AccountAuditWriter {
   constructor(private readonly tx: Transaction) {}
@@ -93,7 +102,45 @@ function projectSnapshot(value: Prisma.JsonValue): AccountAuditSnapshot {
   return { ...account, ...(changed ? { passwordChanged: true } : {}) };
 }
 
-function projectEntry(entry: SelectedEntry): AccountAuditEntry {
+function projectEntry(entry: SelectedEntry): AuditEntry {
+  if (entry.classification === 'REGISTRATION') {
+    const schemas = {
+      Family: familyDtoSchema,
+      Person: personDtoSchema,
+      FamilyMembership: membershipDtoSchema,
+      SizeProfile: sizeProfileSchema,
+      DataQualityIssue: dataQualityIssueSchema,
+    };
+    const entityType = z
+      .enum([
+        'Family',
+        'Person',
+        'FamilyMembership',
+        'SizeProfile',
+        'DataQualityIssue',
+      ])
+      .parse(entry.entityType);
+    return {
+      id: entry.id,
+      operationId: entry.operationId,
+      entityType,
+      entityId: entry.entityId,
+      revision: entry.revision,
+      action: z
+        .enum(['CREATE', 'UPDATE', 'CLOSE', 'CORRECT'])
+        .parse(entry.action),
+      actorType: entry.actorType,
+      actorId: entry.actorId,
+      actor: entry.actor,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+      before:
+        entry.before === null ? null : schemas[entityType].parse(entry.before),
+      after: schemas[entityType].parse(entry.after),
+      reason: entry.reason,
+      classification: 'REGISTRATION',
+    } satisfies RegistrationAuditEntry;
+  }
   return {
     id: entry.id,
     operationId: entry.operationId,
@@ -119,8 +166,9 @@ export class PrismaAuditReader implements AuditReader {
   list(input: AuditQueryInput) {
     return databaseOperation(async () => {
       const where: Prisma.AuditEntryWhereInput = {
-        entityType: 'UserAccount',
-        classification: 'ACCOUNTS',
+        entityType: input.entityType,
+        classification:
+          input.entityType === 'UserAccount' ? 'ACCOUNTS' : 'REGISTRATION',
         entityId: input.entityId,
         actorId: input.actorId,
         action: input.action,
@@ -149,10 +197,26 @@ export class PrismaAuditReader implements AuditReader {
     });
   }
 
-  get(id: string) {
+  get(id: string, entityTypes: readonly AuditEntity[] = ['UserAccount']) {
     return databaseOperation(async () => {
       const entry = await this.database.auditEntry.findFirst({
-        where: { id, entityType: 'UserAccount', classification: 'ACCOUNTS' },
+        where: {
+          id,
+          OR: [
+            {
+              entityType: {
+                in: entityTypes.filter((type) => type === 'UserAccount'),
+              },
+              classification: 'ACCOUNTS',
+            },
+            {
+              entityType: {
+                in: entityTypes.filter((type) => type !== 'UserAccount'),
+              },
+              classification: 'REGISTRATION',
+            },
+          ],
+        },
         select: auditSelect,
       });
       return entry ? projectEntry(entry) : null;
