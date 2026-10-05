@@ -4,7 +4,7 @@ Monorepo TypeScript do MVP. O recorte e suas decisões estão no [índice das sp
 
 ## Estado da implementação
 
-Esta primeira etapa do backend entrega **CORE, ACS e auditoria de contas**:
+O backend entrega **CORE, ACS, a primeira etapa de CAD e auditoria de contas/cadastro**:
 
 - Fastify com contratos Zod, paginação, erros padronizados e validação da configuração.
 - PostgreSQL/Prisma com migration reproduzível, revisões, autoria e auditoria imutável.
@@ -13,8 +13,11 @@ Esta primeira etapa do backend entrega **CORE, ACS e auditoria de contas**:
 - Autorização com perfis atuais e nova verificação do autor dentro da transação de escrita.
 - Idempotência com referências de revisão; criação/reset com comparação HMAC e chaves independentes das de autenticação.
 - Consulta de auditoria de contas com autorização e snapshots sem credenciais.
+- Pessoas/famílias, códigos gerados, vínculos históricos, titularidade, transferência, correção e encerramento.
+- Busca de duplicidades com análise explícita, ocorrências de qualidade e tamanhos datados/versionados.
+- Consultas por data, revisões e projeção mínima de participantes conforme o perfil.
 
-**Ainda não há endpoints de CAD, FIC, ATV, FRQ, APT ou REL.** A auditoria desses módulos será entregue com suas operações. A administração de decisões institucionais também está pendente; o mecanismo de inicialização já recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+Os contratos entregues, payloads e regras de integração estão no [guia do backend](docs/api/README.md) e na [referência de cadastro](docs/api/registration.md). **Ainda não há endpoints de FIC, ATV, FRQ, APT ou REL.** Unificação de CAD e reconciliação com frequência dependem desses módulos; pendências automáticas de dados ausentes dependem da seleção dos campos relevantes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões institucionais também está pendente; o mecanismo de inicialização já recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
 
 `apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
 
@@ -37,12 +40,17 @@ src/
     presentation/           # rotas HTTP e comando de bootstrap
     infra/                  # Prisma, Redis, jose e bcrypt
   features/audit/
-    domain/                 # modelo da auditoria de contas
+    domain/                 # modelos da auditoria de contas e cadastro
     application/            # consulta autorizada e portas transacionais
     presentation/           # rotas HTTP
     infra/                  # leitura e escrita PostgreSQL
+  features/registration/
+    domain/                 # identidade, vigência, duplicidades e qualidade
+    application/            # casos de uso e unidade de trabalho
+    presentation/           # contratos e rotas cadastrais
+    infra/                  # projeções e persistência PostgreSQL
 prisma/                     # schema e migrations
-test/                       # espelha src/: core, features/access, features/audit
+test/                       # espelha src/: core e features
   support/                  # doubles, fixtures e preparação da integração
 apps/web/                   # protótipo React organizado por feature
   src/features/             # regras, fluxos, apresentação e adaptadores em memória
@@ -110,7 +118,9 @@ Disponibilidade: `GET http://127.0.0.1:3001/api/v1/health`. Essa rota verifica o
 | PUT       | `/users/:userId/password`               | `accounts.manage`, revisão e motivo                   |
 | GET       | `/roles`                                | `accounts.manage`                                     |
 | GET       | `/audit-entries?entityType=UserAccount` | `audit.read` e `accounts.manage`                      |
-| GET       | `/audit-entries/:entryId`               | Mesma autorização; detalhe fora do acesso retorna 404 |
+| GET       | `/audit-entries/:entryId`               | Autorização da entidade; detalhe fora do acesso retorna 404 |
+
+CAD acrescenta 16 rotas de pessoas, famílias, vínculos, tamanhos, candidatos e ocorrências, com contratos detalhados em [Cadastro](docs/api/registration.md#rotas-e-permissões). Auditoria também aceita entidades cadastrais com `registration.read` e `audit.read`. O perfil de atividade recebe identificação mínima por `/people`; Administrador isolado não recebe cadastro ou auditoria assistencial.
 
 As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts) e [account-audit-api.ts](packages/contracts/src/account-audit-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
 
@@ -145,11 +155,11 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. CAD: pessoas/famílias, vigências, titularidade, busca de duplicidades e unificação autorizada.
-2. FIC e decisões: aprovação de campos, versões e composição histórica; habilitações auditadas.
-3. ATV/FRQ: projetos, atividades, inscrições, encontros, chamada, correções e cancelamentos.
-4. APT: políticas versionadas e evidências; sem política, estado Pendente.
+1. ATV: catálogos, projetos, atividades e inscrições temporais.
+2. FIC e FRQ: seleção/habilitação de campos, versões sociais, encontros, chamada, correções e cancelamentos.
+3. APT: políticas versionadas e evidências; sem política, estado Pendente.
+4. Fechar CAD transversal: reconciliação de fatos, unificação autorizada e seleção de dados relevantes para pendências.
 5. REL: consultas e detalhamento de totais somente sobre os módulos acima.
-6. Integração da interface com esses contratos, incluindo autenticação real e troca obrigatória de senha.
+6. A frente de frontend integra esses contratos, incluindo autenticação real e troca obrigatória de senha; esta entrega está limitada ao backend e à documentação.
 
 Não foram introduzidos atendimentos, estoque, entregas, Bazar ou migração. A referência normativa continua no [AGENTS.md](AGENTS.md) e nas specs. Referências técnicas da base: [Prisma 7 e adapter PostgreSQL](https://docs.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Fastify: erros](https://fastify.dev/docs/latest/Reference/Errors/).

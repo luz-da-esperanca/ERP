@@ -1,0 +1,159 @@
+# Cadastro: contratos entregues
+
+Primeira etapa do backend de [SPEC-CAD](../specs/02-registration.md), com autorização de [ACS](../specs/01-access.md) e revisões de [AUD](../specs/08-audit.md). Leia as convenções de sessão, cabeçalhos, idempotência e erros no [guia de integração](README.md).
+
+## Rotas e permissões
+
+Todos os caminhos abaixo recebem o prefixo `/api/v1`. Escritas exigem chave de idempotência UUID.
+
+| Método / caminho                                | Permissão                                    | Resposta                                                              |
+| ----------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- |
+| `GET /families`                                 | `registration.read`                          | 200, página de famílias com contagem e nome do titular em `asOf`      |
+| `POST /families`                                | `registration.write`                         | 201, `FamilyDto`                                                      |
+| `GET /families/:familyId`                       | `registration.read`                          | 200, `{ family, members }`                                            |
+| `PATCH /families/:familyId`                     | `registration.write`                         | 200, `FamilyDto`                                                      |
+| `GET /people`                                   | `registration.read` ou `participants.lookup` | 200, página de cadastro ou identificação mínima                       |
+| `POST /people`                                  | `registration.write`                         | 201, `{ person, membership, family }`                                 |
+| `GET /people/:personId`                         | `registration.read` ou `participants.lookup` | 200, detalhe completo ou identificação mínima                         |
+| `PATCH /people/:personId`                       | `registration.write`                         | 200, `PersonDto`                                                      |
+| `POST /people/:personId/membership-transfers`   | `registration.write`                         | 200, `{ previousMembership, membership, sourceFamily, targetFamily }` |
+| `POST /families/:familyId/reference-changes`    | `registration.write`                         | 200, `{ family, memberships }`                                        |
+| `PATCH /memberships/:membershipId`              | `registration.write`                         | 200, `{ membership, family }`                                         |
+| `POST /memberships/:membershipId/closure`       | `registration.write`                         | 200, `{ membership, family }`                                         |
+| `PUT /people/:personId/sizes`                   | `registration.write`                         | 200, perfil de tamanhos                                               |
+| `GET /duplicate-candidates`                     | `registration.read`                          | 200, array de candidatos com razões                                   |
+| `GET /data-quality-issues`                      | `registration.read`                          | 200, página de ocorrências                                            |
+| `POST /data-quality-issues/:issueId/resolution` | `registration.write`                         | 200, ocorrência resolvida                                             |
+
+Coordenação e Assistência Social têm leitura e escrita de CAD. Responsável por Atividade tem somente `participants.lookup`; Administrador isolado não recebe dados assistenciais. Perfis combinam capacidades; confira `GET /auth/session`.
+
+Os schemas e tipos públicos estão em [registration-api.ts](../../packages/contracts/src/registration-api.ts) e [data-quality-api.ts](../../packages/contracts/src/data-quality-api.ts). Use esses contratos para montar o cliente; não importe modelos Prisma ou regras internas do backend.
+
+## Família e pessoa
+
+`FamilyDto` contém `id`, `code`, `referenceName`, `address`, `neighborhood`, `postalCode`, `location`, `contactPhone`, `revision`, `createdAt` e `updatedAt`. Todos os dados cadastrais da família são opcionais. `location` aceita `URBAN`, `RURAL` ou `null`; CEP informado é normalizado em oito dígitos. Endereço admite 500 caracteres, nome/bairro 200 e telefone 50.
+
+`POST /families` aceita os campos cadastrais e `duplicateReview` quando houver candidatos. `{}` cria uma família sem membros, com revisão 1. `PATCH` exige `expectedRevision` e pelo menos um campo cadastral. Não aceita código, titular ou lista de membros.
+
+`PersonDto` contém `id`, `name`, `birthDate`, `sex`, `cpf`, `rg`, `occupation`, `educationLevel`, `contactPhone`, `revision`, `createdAt` e `updatedAt`. Nome é obrigatório; os demais dados podem ser desconhecidos. Nascimento informado não pode ser futuro no fuso institucional. CPF informado é normalizado em 11 dígitos, sem unicidade automática; RG admite 30 caracteres, sexo/ocupação/escolaridade 100 e telefone 50. CPF e CEP validam formato, sem afirmar autenticidade documental.
+
+Para criar a pessoa, a família precisa existir. O cadastro da pessoa, seu primeiro vínculo, a nova revisão da família, a auditoria e a operação confirmam em uma transação:
+
+```json
+{
+  "name": "Pessoa Sintética",
+  "familyId": "00000000-0000-4000-8000-000000000001",
+  "expectedFamilyRevision": 1,
+  "validFrom": "2026-01-01T00:00:00-03:00",
+  "relationshipToReference": null,
+  "isReference": true
+}
+```
+
+`POST /people` devolve `{ data: { person, membership, family } }`. Guarde os três IDs/revisões retornados; a família passa a revisão 2 neste exemplo. `isReference` omitido assume `false`, parentesco omitido permanece `null`; os demais dados desconhecidos também permanecem `null`. Família criada anteriormente continua válida e vazia se uma tentativa de criação de pessoa falhar.
+
+`PATCH /people/:personId` exige `expectedRevision` e pelo menos um campo cadastral. Altera somente a pessoa; endereço e composição pertencem à família. Edição relevante de nome/nascimento/CPF ou nome/endereço da família repete a busca de candidatos e registra nova ocorrência de possível duplicidade quando necessário, sem unificar ou bloquear automaticamente essa edição.
+
+## Consultas e projeção mínima
+
+`GET /families` aceita `q`, `code`, `asOf`, `page` e `pageSize`. `q` busca trecho de nome de referência/endereço sem distinguir caixa ou acentos; `code` usa igualdade e deve caber no bigint PostgreSQL. Ordenação: código crescente, depois ID. Cada item acrescenta `memberCount` e `referencePersonName` a `FamilyDto`.
+
+`GET /families/:familyId?asOf=...` devolve família com esses mesmos campos calculados e `members: [{ person, membership }]`. Uma família sem titular conhecido tem `referencePersonName=null`; zero membros não é um dado manual. Na ausência de `asOf`, usa o instante da consulta.
+
+`GET /people` aceita `q`, `birthDate`, `cpf`, `familyId`, `asOf`, `page` e `pageSize`. Nome usa trecho sem caixa/acentos; nascimento, CPF e família usam igualdade. O filtro familiar considera o vínculo vigente em `asOf`; padrão: instante atual. Ordenação: nome crescente, depois ID.
+
+Com `registration.read`, a lista contém `PersonDto`. O detalhe contém `{ person, memberships, currentFamily, sizeProfile }`; `memberships` mantém os vínculos históricos em ordem de início/ID. `currentFamily` considera `asOf` e pode ser `null`; cadastro e tamanhos representam o estado conhecido atual, não uma reconstrução dos atributos naquela data. Para revisar valores anteriores, use a auditoria.
+
+Com somente `participants.lookup`, lista e detalhe retornam exclusivamente:
+
+```json
+{
+  "id": "00000000-0000-4000-8000-000000000002",
+  "name": "Pessoa Sintética",
+  "family": { "id": "00000000-0000-4000-8000-000000000001", "code": "1" }
+}
+```
+
+`family` pode ser `null`. Não há documentos, nascimento, endereço, tamanhos ou histórico nessa projeção. Filtros `cpf`/`birthDate`, famílias completas, candidatos e ocorrências são negados a esse perfil, também no backend.
+
+## Duplicidade e qualidade
+
+`GET /duplicate-candidates` recebe `entityType=PERSON` e `name` e/ou `cpf`; `birthDate` complementa o sinal de nome. Para `entityType=FAMILY`, use `referenceName` e/ou `address`. Campos textuais exigem pelo menos dois caracteres. Retorno:
+
+```json
+{
+  "data": [
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "entityType": "PERSON",
+      "reasons": ["CPF_MATCH"]
+    }
+  ]
+}
+```
+
+Razões: `CPF_MATCH`, `NAME_BIRTH_MATCH`, `NAME_SIMILAR`, `ADDRESS_SIMILAR`. A ordenação prioriza CPF, nome/nascimento e similaridade textual, com desempate por ID. São sinais de análise. Para comparar dados, consulte o detalhe autorizado do candidato.
+
+Se o operador concluir que os registros são distintos, acrescente à criação:
+
+```json
+{
+  "duplicateReview": {
+    "candidateIds": ["00000000-0000-4000-8000-000000000002"],
+    "decision": "DISTINCT",
+    "reason": "Cadastros sintéticos de pessoas distintas"
+  }
+}
+```
+
+O backend repete a busca na transação e exige o mesmo conjunto de candidatos. Sem análise, retorna `409 DOMAIN_CONFLICT` com regra `DUPLICATE_REVIEW_REQUIRED`; conjunto alterado retorna `DUPLICATE_REVIEW_CHANGED`. A confirmação conserva candidatos, motivo, data e autor em uma ocorrência resolvida de `POSSIBLE_DUPLICATE`; CPF igual não provoca fusão nem constraint única.
+
+`GET /data-quality-issues` aceita `kind=MISSING_DATA|POSSIBLE_DUPLICATE`, `status=OPEN|RESOLVED`, `entityType=PERSON|FAMILY` e paginação. Ordem: identificação mais recente, depois ID decrescente. Cada ocorrência contém ID, entidade/ID, tipo, candidatos/campos, datas, revisão e dados da resolução.
+
+`POST /data-quality-issues/:issueId/resolution` recebe `{ expectedRevision, resolution: "DISTINCT", reason }`, preservando a ocorrência e sua revisão anterior. `MERGED` não é um comando disponível nesta etapa. Ocorrências de `MISSING_DATA` não são geradas automaticamente até existir a seleção de campos relevantes de DEC-01/LAC-02; não há obrigatoriedade presumida de CPF, nascimento ou sexo.
+
+## Vínculos, transferência, titular e correção
+
+O DTO de vínculo contém `id`, `personId`, `familyId`, `relationshipToReference`, `isReference`, `validFrom`, `validUntil` e `revision`. O intervalo inclui o início e exclui o fim; `null` mantém fim aberto. Não pode haver sobreposição de famílias para a mesma pessoa nem de titulares na mesma família. Datas de composição futura são rejeitadas.
+
+Transferência exige:
+
+```json
+{
+  "membershipId": "00000000-0000-4000-8000-000000000003",
+  "targetFamilyId": "00000000-0000-4000-8000-000000000004",
+  "effectiveAt": "2026-02-01T00:00:00-03:00",
+  "expectedMembershipRevision": 1,
+  "expectedSourceFamilyRevision": 2,
+  "expectedTargetFamilyRevision": 1,
+  "relationshipToReference": null,
+  "isReference": false,
+  "reason": "Mudança familiar sintética"
+}
+```
+
+O corte precisa pertencer ao vínculo e ser posterior ao seu início. A operação encerra a origem e cria a sucessora na família de destino nesse instante, preservando eventual fim anterior; incrementa a revisão das duas famílias e conserva o vínculo anterior. No instante do corte, só o destino compõe a pertença.
+
+Troca de titular recebe `{ membershipId, effectiveAt, expectedRevision, reason }`, com a revisão da família. Encerra os segmentos aplicáveis e cria sucessores, mantendo o titular anterior antes do corte. A resposta lista os vínculos alterados/criados e a revisão familiar atualizada. Não recalcula parentescos por inferência. Premissa técnica de limite: se o corte coincidir exatamente com o início de um segmento, corrige a revisão daquele segmento em vez de criar intervalo de duração zero; a auditoria conserva o valor anterior e o motivo. Troca para o titular já vigente é no-op, mas ainda rejeita data futura.
+
+Correção de vínculo recebe `expectedRevision`, `expectedFamilyRevision`, `reason` e pelo menos um de `validFrom`, `validUntil`, `relationshipToReference`, `isReference`. Corrige o intervalo declarado, mantém a revisão anterior na auditoria e revalida todos os vínculos da pessoa, inclusive em outras famílias. Mudança real de família deve usar transferência; mudança real de titular deve usar o comando temporal.
+
+Encerramento recebe `{ expectedRevision, expectedFamilyRevision, validUntil, reason }`. Não remove a pessoa; pode deixar `currentFamily=null`. Para corrigir o fim de um vínculo já encerrado, use a correção com motivo.
+
+As operações protegem autor, pessoas e famílias na mesma transação PostgreSQL. Exclusões temporais diferidas reforçam a integridade no estado final; qualquer erro desfaz dados, revisões, auditoria e conclusão de idempotência.
+
+## Tamanhos
+
+`PUT /people/:personId/sizes` recebe `expectedRevision=null` para a primeira versão ou a revisão atual para alteração, além de `shoeSize`, `clothingSize` e `informedOn`. É substituição do perfil: tamanho omitido vira `null`. Tamanhos são textos de até 30 caracteres, sem escala ou recomendação presumida. Havendo tamanho informado, a data civil é obrigatória e não pode ser futura.
+
+Se o cliente enviar uma revisão numérica quando ainda não existir perfil, retorna `409 REVISION_CONFLICT` com `currentRevision=null`; ausência não é revisão zero.
+
+Retorno: `{ data: { personId, shoeSize, clothingSize, informedOn, revision } }`. O perfil corrente aparece no detalhe completo da pessoa; versões anteriores ficam nos eventos `SizeProfile`, com ID de entidade igual ao ID da pessoa. Repetição idempotente devolve o perfil original. Uso real de tamanhos de adultos continua condicionado a LAC-12.
+
+## Limites desta entrega e validação
+
+Ainda não existem endpoints de unificação ou prévia/confirmação de reconciliação com frequência. `mergedIntoId` e `supersededById` preparam a persistência, sem oferecer unificação incompleta. Quando FRQ existir, transferências/correções/encerramentos também deverão analisar os fatos afetados e confirmar reconciliação composta quando necessária. FIC/APT deverão preservar suas referências imutáveis, conforme as dependências das specs.
+
+Os testes ficam em [test/features/registration](../../test/features/registration): regras de domínio, revalidação do autor, limites civis, contratos HTTP, busca/projeções, correção e vigência, tamanhos, duplicidade, concorrência de titularidade/idempotência, restrições PostgreSQL e rollback por falha de auditoria. A suíte de integração usa PostgreSQL e Redis reais, conforme os [comandos oficiais](../../README.md#validar).
+
+Esta entrega valida a base cadastral com dados sintéticos; não reivindica os aceites transversais CAD-AC07/08/09/13/15/16/17 nem a geração de pendências de campos ainda não selecionados. Interface e integração ficam a cargo da frente de frontend.

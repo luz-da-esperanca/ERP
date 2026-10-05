@@ -2,7 +2,7 @@
 
 Base documental: PRD 1.1 (18/09/2026), ERS 1.0 (24/09/2026), modelagem 1.1 (28/09/2026), ficha de famílias 2025 e decisões de escopo/stack do [AGENTS.md](../../AGENTS.md).
 
-**Situação:** contratos fechados para implementação do MVP, com as recomendações aceitas pelo responsável pelo projeto em 01/10/2026 e as derivações técnicas registradas na seção 3. As políticas institucionais ainda abertas têm comportamento configurável, desativado ou Pendente definido nas specs. CORE, ACS e auditoria de contas têm implementação e testes; o [README](../../README.md) registra o estado e os comandos de validação. Os demais módulos do MVP continuam pendentes.
+**Situação:** contratos fechados para implementação do MVP, com as recomendações aceitas pelo responsável pelo projeto em 01/10/2026 e as derivações técnicas registradas na seção 3. As políticas institucionais ainda abertas têm comportamento configurável, desativado ou Pendente definido nas specs. CORE, ACS, auditoria de contas/cadastro e a primeira etapa de CAD têm implementação backend e testes; o [README](../../README.md) registra o estado e os comandos de validação. Unificação/reconciliação transversal de CAD, seleção de campos para pendências e os demais módulos do MVP continuam pendentes. O trabalho atual prepara exclusivamente o backend e sua [documentação de integração](../api/README.md); interface e integração serão realizadas pela frente de frontend.
 
 ## 1. Specs e propriedade dos contratos
 
