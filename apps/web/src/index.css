@@ -522,6 +522,26 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
+.family-form-page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.family-form-page .page-heading {
+  margin-bottom: 32px;
+}
+.family-form-page .panel {
+  padding: 32px;
+}
+.family-form-fields {
+  display: grid;
+  gap: 16px;
+}
+.family-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .field {
   display: grid;
   gap: 6px;
@@ -825,6 +845,9 @@ dd {
     grid-template-columns: 1fr;
   }
   .panel {
+    padding: 18px;
+  }
+  .family-form-page .panel {
     padding: 18px;
   }
   .search-overlay {

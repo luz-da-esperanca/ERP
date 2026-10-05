@@ -133,17 +133,26 @@ export function FamilyPage({ edit = false }: { edit?: boolean }) {
   );
 }
 export function NewFamilyPage() {
+  const { session } = useErp();
+  const canCreateFamily = Boolean(
+    session?.capabilities.includes('registration.write'),
+  );
+
   return (
-    <>
-      <BackLink to="/families" />
+    <div className="family-form-page">
+      <BackLink to="/families">Pessoas e famílias</BackLink>
       <Page
         title="Nova família"
-        description="Busque o cadastro existente antes de criar um novo núcleo."
+        description="Cadastre os dados disponíveis para iniciar o acompanhamento familiar."
       >
-        <Panel>
-          <FamilyForm />
-        </Panel>
+        {canCreateFamily ? (
+          <Panel>
+            <FamilyForm />
+          </Panel>
+        ) : (
+          <Empty>Seu perfil não permite cadastrar famílias.</Empty>
+        )}
       </Page>
-    </>
+    </div>
   );
 }
