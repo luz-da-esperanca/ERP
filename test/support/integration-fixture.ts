@@ -111,7 +111,7 @@ export function setupIntegrationFixture() {
   });
   beforeEach(async () => {
     await runtime.database.$executeRawUnsafe(
-      'TRUNCATE "AuditEntry", "OperationRecord", "RoleAssignment", "FeatureDecision", "UserAccount", "Role" CASCADE',
+      'TRUNCATE "DataQualityIssue", "SizeProfile", "FamilyMembership", "Person", "Family", "AuditEntry", "OperationRecord", "RoleAssignment", "FeatureDecision", "UserAccount", "Role" CASCADE',
     );
     await cleanRedis();
     admin = await runtime.accounts.bootstrap(
