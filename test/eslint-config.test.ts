@@ -11,6 +11,7 @@ describe('Architecture dependency rules', () => {
         'registration-api',
         'data-quality-api',
         'audit-api',
+        'projects-api',
       ]) {
         const [result] = await lint.lintText(
           `export type * from '@erp/contracts/${contract}';`,
