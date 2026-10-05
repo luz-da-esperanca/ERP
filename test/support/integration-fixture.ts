@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, expect } from 'vitest';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { readConfig } from '../../src/core/config.js';
+import { readConfig } from '../../src/core/infra/config.js';
 import { createRuntime } from '../../src/runtime.js';
 import type { UserDto } from '@erp/contracts/access-api';
 import type { Role } from '@erp/contracts/access';

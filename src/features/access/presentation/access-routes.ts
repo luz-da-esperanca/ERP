@@ -9,23 +9,22 @@ import {
   changePasswordSchema,
   listUsersSchema,
   userDtoSchema,
+  usersPageSchema,
 } from '@erp/contracts/access-api';
-import { roleSchema, type Capability } from '@erp/contracts/access';
-import type { ApiConfig } from '../../../core/config.js';
+import { roleSchema } from '@erp/contracts/access';
+import type { HttpSettings } from '../../../core/presentation/http-settings.js';
 import type { AccessService } from '../application/access-service.js';
-import type { Principal } from '../application/ports.js';
+import type { AccountsService } from '../application/accounts-service.js';
+import type { AuthenticateRequest } from '../../../core/presentation/authenticate-request.js';
 import { roleCapabilities, roleLabels } from '../domain/permissions.js';
-export type AuthenticateRequest = (
-  request: FastifyRequest,
-  capability?: Capability,
-) => Promise<Principal>;
 const idParams = z.object({ userId: z.uuid() }).strict();
 const emptyBody = z.object({}).strict();
 const idempotencyKeySchema = z.uuid();
 export function registerAccessRoutes(
   app: FastifyInstance,
-  config: ApiConfig,
+  config: HttpSettings,
   access: AccessService,
+  accounts: AccountsService,
   principal: AuthenticateRequest,
 ) {
   const cookieOptions = {
@@ -63,8 +62,10 @@ export function registerAccessRoutes(
     return { data: userDtoSchema.parse(result) };
   });
   app.get('/api/v1/users', async (request) => {
-    await principal(request, 'accounts.manage');
-    return access.accounts.list(listUsersSchema.parse(request.query));
+    const actor = await principal(request, 'accounts.manage');
+    return usersPageSchema.parse(
+      await accounts.list(actor, listUsersSchema.parse(request.query)),
+    );
   });
   app.post('/api/v1/users', async (request, reply) => {
     const actor = await principal(request, 'accounts.manage');
@@ -79,7 +80,7 @@ export function registerAccessRoutes(
     const { userId } = idParams.parse(request.params);
     return {
       data: userDtoSchema.parse(
-        await access.accounts.update(
+        await accounts.update(
           { actor, key: key(request) },
           userId,
           updateUserSchema.parse(request.body),
@@ -92,7 +93,7 @@ export function registerAccessRoutes(
     const { userId } = idParams.parse(request.params);
     return {
       data: userDtoSchema.parse(
-        await access.accounts.activate(
+        await accounts.activate(
           { actor, key: key(request) },
           userId,
           activationSchema.parse(request.body),

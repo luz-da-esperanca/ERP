@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { readConfig } from '../../src/core/config.js';
+import { readConfig } from '../../../src/core/infra/config.js';
 import {
   fingerprint,
   sameFingerprint,
-} from '../../src/core/operation-fingerprint.js';
+} from '../../../src/core/infra/operation-fingerprint.js';
 
 const config = readConfig({
   APP_ORIGIN: 'http://localhost:5173',

@@ -1,7 +1,8 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { createClient } from 'redis';
-import type { ApiConfig } from '../../../core/config.js';
-import { ApiError, dependencyUnavailable } from '../../../core/errors.js';
+import type { ApiConfig } from '../../../core/infra/config.js';
+import { DependencyUnavailableError } from '../../../core/application/errors.js';
+import { LoginBlockedError } from '../application/access-errors.js';
 import type { SessionsStore, StoredSession } from '../application/ports.js';
 import { z } from 'zod';
 
@@ -57,8 +58,8 @@ export class RedisSessions implements SessionsStore {
     try {
       return await work();
     } catch (error) {
-      if (error instanceof ApiError) throw error;
-      throw dependencyUnavailable();
+      if (error instanceof LoginBlockedError) throw error;
+      throw new DependencyUnavailableError();
     }
   }
   async assertAvailable() {
@@ -110,13 +111,7 @@ export class RedisSessions implements SessionsStore {
       });
       const [count, ttl] = z.tuple([z.number(), z.number()]).parse(ipResult);
       if (count > this.config.LOGIN_IP_MAX_ATTEMPTS)
-        throw new ApiError(
-          429,
-          'TOO_MANY_ATTEMPTS',
-          'Login temporarily blocked',
-          undefined,
-          Math.max(1, ttl),
-        );
+        throw new LoginBlockedError(Math.max(1, ttl));
       const result = await this.redis.eval(failureStatusScript, {
         keys: [this.loginKey(login)],
         arguments: [],
@@ -125,13 +120,7 @@ export class RedisSessions implements SessionsStore {
         .tuple([z.number(), z.number()])
         .parse(result);
       if (failures >= this.config.LOGIN_MAX_FAILURES)
-        throw new ApiError(
-          429,
-          'TOO_MANY_ATTEMPTS',
-          'Login temporarily blocked',
-          undefined,
-          Math.max(1, remaining),
-        );
+        throw new LoginBlockedError(Math.max(1, remaining));
     });
   }
   async recordLoginFailure(login: string) {

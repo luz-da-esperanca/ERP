@@ -1,3 +1,4 @@
+import type { Account } from '../domain/account.js';
 import type {
   CreateUserInput,
   UpdateUserInput,
@@ -5,16 +6,15 @@ import type {
   ResetPasswordInput,
   ChangePasswordInput,
   ListUsersInput,
-  UserDto,
-} from '@erp/contracts/access-api';
+} from './account-commands.js';
 import type { Capability } from '@erp/contracts/access';
 export interface Principal {
-  user: UserDto;
+  user: Account;
   authVersion: number;
   sessionId: string;
 }
 export interface CredentialAccount {
-  user: UserDto;
+  user: Account;
   passwordHash: string;
   authVersion: number;
 }
@@ -25,38 +25,41 @@ export interface CommandContext {
 export interface AccountsStore {
   findByLogin(login: string): Promise<CredentialAccount | null>;
   findById(id: string): Promise<CredentialAccount | null>;
-  list(input: ListUsersInput): Promise<{
-    data: UserDto[];
+  list(
+    actor: Principal,
+    input: ListUsersInput,
+  ): Promise<{
+    data: Account[];
     pagination: { page: number; pageSize: number; total: number };
   }>;
   create(
     context: CommandContext,
     input: CreateUserInput,
     passwordHash: string,
-  ): Promise<UserDto>;
+  ): Promise<Account>;
   update(
     context: CommandContext,
     id: string,
     input: UpdateUserInput,
-  ): Promise<UserDto>;
+  ): Promise<Account>;
   activate(
     context: CommandContext,
     id: string,
     input: ActivationInput,
-  ): Promise<UserDto>;
+  ): Promise<Account>;
   resetPassword(
     context: CommandContext,
     id: string,
     input: ResetPasswordInput,
     passwordHash: string,
-  ): Promise<UserDto>;
+  ): Promise<Account>;
   changePassword(
     actor: Principal,
     input: ChangePasswordInput,
     capturedRevision: number,
     passwordHash: string,
-  ): Promise<UserDto>;
-  bootstrap(input: CreateUserInput, passwordHash: string): Promise<UserDto>;
+  ): Promise<Account>;
+  bootstrap(input: CreateUserInput, passwordHash: string): Promise<Account>;
 }
 export interface StoredSession {
   id: string;
@@ -85,7 +88,7 @@ export interface TokenSigner {
   verify(token: string): Promise<{ userId: string; sessionId: string }>;
 }
 export interface SessionDto {
-  user: UserDto;
-  roles: UserDto['roleCodes'];
+  user: Account;
+  roles: Account['roleCodes'];
   capabilities: Capability[];
 }

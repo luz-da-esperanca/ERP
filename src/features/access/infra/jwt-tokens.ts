@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { z } from 'zod';
-import type { ApiConfig } from '../../../core/config.js';
-import { unauthenticated } from '../../../core/errors.js';
+import type { ApiConfig } from '../../../core/infra/config.js';
+import { AuthenticationRequiredError } from '../application/access-errors.js';
 import type { TokenSigner } from '../application/ports.js';
 const uuid = z.uuid();
 export function createTokenSigner(config: ApiConfig): TokenSigner {
@@ -29,7 +29,7 @@ export function createTokenSigner(config: ApiConfig): TokenSigner {
           sessionId: uuid.parse(payload.jti),
         };
       } catch {
-        throw unauthenticated();
+        throw new AuthenticationRequiredError();
       }
     },
   };

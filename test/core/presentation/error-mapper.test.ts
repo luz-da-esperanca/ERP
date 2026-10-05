@@ -1,0 +1,127 @@
+import { describe, expect, it } from 'vitest';
+import {
+  AccountRevisionConflictError,
+  AccountRuleError,
+  PermissionDeniedError,
+} from '../../../src/features/access/domain/account-errors.js';
+import {
+  AuthenticationRequiredError,
+  LoginBlockedError,
+} from '../../../src/features/access/application/access-errors.js';
+import {
+  DependencyUnavailableError,
+  ResourceNotFoundError,
+  IdempotencyConflictError,
+  FeatureNotEnabledError,
+} from '../../../src/core/application/errors.js';
+import { z } from 'zod';
+import { mapError } from '../../../src/core/presentation/error-mapper.js';
+
+describe('HTTP error mapping', () => {
+  it('translates a domain revision conflict into the public HTTP contract', () => {
+    expect(mapError(new AccountRevisionConflictError(9))).toEqual({
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: 'Resource revision changed',
+      details: { currentRevision: 9 },
+    });
+  });
+
+  it.each([
+    {
+      error: new AccountRuleError('LAST_ACTIVE_ADMINISTRATOR'),
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      details: { rule: 'LAST_ACTIVE_ADMINISTRATOR' },
+    },
+    {
+      error: new PermissionDeniedError('PASSWORD_CHANGE_REQUIRED'),
+      status: 403,
+      code: 'FORBIDDEN',
+      details: { rule: 'PASSWORD_CHANGE_REQUIRED' },
+    },
+    {
+      error: new PermissionDeniedError(),
+      status: 403,
+      code: 'FORBIDDEN',
+      details: undefined,
+    },
+    {
+      error: new AuthenticationRequiredError(),
+      status: 401,
+      code: 'UNAUTHENTICATED',
+      details: undefined,
+    },
+    {
+      error: new ResourceNotFoundError(),
+      status: 404,
+      code: 'NOT_FOUND',
+      details: undefined,
+    },
+    {
+      error: new DependencyUnavailableError(),
+      status: 503,
+      code: 'DEPENDENCY_UNAVAILABLE',
+      details: undefined,
+    },
+    {
+      error: new IdempotencyConflictError(),
+      status: 409,
+      code: 'IDEMPOTENCY_CONFLICT',
+      details: undefined,
+    },
+    {
+      error: new FeatureNotEnabledError(),
+      status: 422,
+      code: 'FEATURE_NOT_ENABLED',
+      details: undefined,
+    },
+  ])(
+    'maps $code without changing the semantic error',
+    ({ error, status, code, details }) => {
+      expect(mapError(error)).toEqual({
+        status,
+        code,
+        message: error.message,
+        ...(details ? { details } : {}),
+      });
+      expect(error).not.toHaveProperty('status');
+    },
+  );
+
+  it('exposes the temporary login block duration through Retry-After metadata', () => {
+    expect(mapError(new LoginBlockedError(900))).toEqual({
+      status: 429,
+      code: 'TOO_MANY_ATTEMPTS',
+      message: 'Login temporarily blocked',
+      retryAfter: 900,
+    });
+  });
+
+  it('reports invalid input field names without exposing supplied values', () => {
+    const result = z
+      .object({ password: z.string().min(12) })
+      .safeParse({ password: 'private' });
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('Expected invalid test input');
+
+    expect(mapError(result.error)).toEqual({
+      status: 400,
+      code: 'VALIDATION_ERROR',
+      message: 'Invalid request',
+      details: { fields: ['password'] },
+    });
+  });
+
+  it('hides unknown errors and their sensitive metadata', () => {
+    const error = Object.assign(new Error('SQL with private data'), {
+      password: 'private',
+      stack: 'private stack',
+    });
+    expect(mapError(error)).toEqual({
+      status: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Internal server error',
+    });
+  });
+});

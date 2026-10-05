@@ -1,35 +1,28 @@
 import Fastify, { LogController, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import { randomUUID } from 'node:crypto';
-import { z } from 'zod';
 import type { Capability } from '@erp/contracts/access';
-import type { ApiConfig } from './core/config.js';
-import { ApiError, forbidden, dependencyUnavailable } from './core/errors.js';
+import type { HttpSettings } from './core/presentation/http-settings.js';
+import { HttpError } from './core/presentation/http-error.js';
+import { mapError } from './core/presentation/error-mapper.js';
+import type { DataModeGuard } from './core/application/data-mode.js';
 import type { AccessService } from './features/access/application/access-service.js';
+import type { AccountsService } from './features/access/application/accounts-service.js';
+import type { AuditService } from './features/audit/application/audit-service.js';
 import { assertPermission } from './features/access/domain/permissions.js';
-import { AuditStore } from './features/audit/infra/audit-store.js';
-import type { Database } from './core/database.js';
-import { Prisma } from './generated/prisma/client.js';
-import { registerAccessRoutes } from './features/access/infra/access-routes.js';
-import { registerAuditRoutes } from './features/audit/infra/audit-routes.js';
+import { registerAccessRoutes } from './features/access/presentation/access-routes.js';
+import { registerAuditRoutes } from './features/audit/presentation/audit-routes.js';
 
-export async function assertDataMode(database: Database, config: ApiConfig) {
-  if (config.DATA_MODE !== 'REAL') return;
-  const decision = await database.featureDecision.findUnique({
-    where: { code: 'REAL_PERSONAL_DATA' },
-    select: { enabled: true, decisionReference: true },
-  });
-  if (!decision?.enabled || !decision.decisionReference.trim())
-    throw new ApiError(
-      422,
-      'FEATURE_NOT_ENABLED',
-      'Real personal data requires an institutional decision',
-    );
+export interface AppServices {
+  access: AccessService;
+  accounts: AccountsService;
+  audit: AuditService;
+  dataMode: DataModeGuard;
 }
+
 export function createApp(
-  config: ApiConfig,
-  access: AccessService,
-  database: Database,
+  config: HttpSettings,
+  services: AppServices,
   logging = false,
 ) {
   const app = Fastify({
@@ -55,7 +48,9 @@ export function createApp(
   });
   app.register(cookie);
   async function principal(request: FastifyRequest, capability?: Capability) {
-    const actor = await access.authenticate(request.cookies[config.cookieName]);
+    const actor = await services.access.authenticate(
+      request.cookies[config.cookieName],
+    );
     if (capability)
       assertPermission(
         actor.user.roleCodes,
@@ -71,7 +66,7 @@ export function createApp(
           request.headers['content-type'] ?? '',
         )
       )
-        throw new ApiError(
+        throw new HttpError(
           415,
           'UNSUPPORTED_MEDIA_TYPE',
           'JSON content type required',
@@ -82,10 +77,12 @@ export function createApp(
         (request.headers['sec-fetch-site'] !== undefined &&
           request.headers['sec-fetch-site'] !== 'same-origin')
       )
-        throw forbidden('REQUEST_ORIGIN_REQUIRED');
+        throw new HttpError(403, 'FORBIDDEN', 'Operation not permitted', {
+          rule: 'REQUEST_ORIGIN_REQUIRED',
+        });
     }
     if (request.url !== '/api/v1/health')
-      await assertDataMode(database, config);
+      await services.dataMode.assertEnabled();
   });
   app.addHook('onSend', async (_request, reply) => {
     reply.header('Cache-Control', 'no-store');
@@ -103,33 +100,12 @@ export function createApp(
       );
   });
   app.setErrorHandler((error, request, reply) => {
-    let failure: ApiError;
-    if (error instanceof ApiError) failure = error;
-    else if (error instanceof z.ZodError)
-      failure = new ApiError(400, 'VALIDATION_ERROR', 'Invalid request', {
-        fields: [
-          ...new Set(error.issues.map((issue) => issue.path.join('.'))),
-        ].filter(Boolean),
-      });
-    else if (
-      error instanceof Prisma.PrismaClientInitializationError ||
-      (error instanceof Prisma.PrismaClientKnownRequestError &&
-        ['P1001', 'P1002', 'P1017', 'P2024'].includes(error.code))
-    )
-      failure = dependencyUnavailable();
-    else if (
-      error instanceof Error &&
-      'statusCode' in error &&
-      error.statusCode === 400
-    )
-      failure = new ApiError(400, 'VALIDATION_ERROR', 'Invalid JSON request');
-    else {
-      failure = new ApiError(500, 'INTERNAL_ERROR', 'Internal server error');
+    const failure = mapError(error);
+    if (failure.status === 500)
       app.log.error(
         { requestId: request.id, code: failure.code },
         'Request failed',
       );
-    }
     if (failure.retryAfter) reply.header('Retry-After', failure.retryAfter);
     reply.code(failure.status).send({
       error: {
@@ -150,7 +126,13 @@ export function createApp(
     }),
   );
   app.get('/api/v1/health', async () => ({ data: { status: 'ok' } }));
-  registerAccessRoutes(app, config, access, principal);
-  registerAuditRoutes(app, new AuditStore(database), principal);
+  registerAccessRoutes(
+    app,
+    config,
+    services.access,
+    services.accounts,
+    principal,
+  );
+  registerAuditRoutes(app, services.audit, principal);
   return app;
 }

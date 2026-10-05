@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { ApiConfig } from './config.js';
+import type { OperationFingerprints } from '../../features/access/application/account-transactions.js';
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -30,4 +31,14 @@ export function sameFingerprint(first: string, second: string) {
     firstBytes.length === secondBytes.length &&
     timingSafeEqual(firstBytes, secondBytes)
   );
+}
+
+export function createOperationFingerprints(
+  config: ApiConfig,
+): OperationFingerprints {
+  return {
+    currentKeyId: config.OPERATION_HMAC_CURRENT_KEY_ID,
+    calculate: (content, keyId) => fingerprint(config, content, keyId),
+    matches: sameFingerprint,
+  };
 }

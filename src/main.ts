@@ -1,4 +1,4 @@
-import { readConfig } from './core/config.js';
+import { readConfig } from './core/infra/config.js';
 import { createRuntime } from './runtime.js';
 try {
   const config = readConfig(process.env);

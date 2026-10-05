@@ -1,3 +1,5 @@
+import { AuthenticationRequiredError } from '../../../../src/features/access/application/access-errors.js';
+import { AccountRevisionConflictError } from '../../../../src/features/access/domain/account-errors.js';
 import { describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { UserDto } from '@erp/contracts/access-api';
@@ -181,7 +183,7 @@ describe('Transactional account commands', () => {
         },
         await runtime.access.hash(initialPassword),
       ),
-    ).rejects.toMatchObject({ status: 401 });
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
     expect(await runtime.database.userAccount.count()).toBe(1);
   });
   it('rejects password replacement after the captured revision changes', async () => {
@@ -216,7 +218,7 @@ describe('Transactional account commands', () => {
         admin.revision,
         await runtime.access.hash(initialPassword),
       ),
-    ).rejects.toMatchObject({ status: 409 });
+    ).rejects.toBeInstanceOf(AccountRevisionConflictError);
     await login(admin.login);
   });
   it('restricts bootstrap to the first account', async () => {
@@ -231,7 +233,7 @@ describe('Transactional account commands', () => {
         },
         await runtime.access.hash(initialPassword),
       ),
-    ).rejects.toMatchObject({ status: 422 });
+    ).rejects.toMatchObject({ rule: 'BOOTSTRAP_ALREADY_COMPLETED' });
 
     expect(await runtime.database.userAccount.count()).toBe(1);
   });

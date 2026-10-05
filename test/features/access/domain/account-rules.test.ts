@@ -1,9 +1,64 @@
 import { describe, expect, it } from 'vitest';
 import type { Role } from '@erp/contracts/access';
 import {
+  AccountRevisionConflictError,
+  AccountRuleError,
+} from '../../../../src/features/access/domain/account-errors.js';
+import {
   assertAdministratorRemains,
   assertRevision,
+  planAccountProfileChange,
+  planAccountActivation,
 } from '../../../../src/features/access/domain/account-rules.js';
+import type { Account } from '../../../../src/features/access/domain/account.js';
+
+const current: Account = {
+  id: '00000000-0000-4000-8000-000000000001',
+  login: 'test.operator',
+  displayName: 'Synthetic Operator',
+  active: true,
+  mustChangePassword: false,
+  revision: 3,
+  roleCodes: ['ADMINISTRATOR', 'SOCIAL_ASSISTANCE'],
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+describe('Account transition plans', () => {
+  it('treats reordered role sets as an unchanged profile without mutating inputs', () => {
+    const roles: Role[] = ['SOCIAL_ASSISTANCE', 'ADMINISTRATOR'];
+    expect(planAccountProfileChange(current, { roleCodes: roles }, 1)).toEqual({
+      displayName: current.displayName,
+      roleCodes: current.roleCodes,
+      changed: false,
+    });
+    expect(roles).toEqual(['SOCIAL_ASSISTANCE', 'ADMINISTRATOR']);
+  });
+
+  it('allows renaming the last administrator while preserving its role', () => {
+    expect(
+      planAccountProfileChange(current, { displayName: 'Updated Operator' }, 1),
+    ).toEqual({
+      displayName: 'Updated Operator',
+      roleCodes: current.roleCodes,
+      changed: true,
+    });
+  });
+
+  it('distinguishes an activation no-op from a deactivation that requires persistence', () => {
+    expect(planAccountActivation(current, true, 1)).toEqual({
+      active: true,
+      changed: false,
+    });
+    expect(planAccountActivation(current, false, 2)).toEqual({
+      active: false,
+      changed: true,
+    });
+    expect(() => planAccountActivation(current, false, 1)).toThrowError(
+      expect.objectContaining({ rule: 'LAST_ACTIVE_ADMINISTRATOR' }),
+    );
+  });
+});
 
 interface AdministratorTransition {
   name: string;
@@ -24,9 +79,8 @@ describe('Account revision invariant', () => {
     (expected) => {
       expect(() => assertRevision(3, expected)).toThrowError(
         expect.objectContaining({
-          status: 409,
-          code: 'REVISION_CONFLICT',
-          details: { currentRevision: 3 },
+          name: AccountRevisionConflictError.name,
+          currentRevision: 3,
         }),
       );
     },
@@ -70,9 +124,8 @@ describe('Last active administrator invariant', () => {
         ),
       ).toThrowError(
         expect.objectContaining({
-          status: 422,
-          code: 'BUSINESS_RULE_VIOLATION',
-          details: { rule: 'LAST_ACTIVE_ADMINISTRATOR' },
+          name: AccountRuleError.name,
+          rule: 'LAST_ACTIVE_ADMINISTRATOR',
         }),
       );
     },

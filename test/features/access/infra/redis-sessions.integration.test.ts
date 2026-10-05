@@ -1,3 +1,4 @@
+import { LoginBlockedError } from '../../../../src/features/access/application/access-errors.js';
 import { describe, expect, it } from 'vitest';
 import { decodeJwt } from 'jose';
 import { RedisSessions } from '../../../../src/features/access/infra/redis-sessions.js';
@@ -34,7 +35,7 @@ describe('Redis sessions and login limits', () => {
       await runtime.sessions.recordLoginFailure(admin.login);
     await expect(
       runtime.sessions.checkLogin(admin.login, 'synthetic-ip'),
-    ).rejects.toMatchObject({ status: 429 });
+    ).rejects.toBeInstanceOf(LoginBlockedError);
     const keys: string[] = [];
     for await (const batch of runtime.redis.scanIterator({
       MATCH: `${config.REDIS_KEY_PREFIX}login:*`,
@@ -83,7 +84,7 @@ describe('Redis sessions and login limits', () => {
     await sessions.checkLogin('synthetic.one', '127.0.0.10');
     await expect(
       sessions.checkLogin('synthetic.two', '127.0.0.10'),
-    ).rejects.toMatchObject({ status: 429 });
+    ).rejects.toBeInstanceOf(LoginBlockedError);
     await expect(
       sessions.checkLogin('synthetic.two', '127.0.0.11'),
     ).resolves.toBeUndefined();

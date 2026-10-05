@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Capability, Role } from '@erp/contracts/access';
+import { PermissionDeniedError } from '../../../../src/features/access/domain/account-errors.js';
 import {
   capabilitiesFor,
   assertPermission,
@@ -93,7 +94,7 @@ describe('Access policies', () => {
     { role: 'COORDINATION', capability: 'accounts.manage' },
   ])('denies $role access to $capability', ({ role, capability }) => {
     expect(() => assertPermission([role], false, capability)).toThrowError(
-      expect.objectContaining({ status: 403, code: 'FORBIDDEN' }),
+      PermissionDeniedError,
     );
   });
 
@@ -117,9 +118,8 @@ describe('Access policies', () => {
     (role) => {
       expect(() => assertPermission([role], true, 'audit.read')).toThrowError(
         expect.objectContaining({
-          status: 403,
-          code: 'FORBIDDEN',
-          details: { rule: 'PASSWORD_CHANGE_REQUIRED' },
+          name: PermissionDeniedError.name,
+          rule: 'PASSWORD_CHANGE_REQUIRED',
         }),
       );
     },

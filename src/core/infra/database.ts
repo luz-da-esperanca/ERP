@@ -1,6 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient, Prisma } from '../generated/prisma/client.js';
-import { dependencyUnavailable } from './errors.js';
+import { PrismaClient, Prisma } from '../../generated/prisma/client.js';
+import { DependencyUnavailableError } from '../application/errors.js';
 import { z } from 'zod';
 
 export function createDatabase(url: string) {
@@ -14,6 +14,24 @@ export function createDatabase(url: string) {
 }
 export type Database = ReturnType<typeof createDatabase>;
 export type Transaction = Prisma.TransactionClient;
+
+function translateDatabaseError(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      ['P1001', 'P1002', 'P1017', 'P2024'].includes(error.code))
+  )
+    return new DependencyUnavailableError();
+  return error;
+}
+
+export async function databaseOperation<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    throw translateDatabaseError(error);
+  }
+}
 const rawTransactionConflictSchema = z.object({
   driverAdapterError: z.object({
     cause: z.object({ originalCode: z.enum(['40001', '40P01']) }),
@@ -39,10 +57,10 @@ export async function serializable<T>(
             rawTransactionConflictSchema.safeParse(error.meta).success));
       if (transactionConflict) {
         if (attempt < 2) continue;
-        throw dependencyUnavailable();
+        throw new DependencyUnavailableError();
       }
-      throw error;
+      throw translateDatabaseError(error);
     }
   }
-  throw dependencyUnavailable();
+  throw new DependencyUnavailableError();
 }

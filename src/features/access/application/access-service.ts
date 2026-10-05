@@ -2,10 +2,10 @@ import type {
   ChangePasswordInput,
   CreateUserInput,
   ResetPasswordInput,
-} from '@erp/contracts/access-api';
+} from './account-commands.js';
 import { assertRevision } from '../domain/account-rules.js';
 import { capabilitiesFor } from '../domain/permissions.js';
-import { unauthenticated } from '../../../core/errors.js';
+import { AuthenticationRequiredError } from './access-errors.js';
 import type {
   AccountsStore,
   PasswordHasher,
@@ -18,8 +18,8 @@ import type {
 
 export class AccessService {
   constructor(
-    readonly accounts: AccountsStore,
-    readonly sessions: SessionsStore,
+    private readonly accounts: AccountsStore,
+    private readonly sessions: SessionsStore,
     private readonly passwords: PasswordHasher,
     private readonly tokens: TokenSigner,
   ) {}
@@ -32,7 +32,7 @@ export class AccessService {
     );
     if (!account?.user.active || !valid) {
       await this.sessions.recordLoginFailure(login);
-      throw unauthenticated();
+      throw new AuthenticationRequiredError();
     }
     const current = await this.accounts.findById(account.user.id);
     if (
@@ -40,7 +40,7 @@ export class AccessService {
       current.authVersion !== account.authVersion ||
       current.passwordHash !== account.passwordHash
     )
-      throw unauthenticated();
+      throw new AuthenticationRequiredError();
     await this.sessions.clearLoginFailures(login);
     const session = await this.sessions.create(
       current.user.id,
@@ -56,15 +56,16 @@ export class AccessService {
     };
   }
   async authenticate(token: string | undefined): Promise<Principal> {
-    if (!token) throw unauthenticated();
+    if (!token) throw new AuthenticationRequiredError();
     const claims = await this.tokens.verify(token);
     const session = await this.sessions.read(claims.sessionId, false);
-    if (!session || session.userId !== claims.userId) throw unauthenticated();
+    if (!session || session.userId !== claims.userId)
+      throw new AuthenticationRequiredError();
     const account = await this.accounts.findById(claims.userId);
     if (!account?.user.active || account.authVersion !== session.authVersion)
-      throw unauthenticated();
+      throw new AuthenticationRequiredError();
     if (!(await this.sessions.read(claims.sessionId, true)))
-      throw unauthenticated();
+      throw new AuthenticationRequiredError();
     return {
       user: account.user,
       authVersion: account.authVersion,
@@ -95,7 +96,7 @@ export class AccessService {
       !captured?.user.active ||
       captured.authVersion !== principal.authVersion
     )
-      throw unauthenticated();
+      throw new AuthenticationRequiredError();
     assertRevision(captured.user.revision, input.expectedRevision);
     if (
       !(await this.passwords.compare(
@@ -103,7 +104,7 @@ export class AccessService {
         captured.passwordHash,
       ))
     )
-      throw unauthenticated();
+      throw new AuthenticationRequiredError();
     return this.accounts.changePassword(
       principal,
       input,

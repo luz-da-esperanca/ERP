@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { assertDataMode, createApp } from '../src/app.js';
-import { createDatabase } from '../src/core/database.js';
+import { createApp } from '../src/app.js';
+import { DataModeGuard } from '../src/core/application/data-mode.js';
+import { PrismaFeatureDecisions } from '../src/core/infra/prisma-feature-decisions.js';
+import { AuditService } from '../src/features/audit/application/audit-service.js';
+import { PrismaAuditReader } from '../src/features/audit/infra/audit-store.js';
+import { createRuntime } from '../src/runtime.js';
+import { createDatabase } from '../src/core/infra/database.js';
 import { setupIntegrationFixture } from './support/integration-fixture.js';
 const fixture = setupIntegrationFixture();
 describe('Application data mode and dependency errors', () => {
@@ -9,7 +14,15 @@ describe('Application data mode and dependency errors', () => {
     const unavailableUrl = new URL(config.DATABASE_URL);
     unavailableUrl.port = '1';
     const database = createDatabase(unavailableUrl.toString());
-    const app = createApp(config, runtime.access, database);
+    const app = createApp(config, {
+      access: runtime.access,
+      accounts: runtime.accounts,
+      audit: new AuditService(new PrismaAuditReader(database)),
+      dataMode: new DataModeGuard(
+        config.DATA_MODE,
+        new PrismaFeatureDecisions(database),
+      ),
+    });
     try {
       const response = await app.inject({
         method: 'GET',
@@ -67,7 +80,26 @@ describe('Application data mode and dependency errors', () => {
   it('refuses real data without a recorded institutional decision', async () => {
     const { runtime, config } = fixture;
     await expect(
-      assertDataMode(runtime.database, { ...config, DATA_MODE: 'REAL' }),
-    ).rejects.toMatchObject({ code: 'FEATURE_NOT_ENABLED' });
+      createRuntime({ ...config, DATA_MODE: 'REAL' }),
+    ).rejects.toThrow('API initialization failed');
+    const app = createApp(config, {
+      access: runtime.access,
+      accounts: runtime.accounts,
+      audit: new AuditService(new PrismaAuditReader(runtime.database)),
+      dataMode: new DataModeGuard(
+        'REAL',
+        new PrismaFeatureDecisions(runtime.database),
+      ),
+    });
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/v1/auth/session',
+      });
+      expect(response.statusCode).toBe(422);
+      expect(response.json().error.code).toBe('FEATURE_NOT_ENABLED');
+    } finally {
+      await app.close();
+    }
   });
 });

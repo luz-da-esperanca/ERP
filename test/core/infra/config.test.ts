@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
-import { readConfig } from '../../src/core/config.js';
+import { readConfig } from '../../../src/core/infra/config.js';
 const environment = {
   APP_ORIGIN: 'http://localhost:5173',
   DATABASE_URL: 'postgresql://localhost/erp_test',

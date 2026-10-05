@@ -5,11 +5,12 @@ import type {
   ResetPasswordInput,
 } from '@erp/contracts/access-api';
 import type { CredentialAccount } from '../../../../src/features/access/application/ports.js';
+import { DependencyUnavailableError } from '../../../../src/core/application/errors.js';
 import {
-  ApiError,
-  dependencyUnavailable,
-  unauthenticated,
-} from '../../../../src/core/errors.js';
+  AuthenticationRequiredError,
+  LoginBlockedError,
+} from '../../../../src/features/access/application/access-errors.js';
+import { AccountRevisionConflictError } from '../../../../src/features/access/domain/account-errors.js';
 import { createAccessServiceFixture } from '../../../support/access-service-fixture.js';
 
 describe('AccessService login', () => {
@@ -74,11 +75,7 @@ describe('AccessService login', () => {
 
       await expect(
         service.login(account.user.login, password, ip),
-      ).rejects.toMatchObject({
-        status: 401,
-        code: 'UNAUTHENTICATED',
-        message: 'Authentication required',
-      });
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
 
       expect(passwords.compare).toHaveBeenCalledWith(
         password,
@@ -99,7 +96,7 @@ describe('AccessService login', () => {
 
     await expect(
       service.login(account.user.login, password, ip),
-    ).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
 
     expect(passwords.compare).toHaveBeenCalledWith(
       password,
@@ -115,13 +112,7 @@ describe('AccessService login', () => {
   it('rejects a blocked login before looking up or comparing credentials', async () => {
     const { service, accounts, sessions, passwords, user, password, ip } =
       createAccessServiceFixture();
-    const blocked = new ApiError(
-      429,
-      'TOO_MANY_ATTEMPTS',
-      'Too many attempts',
-      undefined,
-      900,
-    );
+    const blocked = new LoginBlockedError(900);
     sessions.checkLogin.mockRejectedValue(blocked);
 
     await expect(service.login(user.login, password, ip)).rejects.toBe(blocked);
@@ -163,7 +154,7 @@ describe('AccessService login', () => {
 
       await expect(
         service.login(account.user.login, password, ip),
-      ).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
 
       expect(sessions.clearLoginFailures).not.toHaveBeenCalled();
       expect(sessions.create).not.toHaveBeenCalled();
@@ -174,11 +165,11 @@ describe('AccessService login', () => {
   it('fails without a token when the session store is unavailable', async () => {
     const { service, sessions, tokens, user, password, ip } =
       createAccessServiceFixture();
-    sessions.create.mockRejectedValue(dependencyUnavailable());
+    sessions.create.mockRejectedValue(new DependencyUnavailableError());
 
-    await expect(service.login(user.login, password, ip)).rejects.toMatchObject(
-      { status: 503, code: 'DEPENDENCY_UNAVAILABLE' },
-    );
+    await expect(
+      service.login(user.login, password, ip),
+    ).rejects.toBeInstanceOf(DependencyUnavailableError);
 
     expect(tokens.sign).not.toHaveBeenCalled();
   });
@@ -220,9 +211,9 @@ describe('AccessService session authentication', () => {
     const { service, tokens, sessions, accounts } =
       createAccessServiceFixture();
 
-    await expect(service.authenticate(undefined)).rejects.toMatchObject({
-      code: 'UNAUTHENTICATED',
-    });
+    await expect(service.authenticate(undefined)).rejects.toBeInstanceOf(
+      AuthenticationRequiredError,
+    );
 
     expect(tokens.verify).not.toHaveBeenCalled();
     expect(sessions.read).not.toHaveBeenCalled();
@@ -232,11 +223,11 @@ describe('AccessService session authentication', () => {
   it('rejects an invalid token before reading the session', async () => {
     const { service, tokens, sessions, accounts, token } =
       createAccessServiceFixture();
-    tokens.verify.mockRejectedValue(unauthenticated());
+    tokens.verify.mockRejectedValue(new AuthenticationRequiredError());
 
-    await expect(service.authenticate(token)).rejects.toMatchObject({
-      code: 'UNAUTHENTICATED',
-    });
+    await expect(service.authenticate(token)).rejects.toBeInstanceOf(
+      AuthenticationRequiredError,
+    );
 
     expect(sessions.read).not.toHaveBeenCalled();
     expect(accounts.findById).not.toHaveBeenCalled();
@@ -253,9 +244,9 @@ describe('AccessService session authentication', () => {
           : { ...session, userId: '00000000-0000-4000-8000-000000000003' },
       );
 
-      await expect(service.authenticate(token)).rejects.toMatchObject({
-        code: 'UNAUTHENTICATED',
-      });
+      await expect(service.authenticate(token)).rejects.toBeInstanceOf(
+        AuthenticationRequiredError,
+      );
 
       expect(accounts.findById).not.toHaveBeenCalled();
       expect(sessions.read).not.toHaveBeenCalledWith(session.id, true);
@@ -277,9 +268,9 @@ describe('AccessService session authentication', () => {
           : { ...account, authVersion, user: { ...account.user, active } },
       );
 
-      await expect(service.authenticate(token)).rejects.toMatchObject({
-        code: 'UNAUTHENTICATED',
-      });
+      await expect(service.authenticate(token)).rejects.toBeInstanceOf(
+        AuthenticationRequiredError,
+      );
 
       expect(sessions.read).not.toHaveBeenCalledWith(session.id, true);
     },
@@ -289,19 +280,18 @@ describe('AccessService session authentication', () => {
     const { service, sessions, session, token } = createAccessServiceFixture();
     sessions.read.mockResolvedValueOnce(session).mockResolvedValueOnce(null);
 
-    await expect(service.authenticate(token)).rejects.toMatchObject({
-      code: 'UNAUTHENTICATED',
-    });
+    await expect(service.authenticate(token)).rejects.toBeInstanceOf(
+      AuthenticationRequiredError,
+    );
   });
 
   it('propagates session store unavailability instead of authenticating with the token alone', async () => {
     const { service, sessions, accounts, token } = createAccessServiceFixture();
-    sessions.read.mockRejectedValue(dependencyUnavailable());
+    sessions.read.mockRejectedValue(new DependencyUnavailableError());
 
-    await expect(service.authenticate(token)).rejects.toMatchObject({
-      status: 503,
-      code: 'DEPENDENCY_UNAVAILABLE',
-    });
+    await expect(service.authenticate(token)).rejects.toBeInstanceOf(
+      DependencyUnavailableError,
+    );
 
     expect(accounts.findById).not.toHaveBeenCalled();
   });
@@ -330,7 +320,7 @@ describe('AccessService logout', () => {
 
   it('allows an invalid or expired token to be cleared without deleting another session', async () => {
     const { service, tokens, sessions, token } = createAccessServiceFixture();
-    tokens.verify.mockRejectedValue(unauthenticated());
+    tokens.verify.mockRejectedValue(new AuthenticationRequiredError());
 
     await expect(service.logout(token)).resolves.toBeUndefined();
 
@@ -341,22 +331,23 @@ describe('AccessService logout', () => {
     'does not claim logout succeeded during a session store outage (token: %s)',
     async (token) => {
       const { service, sessions } = createAccessServiceFixture();
-      sessions.assertAvailable.mockRejectedValue(dependencyUnavailable());
+      sessions.assertAvailable.mockRejectedValue(
+        new DependencyUnavailableError(),
+      );
 
-      await expect(service.logout(token)).rejects.toMatchObject({
-        status: 503,
-        code: 'DEPENDENCY_UNAVAILABLE',
-      });
+      await expect(service.logout(token)).rejects.toBeInstanceOf(
+        DependencyUnavailableError,
+      );
     },
   );
 
   it('does not swallow a failure to delete a verified session', async () => {
     const { service, sessions, token } = createAccessServiceFixture();
-    sessions.delete.mockRejectedValue(dependencyUnavailable());
+    sessions.delete.mockRejectedValue(new DependencyUnavailableError());
 
-    await expect(service.logout(token)).rejects.toMatchObject({
-      code: 'DEPENDENCY_UNAVAILABLE',
-    });
+    await expect(service.logout(token)).rejects.toBeInstanceOf(
+      DependencyUnavailableError,
+    );
   });
 });
 
@@ -417,7 +408,7 @@ describe('AccessService password change', () => {
 
       await expect(
         service.changePassword(principal, input),
-      ).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
 
       expect(passwords.compare).not.toHaveBeenCalled();
       expect(passwords.hash).not.toHaveBeenCalled();
@@ -432,9 +423,8 @@ describe('AccessService password change', () => {
     await expect(
       service.changePassword(principal, { ...input, expectedRevision: 2 }),
     ).rejects.toMatchObject({
-      status: 409,
-      code: 'REVISION_CONFLICT',
-      details: { currentRevision: 3 },
+      name: AccountRevisionConflictError.name,
+      currentRevision: 3,
     });
 
     expect(passwords.compare).not.toHaveBeenCalled();
@@ -449,7 +439,7 @@ describe('AccessService password change', () => {
 
     await expect(
       service.changePassword(principal, input),
-    ).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
 
     expect(passwords.hash).not.toHaveBeenCalled();
     expect(accounts.changePassword).not.toHaveBeenCalled();
@@ -468,12 +458,7 @@ describe('AccessService password change', () => {
 
   it('preserves a revision conflict detected by persistence after hashing', async () => {
     const { service, accounts, principal } = createAccessServiceFixture();
-    const conflict = new ApiError(
-      409,
-      'REVISION_CONFLICT',
-      'Resource revision changed',
-      { currentRevision: 4 },
-    );
+    const conflict = new AccountRevisionConflictError(4);
     accounts.changePassword.mockRejectedValue(conflict);
 
     await expect(service.changePassword(principal, input)).rejects.toBe(

@@ -1,5 +1,5 @@
 import type { Capability, Role } from '@erp/contracts/access';
-import { forbidden } from '../../../core/errors.js';
+import { PermissionDeniedError } from './account-errors.js';
 const social: readonly Capability[] = [
   'registration.read',
   'registration.write',
@@ -46,6 +46,8 @@ export function assertPermission(
   mustChangePassword: boolean,
   capability: Capability,
 ) {
-  if (mustChangePassword) throw forbidden('PASSWORD_CHANGE_REQUIRED');
-  if (!capabilitiesFor(roles).includes(capability)) throw forbidden();
+  if (mustChangePassword)
+    throw new PermissionDeniedError('PASSWORD_CHANGE_REQUIRED');
+  if (!capabilitiesFor(roles).includes(capability))
+    throw new PermissionDeniedError();
 }
