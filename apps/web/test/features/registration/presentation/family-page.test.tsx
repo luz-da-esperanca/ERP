@@ -77,6 +77,22 @@ describe('FamilyPage', () => {
     expect(screen.queryByRole('link', { name: 'Adicionar pessoa' })).toBeNull();
   });
 
+  it('groups the current composition with its date filter, count and member list', async () => {
+    await renderFamilyPage();
+
+    expect(
+      await screen.findByRole('region', { name: 'Composição familiar' }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Data da consulta')).toBeTruthy();
+    expect(
+      screen.getByText('2 pessoas com vínculo vigente.', { exact: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('list', { name: 'Membros com vínculo vigente' }),
+    ).toBeTruthy();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+
   it('renders current family memberships without flattening membership data into people', async () => {
     const family = await renderFamilyMembersPage();
 

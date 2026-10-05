@@ -147,42 +147,61 @@ export function FamilyPage({ edit = false }: { edit?: boolean }) {
                   <dd>{family.referencePersonName ?? 'Não informado'}</dd>
                 </dl>
               </Panel>
-              <Panel title="Composição familiar">
-                <Field
-                  label="Consultar ao final do dia"
-                  name="asOf"
-                  type="date"
-                  value={asOf}
-                  max={civilToday()}
-                  onChange={(e) => {
-                    if (e.target.value) onAsOfChange(e.target.value);
-                  }}
-                />
-                <p>{family.memberCount} pessoas com vínculo vigente.</p>
+              <section
+                className="panel family-composition"
+                aria-labelledby="family-composition-title"
+              >
+                <div className="family-composition-header">
+                  <div>
+                    <h2 id="family-composition-title">Composição familiar</h2>
+                    <p>Pessoas com vínculo vigente na data selecionada.</p>
+                  </div>
+                  <Field
+                    label="Data da consulta"
+                    name="asOf"
+                    type="date"
+                    value={asOf}
+                    max={civilToday()}
+                    onChange={(e) => {
+                      if (e.target.value) onAsOfChange(e.target.value);
+                    }}
+                  />
+                </div>
+                <p className="family-composition-count" role="status">
+                  {family.memberCount}{' '}
+                  {family.memberCount === 1 ? 'pessoa' : 'pessoas'} com vínculo
+                  vigente.
+                </p>
                 {members.length === 0 ? (
                   <Empty>
                     Sem membros nesta data. Isso não impede complementar o
                     cadastro.
                   </Empty>
                 ) : (
-                  <ul className="record-list">
+                  <ul
+                    className="family-members-list"
+                    aria-label="Membros com vínculo vigente"
+                  >
                     {members.map(({ person, membership }) => (
-                      <li key={person.id}>
-                        <Link to={`/people/${person.id}`}>{person.name}</Link>
-                        <span>
-                          {membership.isReference
-                            ? 'Titular'
-                            : (membership.relationshipToReference ??
-                              'Parentesco não informado')}
-                        </span>
+                      <li key={person.id} className="family-member-item">
+                        <div className="family-member-details">
+                          <Link to={`/people/${person.id}`}>{person.name}</Link>
+                          <span>
+                            {membership.isReference
+                              ? 'Titular'
+                              : (membership.relationshipToReference ??
+                                'Parentesco não informado')}
+                          </span>
+                        </div>
                         <small>
-                          Vínculo desde {displayInstant(membership.validFrom)}
+                          Vínculo iniciado em{' '}
+                          {displayInstant(membership.validFrom)}
                         </small>
                       </li>
                     ))}
                   </ul>
                 )}
-              </Panel>
+              </section>
             </div>
             {canReadAudit ? (
               <div className="family-detail-history">
