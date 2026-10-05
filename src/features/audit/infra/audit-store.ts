@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { userDtoSchema } from '@erp/contracts/access-api';
+import { accountAuditActionSchema } from '@erp/contracts/account-audit-api';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ResourceNotFoundError } from '../../../core/application/errors.js';
 import {
@@ -99,7 +100,7 @@ function projectEntry(entry: SelectedEntry): AccountAuditEntry {
     entityType: 'UserAccount',
     entityId: entry.entityId,
     revision: entry.revision,
-    action: entry.action,
+    action: accountAuditActionSchema.parse(entry.action),
     actorType: entry.actorType,
     actorId: entry.actorId,
     actor: entry.actor,

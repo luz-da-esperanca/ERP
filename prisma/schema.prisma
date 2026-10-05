@@ -20,23 +20,26 @@ enum AuditAction {
   DEACTIVATE
   PASSWORD_CHANGE
   PASSWORD_RESET
+  CLOSE
+  CORRECT
 }
 
 model UserAccount {
-  id                 String            @id @default(uuid()) @db.Uuid
-  login              String            @unique @db.VarChar(100)
-  displayName        String            @db.VarChar(200)
-  passwordHash       String
-  active             Boolean           @default(true)
-  mustChangePassword Boolean           @default(true)
-  authVersion        Int               @default(1)
-  revision           Int               @default(1)
-  createdAt          DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime          @updatedAt @db.Timestamptz(3)
-  roles              RoleAssignment[]
-  operations         OperationRecord[]
-  auditEntries       AuditEntry[]
-  decisions          FeatureDecision[]
+  id                         String             @id @default(uuid()) @db.Uuid
+  login                      String             @unique @db.VarChar(100)
+  displayName                String             @db.VarChar(200)
+  passwordHash               String
+  active                     Boolean            @default(true)
+  mustChangePassword         Boolean            @default(true)
+  authVersion                Int                @default(1)
+  revision                   Int                @default(1)
+  createdAt                  DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime           @updatedAt @db.Timestamptz(3)
+  roles                      RoleAssignment[]
+  operations                 OperationRecord[]
+  auditEntries               AuditEntry[]
+  decisions                  FeatureDecision[]
+  resolvedRegistrationIssues DataQualityIssue[]
 }
 
 model Role {
@@ -100,4 +103,94 @@ model FeatureDecision {
   decidedBy         String      @db.Uuid
   actor             UserAccount @relation(fields: [decidedBy], references: [id], onDelete: Restrict)
   revision          Int         @default(1)
+}
+
+model Family {
+  id            String             @id @default(uuid()) @db.Uuid
+  code          BigInt             @unique @default(autoincrement())
+  referenceName String?            @db.VarChar(200)
+  address       String?            @db.VarChar(500)
+  neighborhood  String?            @db.VarChar(200)
+  postalCode    String?            @db.VarChar(8)
+  location      String?            @db.VarChar(10)
+  contactPhone  String?            @db.VarChar(50)
+  revision      Int                @default(1)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(3)
+  mergedIntoId  String?            @db.Uuid
+  mergedInto    Family?            @relation("FamilyAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
+  aliases       Family[]           @relation("FamilyAliases")
+  memberships   FamilyMembership[]
+  nameSearch    String             @default("") @db.VarChar(200)
+
+  addressSearch String @default("") @db.VarChar(500)
+}
+
+model Person {
+  id             String             @id @default(uuid()) @db.Uuid
+  name           String             @db.VarChar(200)
+  birthDate      DateTime?          @db.Date
+  sex            String?            @db.VarChar(100)
+  cpf            String?            @db.VarChar(11)
+  rg             String?            @db.VarChar(30)
+  occupation     String?            @db.VarChar(100)
+  educationLevel String?            @db.VarChar(100)
+  contactPhone   String?            @db.VarChar(50)
+  revision       Int                @default(1)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+  mergedIntoId   String?            @db.Uuid
+  mergedInto     Person?            @relation("PersonAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
+  aliases        Person[]           @relation("PersonAliases")
+  memberships    FamilyMembership[]
+  nameSearch     String             @default("") @db.VarChar(200)
+  sizeProfile    SizeProfile?
+
+  @@index([cpf])
+}
+
+model SizeProfile {
+  personId     String    @id @db.Uuid
+  person       Person    @relation(fields: [personId], references: [id], onDelete: Restrict)
+  shoeSize     String?   @db.VarChar(30)
+  clothingSize String?   @db.VarChar(30)
+  informedOn   DateTime? @db.Date
+  revision     Int       @default(1)
+}
+
+model DataQualityIssue {
+  id           String       @id @default(uuid()) @db.Uuid
+  entityType   String       @db.VarChar(20)
+  entityId     String       @db.Uuid
+  kind         String       @db.VarChar(40)
+  candidateIds String[]     @db.Uuid
+  fieldKeys    String[]
+  identifiedAt DateTime     @default(now()) @db.Timestamptz(3)
+  resolvedAt   DateTime?    @db.Timestamptz(3)
+  resolution   String?      @db.VarChar(20)
+  resolvedBy   String?      @db.Uuid
+  resolver     UserAccount? @relation(fields: [resolvedBy], references: [id], onDelete: Restrict)
+  reason       String?      @db.VarChar(1000)
+  revision     Int          @default(1)
+
+  @@index([entityType, entityId, kind])
+}
+
+model FamilyMembership {
+  id                      String             @id @default(uuid()) @db.Uuid
+  personId                String             @db.Uuid
+  person                  Person             @relation(fields: [personId], references: [id], onDelete: Restrict)
+  familyId                String             @db.Uuid
+  family                  Family             @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  relationshipToReference String?            @db.VarChar(100)
+  isReference             Boolean            @default(false)
+  validFrom               DateTime           @db.Timestamptz(3)
+  validUntil              DateTime?          @db.Timestamptz(3)
+  revision                Int                @default(1)
+  supersededById          String?            @db.Uuid
+  supersededBy            FamilyMembership?  @relation("MembershipSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
+  superseded              FamilyMembership[] @relation("MembershipSupersession")
+
+  @@index([personId, validFrom])
+  @@index([familyId, validFrom])
 }
