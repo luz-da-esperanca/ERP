@@ -1,4 +1,4 @@
-import type { CreateRegisteredFamily, CreateRegisteredPerson, FamilyPatch, PeopleQuery } from '../domain/registration.js';
+import type { CreateRegisteredFamily, CreateRegisteredPerson, FamilyPatch, PeopleQuery, MembershipTransfer, ReferenceChange, RegisteredMembership } from '../domain/registration.js';
 import type { RegistrationReader, RegistrationUnitOfWork } from './registration-ports.js';
 import type { CommandContext, Principal } from '../../access/application/ports.js';
 import type { OperationFingerprints } from '../../access/application/account-transactions.js';
@@ -6,8 +6,8 @@ import { assertPermission, capabilitiesFor } from '../../access/domain/permissio
 import { PermissionDeniedError } from '../../access/domain/account-errors.js';
 import { AuthenticationRequiredError } from '../../access/application/access-errors.js';
 import { ResourceNotFoundError, IdempotencyConflictError } from '../../../core/application/errors.js';
-import { RegistrationRevisionConflictError, RegistrationRuleError } from '../domain/registration-errors.js';
-import { assertMembershipPlan } from '../domain/membership-rules.js';
+import { RegistrationRevisionConflictError, RegistrationRuleError, RegistrationConflictError } from '../domain/registration-errors.js';
+import { assertMembershipPlan, isMembershipCurrent } from '../domain/membership-rules.js';
 import { identifyDuplicateCandidates, assertDuplicateReview } from '../domain/duplicate-rules.js';
 import type { DuplicateQuery } from '../domain/duplicate-rules.js';
 import type { FamiliesQuery, PersonPatch } from '../domain/registration.js';
@@ -312,6 +312,291 @@ export class RegistrationService {
     return this.reader.people(
       { ...query, asOf: query.asOf ?? this.now() },
       !full,
+    );
+  }
+  async transferMembership(
+    context: CommandContext,
+    personId: string,
+    input: MembershipTransfer,
+  ) {
+    assertPermission(
+      context.actor.user.roleCodes,
+      context.actor.user.mustChangePassword,
+      'registration.write',
+    );
+    const initial = await this.reader.membership(input.membershipId);
+    if (!initial || initial.personId !== personId)
+      throw new ResourceNotFoundError();
+    return this.unitOfWork.run(
+      context.actor.user.id,
+      [initial.familyId, input.targetFamilyId],
+      async (tx) => {
+        const actor = await this.authorizedActor(tx, context);
+        const type = 'registration.memberships.transfer';
+        const fingerprint = this.fingerprints.calculate(
+          { type, personId, input },
+          null,
+        );
+        const existing = await tx.findOperation(type, context.key);
+        if (existing) {
+          if (
+            existing.actorId !== actor.user.id ||
+            !this.fingerprints.matches(existing.fingerprint, fingerprint) ||
+            !('previousMembership' in existing.resultReference)
+          )
+            throw new IdempotencyConflictError();
+          const refs = existing.resultReference;
+          return {
+            previousMembership: await tx.readMembershipRevision(
+              refs.previousMembership.entityId,
+              refs.previousMembership.revision,
+            ),
+            membership: await tx.readMembershipRevision(
+              refs.membership.entityId,
+              refs.membership.revision,
+            ),
+            sourceFamily: await tx.readFamilyRevision(
+              refs.sourceFamily.entityId,
+              refs.sourceFamily.revision,
+            ),
+            targetFamily: await tx.readFamilyRevision(
+              refs.targetFamily.entityId,
+              refs.targetFamily.revision,
+            ),
+          };
+        }
+        const before = await tx.findMembership(input.membershipId);
+        if (!before || before.personId !== personId)
+          throw new ResourceNotFoundError();
+        if (before.revision !== input.expectedMembershipRevision)
+          throw new RegistrationRevisionConflictError(before.revision);
+        if (before.familyId === input.targetFamilyId)
+          throw new RegistrationConflictError('SAME_FAMILY_TRANSFER');
+        if (
+          !isMembershipCurrent(before, input.effectiveAt) ||
+          input.effectiveAt === before.validFrom
+        )
+          throw new RegistrationConflictError('MEMBERSHIP_NOT_CURRENT');
+        const sourceBefore = await tx.findFamily(before.familyId);
+        const targetBefore = await tx.findFamily(input.targetFamilyId);
+        if (!sourceBefore || !targetBefore) throw new ResourceNotFoundError();
+        if (sourceBefore.revision !== input.expectedSourceFamilyRevision)
+          throw new RegistrationRevisionConflictError(sourceBefore.revision);
+        if (targetBefore.revision !== input.expectedTargetFamilyRevision)
+          throw new RegistrationRevisionConflictError(targetBefore.revision);
+        const plan = (
+          await tx.memberships(
+            [before.familyId, input.targetFamilyId],
+            [personId],
+          )
+        ).filter((membership) => membership.id !== before.id);
+        const predecessor = { ...before, validUntil: input.effectiveAt };
+        const successor = {
+          ...before,
+          familyId: input.targetFamilyId,
+          validFrom: input.effectiveAt,
+          isReference: input.isReference,
+          relationshipToReference: input.relationshipToReference,
+        };
+        assertMembershipPlan([...plan, predecessor, successor], this.now());
+        const operationId = await tx.createOperation(
+          type,
+          context.key,
+          actor.user.id,
+          fingerprint,
+        );
+        const previousMembership = await tx.updateMembership(before.id, {
+          validUntil: input.effectiveAt,
+        });
+        const membership = await tx.createMembership({
+          personId,
+          familyId: successor.familyId,
+          validFrom: successor.validFrom,
+          validUntil: successor.validUntil,
+          isReference: successor.isReference,
+          relationshipToReference: successor.relationshipToReference,
+        });
+        const sourceFamily = await tx.reviseFamily(before.familyId);
+        const targetFamily = await tx.reviseFamily(input.targetFamilyId);
+        await tx.appendMembershipUpdateAudit(
+          operationId,
+          actor.user.id,
+          before,
+          previousMembership,
+          input.reason,
+          'CLOSE',
+          input.effectiveAt,
+        );
+        await tx.appendMembershipAudit(operationId, actor.user.id, membership);
+        await tx.appendFamilyUpdateAudit(
+          operationId,
+          actor.user.id,
+          sourceBefore,
+          sourceFamily,
+        );
+        await tx.appendFamilyUpdateAudit(
+          operationId,
+          actor.user.id,
+          targetBefore,
+          targetFamily,
+        );
+        await tx.completeOperation(operationId, {
+          previousMembership: {
+            entityType: 'FamilyMembership',
+            entityId: previousMembership.id,
+            revision: previousMembership.revision,
+          },
+          membership: {
+            entityType: 'FamilyMembership',
+            entityId: membership.id,
+            revision: membership.revision,
+          },
+          sourceFamily: {
+            entityType: 'Family',
+            entityId: sourceFamily.id,
+            revision: sourceFamily.revision,
+          },
+          targetFamily: {
+            entityType: 'Family',
+            entityId: targetFamily.id,
+            revision: targetFamily.revision,
+          },
+        });
+        return { previousMembership, membership, sourceFamily, targetFamily };
+      },
+      [personId],
+    );
+  }
+  async changeReference(
+    context: CommandContext,
+    familyId: string,
+    input: ReferenceChange,
+  ) {
+    assertPermission(
+      context.actor.user.roleCodes,
+      context.actor.user.mustChangePassword,
+      'registration.write',
+    );
+    const initial = await this.reader.family(familyId, input.effectiveAt);
+    if (!initial) throw new ResourceNotFoundError();
+    return this.unitOfWork.run(
+      context.actor.user.id,
+      [familyId],
+      async (tx) => {
+        const actor = await this.authorizedActor(tx, context);
+        const type = 'registration.families.reference.change';
+        const fingerprint = this.fingerprints.calculate(
+          { type, familyId, input },
+          null,
+        );
+        const existing = await tx.findOperation(type, context.key);
+        if (existing) {
+          if (
+            existing.actorId !== actor.user.id ||
+            !this.fingerprints.matches(existing.fingerprint, fingerprint) ||
+            !('memberships' in existing.resultReference)
+          )
+            throw new IdempotencyConflictError();
+          const refs = existing.resultReference;
+          return {
+            family: await tx.readFamilyRevision(
+              refs.family.entityId,
+              refs.family.revision,
+            ),
+            memberships: await Promise.all(
+              refs.memberships.map((ref) =>
+                tx.readMembershipRevision(ref.entityId, ref.revision),
+              ),
+            ),
+          };
+        }
+        const beforeFamily = await tx.findFamily(familyId);
+        if (!beforeFamily) throw new ResourceNotFoundError();
+        if (beforeFamily.revision !== input.expectedRevision)
+          throw new RegistrationRevisionConflictError(beforeFamily.revision);
+        if (Date.parse(input.effectiveAt) > Date.parse(this.now()))
+          throw new RegistrationRuleError('FUTURE_MEMBERSHIP');
+        const rows = await tx.memberships([familyId]);
+        const target = rows.find(
+          (row) =>
+            row.id === input.membershipId &&
+            isMembershipCurrent(row, input.effectiveAt),
+        );
+        if (!target)
+          throw new RegistrationConflictError('MEMBERSHIP_NOT_CURRENT');
+        const changes = rows.filter(
+          (row) =>
+            isMembershipCurrent(row, input.effectiveAt) &&
+            (row.id === target.id || row.isReference),
+        );
+        const operationId = await tx.createOperation(
+          type,
+          context.key,
+          actor.user.id,
+          fingerprint,
+        );
+        const memberships: RegisteredMembership[] = [];
+        for (const row of changes) {
+          const isReference = row.id === target.id;
+          if (row.isReference === isReference) continue;
+          const atStart = row.validFrom === input.effectiveAt;
+          const updated = await tx.updateMembership(
+            row.id,
+            atStart ? { isReference } : { validUntil: input.effectiveAt },
+          );
+          await tx.appendMembershipUpdateAudit(
+            operationId,
+            actor.user.id,
+            row,
+            updated,
+            input.reason,
+            atStart ? 'CORRECT' : 'CLOSE',
+            input.effectiveAt,
+          );
+          memberships.push(updated);
+          if (!atStart) {
+            const successor = await tx.createMembership({
+              personId: row.personId,
+              familyId,
+              validFrom: input.effectiveAt,
+              validUntil: row.validUntil,
+              relationshipToReference: row.relationshipToReference,
+              isReference,
+            });
+            await tx.appendMembershipAudit(
+              operationId,
+              actor.user.id,
+              successor,
+            );
+            memberships.push(successor);
+          }
+        }
+        assertMembershipPlan(await tx.memberships([familyId]), this.now());
+        const family = memberships.length
+          ? await tx.reviseFamily(familyId)
+          : beforeFamily;
+        if (memberships.length)
+          await tx.appendFamilyUpdateAudit(
+            operationId,
+            actor.user.id,
+            beforeFamily,
+            family,
+          );
+        await tx.completeOperation(operationId, {
+          family: {
+            entityType: 'Family',
+            entityId: family.id,
+            revision: family.revision,
+          },
+          memberships: memberships.map((row) => ({
+            entityType: 'FamilyMembership',
+            entityId: row.id,
+            revision: row.revision,
+          })),
+        });
+        return { family, memberships };
+      },
+      initial.members.map((member) => member.person.id),
     );
   }
   async family(actor: Principal, id: string, asOf = this.now()) {
