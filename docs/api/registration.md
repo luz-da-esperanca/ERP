@@ -6,28 +6,30 @@ Primeira etapa do backend de [SPEC-CAD](../specs/02-registration.md), com autori
 
 Todos os caminhos abaixo recebem o prefixo `/api/v1`. Escritas exigem chave de idempotência UUID.
 
-| Método / caminho                                | Permissão                                    | Resposta                                                              |
-| ----------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- |
-| `GET /families`                                 | `registration.read`                          | 200, página de famílias com contagem e nome do titular em `asOf`      |
-| `POST /families`                                | `registration.write`                         | 201, `FamilyDto`                                                      |
-| `GET /families/:familyId`                       | `registration.read`                          | 200, `{ family, members }`                                            |
-| `PATCH /families/:familyId`                     | `registration.write`                         | 200, `FamilyDto`                                                      |
-| `GET /people`                                   | `registration.read` ou `participants.lookup` | 200, página de cadastro ou identificação mínima                       |
-| `POST /people`                                  | `registration.write`                         | 201, `{ person, membership, family }`                                 |
-| `GET /people/:personId`                         | `registration.read` ou `participants.lookup` | 200, detalhe completo ou identificação mínima                         |
-| `PATCH /people/:personId`                       | `registration.write`                         | 200, `PersonDto`                                                      |
-| `POST /people/:personId/membership-transfers`   | `registration.write`                         | 200, `{ previousMembership, membership, sourceFamily, targetFamily }` |
-| `POST /families/:familyId/reference-changes`    | `registration.write`                         | 200, `{ family, memberships }`                                        |
-| `PATCH /memberships/:membershipId`              | `registration.write`                         | 200, `{ membership, family }`                                         |
-| `POST /memberships/:membershipId/closure`       | `registration.write`                         | 200, `{ membership, family }`                                         |
-| `PUT /people/:personId/sizes`                   | `registration.write`                         | 200, perfil de tamanhos                                               |
-| `GET /duplicate-candidates`                     | `registration.read`                          | 200, array de candidatos com razões                                   |
-| `GET /data-quality-issues`                      | `registration.read`                          | 200, página de ocorrências                                            |
-| `POST /data-quality-issues/:issueId/resolution` | `registration.write`                         | 200, ocorrência resolvida                                             |
+| Método / caminho                                            | Permissão                                                           | Resposta                                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `GET /families`                                             | `registration.read`                                                 | 200, página de famílias com contagem e nome do titular em `asOf`      |
+| `POST /families`                                            | `registration.write`                                                | 201, `FamilyDto`                                                      |
+| `GET /families/:familyId`                                   | `registration.read`                                                 | 200, `{ family, members }`                                            |
+| `PATCH /families/:familyId`                                 | `registration.write`                                                | 200, `FamilyDto`                                                      |
+| `GET /people`                                               | `registration.read` ou `participants.lookup`                        | 200, página de cadastro ou identificação mínima                       |
+| `POST /people`                                              | `registration.write`                                                | 201, `{ person, membership, family }`                                 |
+| `GET /people/:personId`                                     | `registration.read` ou `participants.lookup`                        | 200, detalhe completo ou identificação mínima                         |
+| `PATCH /people/:personId`                                   | `registration.write`                                                | 200, `PersonDto`                                                      |
+| `POST /people/:personId/membership-transfers`               | `registration.write`                                                | 200, `{ previousMembership, membership, sourceFamily, targetFamily }` |
+| `POST /people/:personId/membership-reconciliations/preview` | `registration.write`; também `attendance.write` se corrigir chamada | 200, plano final e conflitos, sem escrita                             |
+| `POST /people/:personId/membership-reconciliations`         | `registration.write`; também `attendance.write` se corrigir chamada | 200, composição e chamada reconciliadas                               |
+| `POST /families/:familyId/reference-changes`                | `registration.write`                                                | 200, `{ family, memberships }`                                        |
+| `PATCH /memberships/:membershipId`                          | `registration.write`                                                | 200, `{ membership, family }`                                         |
+| `POST /memberships/:membershipId/closure`                   | `registration.write`                                                | 200, `{ membership, family }`                                         |
+| `PUT /people/:personId/sizes`                               | `registration.write`                                                | 200, perfil de tamanhos                                               |
+| `GET /duplicate-candidates`                                 | `registration.read`                                                 | 200, array de candidatos com razões                                   |
+| `GET /data-quality-issues`                                  | `registration.read`                                                 | 200, página de ocorrências                                            |
+| `POST /data-quality-issues/:issueId/resolution`             | `registration.write`                                                | 200, ocorrência resolvida                                             |
 
 Coordenação e Assistência Social têm leitura e escrita de CAD. Responsável por Atividade tem somente `participants.lookup`; Administrador isolado não recebe dados assistenciais. Perfis combinam capacidades; confira `GET /auth/session`.
 
-Os schemas e tipos públicos estão em [registration-api.ts](../../packages/contracts/src/registration-api.ts) e [data-quality-api.ts](../../packages/contracts/src/data-quality-api.ts). Use esses contratos para montar o cliente; não importe modelos Prisma ou regras internas do backend.
+Os schemas e tipos públicos estão em [registration-api.ts](../../packages/contracts/src/registration-api.ts), [data-quality-api.ts](../../packages/contracts/src/data-quality-api.ts) e [membership-reconciliation-api.ts](../../packages/contracts/src/membership-reconciliation-api.ts). Use esses contratos para montar o cliente; não importe modelos Prisma ou regras internas do backend. A prévia POST de reconciliação dispensa chave de idempotência; todas as confirmações/escritas exigem chave.
 
 ## Família e pessoa
 
@@ -142,6 +144,8 @@ Encerramento recebe `{ expectedRevision, expectedFamilyRevision, validUntil, rea
 
 As operações protegem autor, pessoas e famílias na mesma transação PostgreSQL. Exclusões temporais diferidas reforçam a integridade no estado final; qualquer erro desfaz dados, revisões, auditoria e conclusão de idempotência.
 
+Transferência/correção/encerramento e divisão de vínculo por troca de titular rejeitam cortes que invalidem marcações de encontros concluídos: `409 DOMAIN_CONFLICT`, regra `MEMBERSHIP_ATTENDANCE_CONFLICT`, IDs das marcações afetadas. Não deslocam fatos para a família atual. Mudanças de vigência invalidam a cobertura nos trechos civis afetados. Para mudar composição e corrigir contexto factual juntos, use a [reconciliação composta](membership-reconciliation.md), com prévia, plano explícito, revisões e fingerprint de fontes.
+
 ## Tamanhos
 
 `PUT /people/:personId/sizes` recebe `expectedRevision=null` para a primeira versão ou a revisão atual para alteração, além de `shoeSize`, `clothingSize` e `informedOn`. É substituição do perfil: tamanho omitido vira `null`. Tamanhos são textos de até 30 caracteres, sem escala ou recomendação presumida. Havendo tamanho informado, a data civil é obrigatória e não pode ser futura.
@@ -152,8 +156,8 @@ Retorno: `{ data: { personId, shoeSize, clothingSize, informedOn, revision } }`.
 
 ## Limites desta entrega e validação
 
-Ainda não existem endpoints de unificação ou prévia/confirmação de reconciliação com frequência. `mergedIntoId` e `supersededById` preparam a persistência, sem oferecer unificação incompleta. Quando FRQ existir, transferências/correções/encerramentos também deverão analisar os fatos afetados e confirmar reconciliação composta quando necessária. FIC/APT deverão preservar suas referências imutáveis, conforme as dependências das specs.
+Ainda não existem endpoints de unificação de identidades. `mergedIntoId` e `supersededById` preparam a persistência, sem oferecer unificação incompleta. A reconciliação de vínculos/marcações de FRQ está implementada; reconciliação com versões de FIC e avaliações de APT depende desses módulos e deverá preservar suas referências imutáveis.
 
 Os testes ficam em [test/features/registration](../../test/features/registration): regras de domínio, revalidação do autor, limites civis, contratos HTTP, busca/projeções, correção e vigência, tamanhos, duplicidade, concorrência de titularidade/idempotência, restrições PostgreSQL e rollback por falha de auditoria. A suíte de integração usa PostgreSQL e Redis reais, conforme os [comandos oficiais](../../README.md#validar).
 
-Esta entrega valida a base cadastral com dados sintéticos; não reivindica os aceites transversais CAD-AC07/08/09/13/15/16/17 nem a geração de pendências de campos ainda não selecionados. Interface e integração ficam a cargo da frente de frontend.
+Esta entrega valida a base cadastral e a reconciliação com FRQ usando dados sintéticos; não reivindica unificação transversal, reconciliação com FIC/APT nem a geração de pendências de campos ainda não selecionados. Interface e integração ficam a cargo da frente de frontend.

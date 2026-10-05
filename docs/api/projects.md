@@ -78,7 +78,7 @@ Projeto novo exige um instituto existente e ativo. Renomear um projeto cujo inst
 }
 ```
 
-Alterar a vigência valida as inscrições efetivas existentes. Se a mudança invalidar seus limites, retorna `409 DOMAIN_CONFLICT`, regra `PROJECT_PERIOD_CONFLICT`, com os IDs das inscrições afetadas. Nenhum fato é deslocado automaticamente. As verificações de encontros serão acrescentadas com FRQ.
+Alterar a vigência valida inscrições efetivas e encontros concluídos existentes. Se a mudança invalidar seus limites, retorna `409 DOMAIN_CONFLICT`, regra `PROJECT_PERIOD_CONFLICT`, com os IDs das inscrições/encontros afetados. Nenhum fato é deslocado automaticamente.
 
 ## Atividades
 
@@ -103,7 +103,7 @@ Uma atividade nova pertence a projeto ativo. `PERIODIC` exige `serviceTypeId=nul
 }
 ```
 
-Em PATCH, trocar de periódica para pontual exige enviar também o tipo; trocar para periódica exige remover o tipo com `null`. Natureza e projeto só mudam em atividade ativa sem nenhuma inscrição, inclusive encerrada ou supersedida. Uma atividade com histórico retorna `409 DOMAIN_CONFLICT`, com `details.rule=ACTIVITY_HAS_HISTORY`. Para novo contexto, crie outra atividade.
+Em PATCH, trocar de periódica para pontual exige enviar também o tipo; trocar para periódica exige remover o tipo com `null`. Natureza e projeto só mudam em atividade ativa sem nenhuma inscrição ou encontro, incluindo inscrições encerradas/supersedidas e encontros cancelados. Uma atividade com histórico retorna `409 DOMAIN_CONFLICT`, com `details.rule=ACTIVITY_HAS_HISTORY`. Para novo contexto, crie outra atividade.
 
 O detalhe usa `asOf` informado ou o instante atual do servidor. `participantCount` conta pessoas distintas com inscrição efetiva nessa referência. Não é presença, frequência ou aptidão. Inscrição aberta permanece aberta até comando explícito de encerramento; datas civis do projeto não geram encerramento automático. Listas ordenam por nome e ID. A consulta de inscrições possui paginação própria.
 
@@ -156,7 +156,7 @@ Família é calculada na referência `asOf`; sem esse filtro, no início da insc
 
 Renomear/editar atividade e alterar inscrição não incrementam a revisão do projeto. A transação bloqueia seu contexto e revalida os fatos atuais para alterações de vigência e encerramento. No-op preserva revisões e não gera auditoria; mantém a referência idempotente. Após escrita, recarregue os agregados afetados para obter as revisões atuais.
 
-Encerramento é atômico. `effectiveAt` não pode estar no futuro. Antes de mudar qualquer registro, valida o conjunto afetado: início de inscrição a partir do corte ou atividade já encerrada depois do novo corte do projeto gera `409 DOMAIN_CONFLICT`, com `details.rule=CLOSURE_CONFLICT` e IDs para revisão. Nenhum intervalo é invertido nem fato eliminado para permitir o corte.
+Encerramento é atômico. `effectiveAt` não pode estar no futuro. Antes de mudar qualquer registro, valida o conjunto afetado: início de inscrição ou encontro concluído a partir do corte, ou atividade já encerrada depois do novo corte do projeto, gera `409 DOMAIN_CONFLICT`, com `details.rule=CLOSURE_CONFLICT` e IDs para revisão. Nenhum intervalo é invertido nem fato eliminado para permitir o corte.
 
 Trunca somente intervalos efetivos com início anterior e fim aberto/posterior ao corte. Intervalos já encerrados permanecem iguais. Projeto encerra suas atividades ativas; atividades já encerradas mantêm data e revisão. Arrays `activities`/`enrollments` na resposta contêm **somente registros alterados**. Repetir o mesmo corte com nova intenção e revisão atual é no-op, com arrays vazios; outro corte de registro encerrado é rejeitado.
 
@@ -187,7 +187,7 @@ Replay com mesma rota, autor, corpo normalizado e chave retorna exatamente as re
 
 ATV usa pessoas e vínculos persistentes de CAD. Não cria pessoas, presenças, encontros ou avaliação de aptidão. Não acessa Redis como fonte de negócios. A API está composta em `src/runtime.ts`, com regras puras em `domain`, orquestração em `application`, HTTP em `presentation` e Prisma em `infra` da feature `projects`.
 
-Quando FRQ for implementado, deve compartilhar a ordem de bloqueio do contexto projeto/atividade e acrescentar encontros/marcações, inclusive históricos cancelados/supersedidos, às verificações de natureza/projeto, vigência e encerramento. Correções de inscrições também precisam reconciliar os conflitos de chamada/cobertura definidos em SPEC-FRQ. Unificação de CAD deve reconciliar inscrições por pessoa canônica. Esses contratos não estão comprovados por testes de um módulo de frequência ainda ausente.
+FRQ compartilha os bloqueios de projeto/atividade com ATV. Histórico de encontro, inclusive cancelado, impede troca de natureza/projeto; encontros concluídos também limitam vigência/corte. Criar, corrigir ou encerrar inscrição invalida cobertura no trecho civil cuja pertinência mudou, na mesma transação. Marcação avulsa permanece factual mesmo sem inscrição: remover inscrição não apaga presença nem muda seu contexto. As corridas entre criação de encontro e encerramento estão testadas com PostgreSQL. Consulte a [referência FRQ](attendance.md) para chamada, frequência e cobertura. Unificação de CAD ainda deverá reconciliar inscrições por pessoa canônica.
 
 ## Validação e cobertura
 
@@ -200,13 +200,13 @@ pnpm test:integration test/features/projects
 
 Prepare os serviços exclusivos de teste conforme o [README](../../README.md#validar). A suíte usa migrations reais e dados sintéticos. Não execute com banco operacional.
 
-| Aceite ATV | Evidência nesta etapa backend                                                               |
-| ---------- | ------------------------------------------------------------------------------------------- |
-| AC01/09/13 | Catálogos, inativação, associação histórica, código imutável e instituto obrigatório        |
-| AC02/03    | Cadastro periódico/pontual, inscrição independente e rejeição de inscrição pontual          |
-| AC04/05    | Histórico de inscrição bloqueia natureza/projeto; corrida natureza versus inscrição         |
-| AC06/11/12 | Cascata, corte conflitante, preservação de encerramentos anteriores e rollback de auditoria |
-| AC08       | Intervalos adjacentes/sobrepostos, correção e fechamento com histórico                      |
-| AC07/10    | Limites e lançamentos tardios de inscrição; parte de encontros depende de FRQ               |
+| Aceite ATV | Evidência nesta etapa backend                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| AC01/09/13 | Catálogos, inativação, associação histórica, código imutável e instituto obrigatório            |
+| AC02/03    | Cadastro periódico/pontual, inscrição independente e rejeição de inscrição pontual              |
+| AC04/05    | Histórico de inscrição bloqueia natureza/projeto; corrida natureza versus inscrição             |
+| AC06/11/12 | Cascata, corte conflitante, preservação de encerramentos anteriores e rollback de auditoria     |
+| AC08       | Intervalos adjacentes/sobrepostos, correção e fechamento com histórico                          |
+| AC07/10    | Limites e lançamentos tardios de inscrição e encontros; cortes conflitantes verificados com FRQ |
 
-Os testes também verificam projeção mínima, revogação do autor, schemas, no-op, replay e concorrência por chave. UI e aceites envolvendo encontros/presenças permanecem para suas frentes; esta entrega não declara o MVP completo nem libera dados reais.
+Os testes também verificam projeção mínima, revogação do autor, schemas, no-op, replay e concorrência por chave. As verificações de histórico, cortes e corrida com encontro ficam em [test/features/attendance](../../test/features/attendance). A UI permanece pendente; esta entrega não declara o MVP completo nem libera dados reais.

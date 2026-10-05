@@ -2,6 +2,8 @@
 
 Versão 1.0 · Dependências: [CORE](00-foundation.md), [ACS](01-access.md) e [AUD](08-audit.md). Fontes: PRD 1.1 OBJ-01, CAP-01, RN-01/08/09, AC-01/08 e DEC-01; ERS RF-CAD-01–11, RN-21, RF-REL-09 e AC-15; modelagem D-01 e §4.1. A obrigatoriedade de nascimento/sexo citada na ERS é conciliada com dados ausentes do PRD §4.1 e D-01: o cadastro mínimo exige nome e família, sem fabricar informação.
 
+**Implementação backend em 05/10/2026:** a base cadastral, busca/qualidade e vínculos temporais estão entregues. Com FRQ, alterações simples rejeitam cortes que invalidem marcação concluída, e a prévia/confirmação de [reconciliação composta](../api/membership-reconciliation.md) permite alterar vínculo/contexto na mesma transação. `clientRef` relaciona novos segmentos ainda sem UUID às marcações do plano; o resultado devolve seu mapeamento persistido. [Cadastro HTTP](../api/registration.md) registra os contratos concretos. Unificação de identidades, reconciliação com FIC/APT e pendências de campos não selecionados continuam pendentes; não declarar esses aceites transversais concluídos.
+
 ## 1. Resultado e modelo
 
 Reconhecer a pessoa e seu núcleo familiar, prevenir registros repetidos e conservar a família de cada fato no tempo. A família tem código único; assistidos têm identidade própria e pelo menos um vínculo histórico. Usuários operadores não são assistidos automaticamente.

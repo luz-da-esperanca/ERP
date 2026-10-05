@@ -162,13 +162,12 @@ O exemplo inicia novos registros sintéticos e não deve ser repetido integralme
 
 Traduza códigos e regras para pt-BR. Não renderize `error.message` como mensagem institucional. Após uma escrita, recarregue os agregados afetados: criar atividade muda a revisão do projeto; inscrição muda a revisão da atividade; cascata muda vários registros. Uma resposta de replay contém revisões **originais**, e pode ser mais antiga que a tela atual.
 
-Uma atividade encerrada mantém consulta e admite inscrição/correção histórica dentro dos limites. A UI deve separar o instante do fato do lançamento atual. A ausência de inscrição não representa ausência em encontro. Somente periódicas receberão o fluxo de encontros quando FRQ existir.
+Uma atividade encerrada mantém consulta e admite inscrição/correção histórica dentro dos limites. A UI deve separar o instante do fato do lançamento atual. A ausência de inscrição não representa ausência em encontro. Somente periódicas recebem o [fluxo de encontros de FRQ](integrating-attendance.md). Alterações de vigência/corte podem conflitar com encontros concluídos; mostre os IDs indicados para revisão explícita. Alterações de inscrição podem abrir lacunas na cobertura do trecho afetado; recarregue a consulta de cobertura quando a tela a exibir.
 
 ## Frentes posteriores
 
-- **FRQ:** acrescentar encontros, chamada e cobertura às validações transacionais de ATV. Compartilhar os bloqueios de contexto projeto/atividade; não permitir corrida com encerramento ou mudança de natureza.
 - **CAD transversal:** reconciliar inscrições sobrepostas por identidade canônica durante unificação, preservando aliases e histórico.
 - **Interface:** implementar adaptador HTTP e estados de carregamento, vazio, erro, conflito e sucesso; conectar autenticação real e autorização por capacidades.
 - **APT/REL:** consumir frequência e políticas próprias; inscrição não comprova aptidão nem atendimento realizado.
 
-Essas frentes usam os contratos implementados, mas seus módulos e telas continuam pendentes. As condições institucionais de uso real permanecem no [índice das specs](../specs/README.md).
+Essas frentes usam os contratos implementados, mas seus módulos e telas continuam pendentes. FRQ já compartilha bloqueios e invariantes de ATV no backend; a interface integra os dois módulos pelos respectivos guias. As condições institucionais de uso real permanecem no [índice das specs](../specs/README.md).

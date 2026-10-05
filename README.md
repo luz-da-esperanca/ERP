@@ -4,7 +4,7 @@ Monorepo TypeScript do MVP. O recorte e suas decisões estão no [índice das sp
 
 ## Estado da implementação
 
-O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV e auditoria de contas/cadastro/atividades**:
+O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV, FRQ e auditoria dessas entidades**:
 
 - Fastify com contratos Zod, paginação, erros padronizados e validação da configuração.
 - PostgreSQL/Prisma com migration reproduzível, revisões, autoria e auditoria imutável.
@@ -19,8 +19,12 @@ O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV e auditoria de conta
 - Seis institutos, tipos pontuais, projetos e atividades com natureza, vigência, responsável e revisões.
 - Inscrições temporais, correção e saída; encerramento atômico de projetos/atividades preservando o histórico.
 - Auditoria de ATV, replay das respostas originais e integridade de intervalos sob concorrência.
+- Encontros, chamada parcial/avulsa, correções explícitas e cancelamento com contexto familiar histórico.
+- Consulta de frequência com oportunidades, contagens conhecidas e condições independentes de completude.
+- Cobertura declarada de dias encerrados, revisões de fontes e invalidação dos trechos afetados.
+- Reconciliação composta de vínculos e marcações; proteção de fatos concluídos em alterações de CAD/ATV.
 
-Os contratos entregues, payloads e regras de integração estão no [guia do backend](docs/api/README.md), na [referência de cadastro](docs/api/registration.md), na [referência de ATV](docs/api/projects.md) e no [guia para integrar ATV](docs/api/integrating-projects.md). **Ainda não há endpoints de FIC, FRQ, APT ou REL.** As verificações de ATV sobre encontros/chamada serão completadas com FRQ. Unificação de CAD e reconciliação com frequência dependem desses módulos; pendências automáticas de dados ausentes dependem da seleção dos campos relevantes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões institucionais também está pendente; o mecanismo de inicialização já recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md) e [FRQ](docs/api/integrating-attendance.md) apresentam os fluxos HTTP. **Ainda não há endpoints de FIC, APT ou REL.** Unificação transversal de CAD depende desses módulos; pendências automáticas de dados ausentes dependem da seleção dos campos relevantes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões institucionais também está pendente; o mecanismo de inicialização já recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
 
 `apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
 
@@ -43,7 +47,7 @@ src/
     presentation/           # rotas HTTP e comando de bootstrap
     infra/                  # Prisma, Redis, jose e bcrypt
   features/audit/
-    domain/                 # modelos da auditoria de contas e cadastro
+    domain/                 # modelos e escopos da auditoria dos módulos
     application/            # consulta autorizada e portas transacionais
     presentation/           # rotas HTTP
     infra/                  # leitura e escrita PostgreSQL
@@ -57,6 +61,11 @@ src/
     application/            # casos de uso e unidade de trabalho ATV
     presentation/           # contratos e rotas de ATV
     infra/                  # catálogos, projeções e persistência PostgreSQL
+  features/attendance/
+    domain/                 # encontros, oportunidades e cobertura civil
+    application/            # chamada, frequência e invalidação de cobertura
+    presentation/           # contratos e rotas de FRQ
+    infra/                  # persistência, bloqueios e snapshots PostgreSQL
 prisma/                     # schema e migrations
 test/                       # espelha src/: core e features
   support/                  # doubles, fixtures e preparação da integração
@@ -132,6 +141,8 @@ CAD acrescenta 16 rotas de pessoas, famílias, vínculos, tamanhos, candidatos e
 
 ATV acrescenta 19 rotas de institutos, tipos pontuais, projetos, atividades e inscrições, detalhadas em [Projetos e atividades](docs/api/projects.md). Todas as escritas são idempotentes e auditadas. A migration cria os seis institutos; tipos pontuais são cadastrados pela coordenação. Auditoria de ATV exige `projects.read` e `audit.read`. Inscrição não registra presença, atendimento realizado ou aptidão.
 
+FRQ acrescenta 11 rotas de encontros, marcações, frequência e cobertura, detalhadas em [Encontros e frequência](docs/api/attendance.md). Auditoria de FRQ exige `attendance.read` e `audit.read`. CAD acrescenta duas rotas de prévia/confirmação de [reconciliação composta](docs/api/membership-reconciliation.md); mudanças de chamada exigem também `attendance.write`. A prévia não grava e dispensa chave; a confirmação é idempotente e atômica.
+
 As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts) e [account-audit-api.ts](packages/contracts/src/account-audit-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
 
 ## Validar
@@ -165,9 +176,9 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. FIC e FRQ: seleção/habilitação de campos, versões sociais, encontros, chamada, correções e cancelamentos. FRQ amplia as verificações de histórico/vigência/encerramento de ATV e os conflitos de inscrição com chamada/cobertura.
+1. FIC: seleção/habilitação de campos e versões da ficha com composição e dados individuais históricos.
 2. APT: políticas versionadas e evidências; sem política, estado Pendente.
-3. Fechar CAD transversal: reconciliação de fatos, unificação autorizada e seleção de dados relevantes para pendências.
+3. Fechar CAD transversal: unificação autorizada e reconciliação com FIC/APT, além da seleção de dados relevantes para pendências.
 4. REL: consultas e detalhamento de totais somente sobre os módulos acima.
 5. A frente de frontend integra esses contratos, incluindo autenticação real e troca obrigatória de senha; esta entrega está limitada ao backend e à documentação.
 
