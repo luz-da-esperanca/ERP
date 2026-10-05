@@ -6,6 +6,7 @@ import type { UserDto } from '@erp/contracts/access-api';
 import type { Role } from '@erp/contracts/access';
 import type { Principal } from '../../src/features/access/application/ports.js';
 import { integrationEnvironment } from './integration-environment.js';
+import { initialInstitutes } from '../../src/features/projects/domain/initial-institutes.js';
 
 export function setupIntegrationFixture() {
   const { databaseUrl, redisUrl } = integrationEnvironment();
@@ -113,6 +114,12 @@ export function setupIntegrationFixture() {
     await runtime.database.$executeRawUnsafe(
       'TRUNCATE "DataQualityIssue", "SizeProfile", "FamilyMembership", "Person", "Family", "AuditEntry", "OperationRecord", "RoleAssignment", "FeatureDecision", "UserAccount", "Role" CASCADE',
     );
+    await runtime.database.serviceType.deleteMany();
+    for (const institute of initialInstitutes)
+      await runtime.database.institute.update({
+        where: { code: institute.code },
+        data: { name: institute.name, active: true, revision: 1 },
+      });
     await cleanRedis();
     admin = await runtime.accounts.bootstrap(
       {
