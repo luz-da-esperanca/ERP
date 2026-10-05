@@ -12,6 +12,7 @@ import {
   FamilyPage,
   FamilyMembersPage,
 } from './features/registration/presentation/family-page';
+import { PersonPage } from './features/registration/presentation/person-page';
 import './index.css';
 
 const client = createDemoClient();
@@ -32,6 +33,7 @@ function App() {
               element={<FamilyMembersPage />}
             />
             <Route path="families/:id/edit" element={<FamilyPage edit />} />
+            <Route path="people/:id" element={<PersonPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

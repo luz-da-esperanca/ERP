@@ -79,12 +79,15 @@ function SearchResults({
           </div>
           <ul>
             {peopleMatches.map((person) => (
-              <li key={person.id} className="search-result-static">
-                <Users aria-hidden="true" size={18} />
-                <span>
-                  <strong>{person.name}</strong>
-                  <small>Cadastro individual</small>
-                </span>
+              <li key={person.id}>
+                <Link to={`/people/${person.id}`} onClick={onSelect}>
+                  <Users aria-hidden="true" size={18} />
+                  <span>
+                    <strong>{person.name}</strong>
+                    <small>Cadastro individual</small>
+                  </span>
+                  <span aria-hidden="true">→</span>
+                </Link>
               </li>
             ))}
           </ul>
