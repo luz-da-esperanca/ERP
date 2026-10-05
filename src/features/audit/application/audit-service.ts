@@ -17,7 +17,17 @@ export class AuditService {
     assertPermission(
       principal.user.roleCodes,
       principal.user.mustChangePassword,
-      entityType === 'UserAccount' ? 'accounts.manage' : 'registration.read',
+      entityType === 'UserAccount'
+        ? 'accounts.manage'
+        : [
+              'Institute',
+              'ServiceType',
+              'Project',
+              'Activity',
+              'ParticipantEnrollment',
+            ].includes(entityType)
+          ? 'projects.read'
+          : 'registration.read',
     );
     assertPermission(principal.user.roleCodes, false, 'audit.read');
   }
@@ -39,6 +49,14 @@ export class AuditService {
         'FamilyMembership',
         'SizeProfile',
         'DataQualityIssue',
+      );
+    if (capabilities.includes('projects.read'))
+      entityTypes.push(
+        'Institute',
+        'ServiceType',
+        'Project',
+        'Activity',
+        'ParticipantEnrollment',
       );
     if (!principal.user.mustChangePassword && !entityTypes.length)
       throw new ResourceNotFoundError();

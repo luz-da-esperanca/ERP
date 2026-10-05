@@ -6,9 +6,14 @@ import type {
   SizeProfile,
 } from '../../registration/domain/registration.js';
 import type { QualityIssue } from '../../registration/domain/data-quality.js';
+import type {
+  ProjectsEntity,
+  ProjectsSnapshot,
+} from '../../projects/domain/projects.js';
 export type RegistrationAuditEntity =
   'Family' | 'Person' | 'FamilyMembership' | 'SizeProfile' | 'DataQualityIssue';
-export type AuditEntity = 'UserAccount' | RegistrationAuditEntity;
+export type AuditEntity =
+  'UserAccount' | RegistrationAuditEntity | ProjectsEntity;
 export type RegistrationAuditAction = 'CREATE' | 'UPDATE' | 'CLOSE' | 'CORRECT';
 export type RegistrationSnapshot =
   | RegisteredFamily
@@ -26,4 +31,15 @@ export type RegistrationAuditEntry = Omit<
   after: RegistrationSnapshot;
   classification: 'REGISTRATION';
 };
-export type AuditEntry = AccountAuditEntry | RegistrationAuditEntry;
+export type ProjectsAuditEntry = Omit<
+  AccountAuditEntry,
+  'entityType' | 'action' | 'before' | 'after' | 'classification'
+> & {
+  entityType: ProjectsEntity;
+  action: RegistrationAuditAction;
+  before: ProjectsSnapshot | null;
+  after: ProjectsSnapshot;
+  classification: 'PROJECTS';
+};
+export type AuditEntry =
+  AccountAuditEntry | RegistrationAuditEntry | ProjectsAuditEntry;

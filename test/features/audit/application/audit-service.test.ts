@@ -44,7 +44,10 @@ describe('AuditService account history', () => {
     await expect(
       service.get(principal, 'restricted-entry'),
     ).rejects.toBeInstanceOf(ResourceNotFoundError);
-    expect(reader.get).not.toHaveBeenCalled();
+    const allowedEntities = reader.get.mock.calls[0]?.[1];
+    expect(allowedEntities).toContain('Activity');
+    expect(allowedEntities).not.toContain('UserAccount');
+    expect(allowedEntities).not.toContain('Person');
   });
 
   it('reports a nonexistent entry within an authorized account scope', async () => {

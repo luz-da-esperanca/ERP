@@ -8,6 +8,13 @@ import {
   sizeProfileSchema,
 } from './registration-api';
 import { dataQualityIssueSchema } from './data-quality-api';
+import {
+  instituteDtoSchema,
+  serviceTypeDtoSchema,
+  projectDtoSchema,
+  activityDtoSchema,
+  enrollmentDtoSchema,
+} from './projects-api';
 
 export { dataQualityIssueSchema } from './data-quality-api';
 export const registrationAuditActionSchema = z.enum([
@@ -23,20 +30,20 @@ export const registrationAuditEntitySchema = z.enum([
   'SizeProfile',
   'DataQualityIssue',
 ]);
-export const registrationAuditQuerySchema = paginationSchema
+const recordAuditQuerySchema = paginationSchema
   .extend({
-    entityType: registrationAuditEntitySchema,
     entityId: z.uuid().optional(),
     actorId: z.uuid().optional(),
     from: z.iso.datetime({ offset: true }).optional(),
     to: z.iso.datetime({ offset: true }).optional(),
     action: registrationAuditActionSchema.optional(),
   })
-  .strict()
-  .refine(
-    (value) =>
-      !value.from || !value.to || new Date(value.from) < new Date(value.to),
-  );
+  .strict();
+const validAuditPeriod = (value: { from?: string; to?: string }) =>
+  !value.from || !value.to || new Date(value.from) < new Date(value.to);
+export const registrationAuditQuerySchema = recordAuditQuerySchema
+  .extend({ entityType: registrationAuditEntitySchema })
+  .refine(validAuditPeriod);
 const entryFields = accountAuditEntrySchema.omit({
   entityType: true,
   action: true,
@@ -65,13 +72,46 @@ export const registrationAuditEntrySchema = z.discriminatedUnion('entityType', [
   registrationEntry('SizeProfile', sizeProfileSchema),
   registrationEntry('DataQualityIssue', dataQualityIssueSchema),
 ]);
+export const projectsAuditEntitySchema = z.enum([
+  'Institute',
+  'ServiceType',
+  'Project',
+  'Activity',
+  'ParticipantEnrollment',
+]);
+const projectsEntry = <
+  T extends z.infer<typeof projectsAuditEntitySchema>,
+  S extends z.ZodType,
+>(
+  entityType: T,
+  snapshot: S,
+) =>
+  entryFields.extend({
+    entityType: z.literal(entityType),
+    action: registrationAuditActionSchema,
+    classification: z.literal('PROJECTS'),
+    before: snapshot.nullable(),
+    after: snapshot,
+  });
+export const projectsAuditEntrySchema = z.discriminatedUnion('entityType', [
+  projectsEntry('Institute', instituteDtoSchema),
+  projectsEntry('ServiceType', serviceTypeDtoSchema),
+  projectsEntry('Project', projectDtoSchema),
+  projectsEntry('Activity', activityDtoSchema),
+  projectsEntry('ParticipantEnrollment', enrollmentDtoSchema),
+]);
+export const projectsAuditQuerySchema = recordAuditQuerySchema
+  .extend({ entityType: projectsAuditEntitySchema })
+  .refine(validAuditPeriod);
 export const auditEntrySchema = z.union([
   accountAuditEntrySchema,
   registrationAuditEntrySchema,
+  projectsAuditEntrySchema,
 ]);
 export const authorizedAuditQuerySchema = z.union([
   auditQuerySchema,
   registrationAuditQuerySchema,
+  projectsAuditQuerySchema,
 ]);
 export const auditPageSchema = z.object({
   data: z.array(auditEntrySchema),

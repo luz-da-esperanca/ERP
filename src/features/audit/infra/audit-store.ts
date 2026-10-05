@@ -8,6 +8,7 @@ import {
   sizeProfileSchema,
 } from '@erp/contracts/registration-api';
 import { dataQualityIssueSchema } from '@erp/contracts/audit-api';
+import { projectsAuditEntrySchema } from '@erp/contracts/audit-api';
 import type {
   AuditEntity,
   AuditEntry,
@@ -103,6 +104,12 @@ function projectSnapshot(value: Prisma.JsonValue): AccountAuditSnapshot {
 }
 
 function projectEntry(entry: SelectedEntry): AuditEntry {
+  if (entry.classification === 'PROJECTS')
+    return projectsAuditEntrySchema.parse({
+      ...entry,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+    });
   if (entry.classification === 'REGISTRATION') {
     const schemas = {
       Family: familyDtoSchema,
@@ -168,7 +175,17 @@ export class PrismaAuditReader implements AuditReader {
       const where: Prisma.AuditEntryWhereInput = {
         entityType: input.entityType,
         classification:
-          input.entityType === 'UserAccount' ? 'ACCOUNTS' : 'REGISTRATION',
+          input.entityType === 'UserAccount'
+            ? 'ACCOUNTS'
+            : [
+                  'Institute',
+                  'ServiceType',
+                  'Project',
+                  'Activity',
+                  'ParticipantEnrollment',
+                ].includes(input.entityType)
+              ? 'PROJECTS'
+              : 'REGISTRATION',
         entityId: input.entityId,
         actorId: input.actorId,
         action: input.action,
@@ -214,6 +231,20 @@ export class PrismaAuditReader implements AuditReader {
                 in: entityTypes.filter((type) => type !== 'UserAccount'),
               },
               classification: 'REGISTRATION',
+            },
+            {
+              entityType: {
+                in: entityTypes.filter((type) =>
+                  [
+                    'Institute',
+                    'ServiceType',
+                    'Project',
+                    'Activity',
+                    'ParticipantEnrollment',
+                  ].includes(type),
+                ),
+              },
+              classification: 'PROJECTS',
             },
           ],
         },
