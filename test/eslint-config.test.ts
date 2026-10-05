@@ -4,6 +4,26 @@ import { ESLint } from 'eslint';
 const lint = new ESLint();
 
 describe('Architecture dependency rules', () => {
+  it.each(['domain', 'application'])(
+    'rejects registration transport types in %s',
+    async (layer) => {
+      for (const contract of [
+        'registration-api',
+        'data-quality-api',
+        'audit-api',
+      ]) {
+        const [result] = await lint.lintText(
+          `export type * from '@erp/contracts/${contract}';`,
+          { filePath: `src/features/registration/${layer}/example.ts` },
+        );
+        expect(
+          result?.messages.some(
+            (message) => message.ruleId === 'no-restricted-imports',
+          ),
+        ).toBe(true);
+      }
+    },
+  );
   it.each([
     {
       name: 'domain importing an HTTP framework',

@@ -26,6 +26,12 @@ export default ts.config(
         'error',
         {
           paths: [
+            ...['registration-api', 'data-quality-api', 'audit-api'].map(
+              (contract) => ({
+                name: `@erp/contracts/${contract}`,
+                message: 'Keep HTTP DTOs outside the domain.',
+              }),
+            ),
             {
               name: '@erp/contracts/access-api',
               message: 'Keep HTTP DTOs outside the domain.',
@@ -77,6 +83,12 @@ export default ts.config(
         'error',
         {
           paths: [
+            ...['registration-api', 'data-quality-api', 'audit-api'].map(
+              (contract) => ({
+                name: `@erp/contracts/${contract}`,
+                message: 'Map HTTP DTOs to application inputs in presentation.',
+              }),
+            ),
             {
               name: '@erp/contracts/access-api',
               message: 'Map HTTP DTOs to application inputs in presentation.',
