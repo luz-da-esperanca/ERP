@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR" style=""><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&amp;family=Nunito+Sans:wght@400;600;700&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,600;1,8..60,600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "outline-variant": "#c2c9b8", "on-tertiary-fixed-variant": "#474743", "primary-container": "#508134", "on-secondary-fixed-variant": "#5c421f", "on-tertiary-fixed": "#1c1c19", "outline": "#72796b", "tertiary": "#5d5c58", "error-container": "#ffdad6", "on-secondary": "#ffffff", "inverse-on-surface": "#f2f0f0", "on-secondary-fixed": "#2a1800", "on-secondary-container": "#795b36", "inverse-primary": "#a0d57e", "primary-fixed": "#bbf297", "on-primary-fixed-variant": "#245107", "on-error-container": "#93000a", "surface-container": "#efeded", "on-error": "#ffffff", "on-background": "#1b1c1c", "inverse-surface": "#303030", "on-surface": "#1b1c1c", "surface": "#fbf9f8", "surface-container-highest": "#e4e2e2", "secondary-fixed-dim": "#e6c093", "primary-fixed-dim": "#a0d57e", "tertiary-fixed": "#e5e2dd", "surface-container-high": "#eae8e7", "surface-tint": "#3b6a20", "error": "#ba1a1a", "surface-bright": "#fbf9f8", "on-primary-fixed": "#092100", "on-tertiary": "#ffffff", "on-tertiary-container": "#fbffe4", "secondary-container": "#fed6a7", "on-surface-variant": "#42493c", "on-primary": "#ffffff", "primary": "#39671d", "tertiary-container": "#767471", "surface-container-lowest": "#ffffff", "surface-dim": "#dbd9d9", "surface-container-low": "#f5f3f3", "on-primary-container": "#f8ffed", "background": "#fbf9f8", "surface-variant": "#e4e2e2", "tertiary-fixed-dim": "#c8c6c2", "secondary": "#765934", "secondary-fixed": "#ffddb6" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-xxs": "0.125rem", "space-2xl": "3rem", "space-xs": "0.25rem", "margin-lg": "3rem", "margin-md": "2rem", "space-3xl": "4rem", "space-sm": "0.5rem", "margin": "1rem", "space-lg": "1.5rem", "space-xl": "2rem", "gutter": "1rem", "space-md": "1rem", "gutter-md": "1.5rem", "gutter-lg": "2rem" }, "fontFamily": { "label-md": ["Nunito Sans"], "body-md": ["Nunito Sans"], "headline-lg-mobile": ["\"Source Serif 4\""], "display-lg": ["\"Source Serif 4\""], "title-sm": ["Nunito Sans"], "headline-lg": ["\"Source Serif 4\""], "headline-sm": ["\"Source Serif 4\""], "display-lg-mobile": ["\"Source Serif 4\""], "title-md": ["Nunito Sans"], "label-sm": ["Nunito Sans"], "label-lg": ["Nunito Sans"], "body-lg": ["Nunito Sans"], "body-sm": ["Nunito Sans"], "data-mono": ["JetBrains Mono"], "headline-md": ["\"Source Serif 4\"" ] }, "fontSize": { "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}], "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400"}], "headline-lg-mobile": ["22px", {"lineHeight": "30px", "letterSpacing": "0em", "fontWeight": "600"}], "display-lg": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "600"}], "title-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "700"}], "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600"}], "headline-sm": ["18px", {"lineHeight": "26px", "letterSpacing": "0em", "fontWeight": "600"}], "display-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600"}], "title-md": ["16px", {"lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "700"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700"}], "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}], "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400"}], "body-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400"}], "data-mono": ["13px", {"lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500"}], "headline-md": ["22px", {"lineHeight": "30px", "letterSpacing": "0em", "fontWeight": "600"}] } } } }</script></head><body class="bg-background font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between"><div class="flex flex-col flex-1 min-h-0"><div class="h-16 px-space-md flex items-center gap-space-sm bg-surface-container-low"><img alt="Luz da Esperança" class="h-10 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvsHQ2IE1VoxRn8lHqx-ca6usZihfNfUXWnjwZNDTZJMkyAek9fpdLXPASvftAnowFq8Rts5k0fAIIvEvieBg9RyH6KJZURAj9WH0wRMt_1-VVRlz1S7AVUKUo7nsQdAI-wSa2fMNBk-nOd6dDqMzI8FupUx0ZW5lOiFzXE_nufx6Fbh4iYBdiytXleZWEEMge2MtntWEdwgWtsyEPmg2HMvT-piPMPJWDMMqJDOXXqOFZen3438d9DWq32jaA-4jZhA"/></div><div class="overflow-y-auto flex-1 px-space-sm py-space-sm"><nav class="flex flex-col gap-space-xxs" data-active-classes="bg-primary-container text-on-primary-container font-title-sm shadow-sm"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="inicio" href="#"><span class="material-symbols-outlined text-[20px]">home</span><span class="">Início</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="pessoas-e-familias" href="#"><span class="material-symbols-outlined text-[20px] text-primary">family_restroom</span><span class="text-primary font-bold">Pessoas e famílias</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="projetos-e-atividades" href="#"><span class="material-symbols-outlined text-[20px]">volunteer_activism</span><span class="">Projetos e atividades</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="frequencia-e-aptidao" href="#"><span class="material-symbols-outlined text-[20px]">fact_check</span><span class="">Frequência e aptidão</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="atendimentos-e-entregas" href="#"><span class="material-symbols-outlined text-[20px]">inventory_2</span><span class="">Atendimentos e entregas</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="estoque" href="#"><span class="material-symbols-outlined text-[20px]">warehouse</span><span class="">Estoque</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="relatorios" href="#"><span class="material-symbols-outlined text-[20px]">query_stats</span><span class="">Relatórios</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="administracao" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">admin_panel_settings</span><span class="">Administração</span></div><span class="material-symbols-outlined text-[16px] text-tertiary">lock</span></a></nav></div></div><div class="p-space-sm bg-surface-container-low"><div class="p-space-sm rounded-xl bg-surface-container flex items-center justify-between"><div class="flex items-center gap-space-sm min-w-0"><div class="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container font-title-sm text-title-sm flex items-center justify-center shrink-0">MC</div><div class="flex flex-col min-w-0"><span class="font-label-md text-label-md text-on-surface truncate">Maria Clara V.</span><span class="font-body-sm text-body-sm text-on-surface-variant truncate">Assistente Social</span></div></div><a class="p-space-xs text-on-surface-variant hover:text-error transition-colors rounded-lg flex items-center justify-center" data-path="login" href="#" title="Encerrar sessão"><span class="material-symbols-outlined text-[20px]">logout</span></a></div></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 px-space-lg flex items-center justify-between gap-space-md"><div class="flex items-center flex-1 max-w-xl"><div class="relative w-full flex items-center"><span class="material-symbols-outlined absolute left-space-md text-[20px] text-on-surface-variant pointer-events-none">search</span><input class="w-full h-10 pl-11 pr-space-md rounded-lg bg-surface-container-low text-on-surface placeholder:text-on-surface-variant font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-colors" placeholder="Buscar por família, pessoa ou código..." type="text"/></div></div><div class="flex items-center gap-space-md shrink-0"><div class="flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm tracking-wide"><span class="material-symbols-outlined text-[14px] fill-current">fiber_manual_record</span><span class="">PARNAÍBA — OPERAÇÃO ATIVA</span></div><div class="flex items-center gap-space-xs"><button class="p-space-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span></button><button class="p-space-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">help</span></button></div></div></header><main class="relative pt-16 w-full min-h-screen bg-background"><div class="flex flex-col w-full">
+<div class="w-full max-w-6xl mx-auto px-space-lg py-space-xl flex flex-col gap-space-lg">
+<!-- Retorno de navegação -->
+<div>
+<a class="inline-flex items-center gap-space-xs text-secondary hover:text-on-surface font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+<span>Voltar para Pessoas e famílias</span>
+</a>
+</div>
+<!-- Cabeçalho do Perfil da Pessoa -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex flex-wrap items-center gap-space-sm">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+            Ana Clara dos Santos
+          </h1>
+<span class="inline-flex items-center gap-space-xxs px-space-sm py-space-xxs rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+<span>Ativo</span>
+</span>
+</div>
+<div class="flex items-center gap-space-sm shrink-0">
+<button class="inline-flex items-center gap-space-xs px-space-md py-space-sm rounded-lg bg-surface-container-low text-on-secondary-container font-label-lg text-label-lg hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">folder_shared</span>
+<span>Consultar ficha social</span>
+</button>
+<div class="relative inline-block text-left">
+<button class="inline-flex items-center gap-space-xs px-space-md py-space-sm rounded-lg bg-surface-container-low text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container transition-colors" id="btn-acoes" onclick="toggleMenu()" type="button">
+<span>Mais ações</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<div class="hidden absolute right-0 mt-space-xs w-52 bg-surface-container-lowest rounded-lg shadow-md py-space-xs z-20" id="menu-dropdown">
+<a class="flex items-center gap-space-xs px-space-md py-space-xs font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+<span>Editar dados básicos</span>
+</a>
+<a class="flex items-center gap-space-xs px-space-md py-space-xs font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-[16px]">print</span>
+<span>Imprimir comprovante</span>
+</a>
+<a class="flex items-center gap-space-xs px-space-md py-space-xs font-body-sm text-body-sm text-on-surface hover:bg-surface-container-low" href="#">
+<span class="material-symbols-outlined text-[16px]">history</span>
+<span>Log de auditoria</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<!-- Metadados em linha limpa -->
+<div class="flex flex-wrap items-center gap-x-space-lg gap-y-space-xs text-on-surface-variant font-body-md text-body-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-tertiary">cake</span>
+<span><strong>8 anos</strong> (nascimento 20/08/2018)</span>
+</div>
+<span class="text-tertiary-fixed-dim hidden sm:inline">•</span>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-tertiary">contact_phone</span>
+<span>(86) 98124-7731 <span class="text-on-surface-variant/80 font-body-sm text-body-sm">(Maria Francisca — mãe)</span></span>
+</div>
+<span class="text-tertiary-fixed-dim hidden sm:inline">•</span>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-tertiary">badge</span>
+<span class="font-data-mono text-data-mono">Certidão nº 084129</span>
+</div>
+</div>
+</div>
+<!-- Tratamento de Ambiguidade de Vínculo Familiar -->
+<div class="bg-secondary-container/30 rounded-xl p-space-md flex items-start gap-space-sm shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[22px] shrink-0 mt-0.5">warning</span>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm flex-1">
+<p class="font-body-md text-body-md text-on-secondary-fixed-variant leading-relaxed">
+<strong>Aviso de cadastro:</strong> identificada duplicidade de vínculo cadastral entre <strong>Família Silva dos Santos (FAM-2026-0103)</strong> e <strong>Família Santos Oliveira (FAM-2024-0089)</strong>. Nenhuma família foi associada como exclusiva automaticamente.
+        </p>
+<a class="inline-flex items-center gap-space-xxs text-secondary font-title-sm text-title-sm hover:underline shrink-0" href="#">
+<span>Resolver vínculo na assistência social</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- SEÇÃO A: Dados atuais -->
+<section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-lg">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-md text-headline-md text-on-surface">Dados atuais</h2>
+<span class="font-data-mono text-data-mono text-tertiary">ID: ASS-8429-01</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+<div class="bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xxs">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Nome civil completo</span>
+<span class="font-body-lg text-body-lg text-on-surface font-semibold">Ana Clara dos Santos</span>
+</div>
+<div class="bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xxs">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Data de nascimento</span>
+<span class="font-body-lg text-body-lg text-on-surface">20/08/2018 (8 anos)</span>
+</div>
+<div class="bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xxs">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Sexo</span>
+<span class="font-body-lg text-body-lg text-on-surface">Feminino</span>
+</div>
+<div class="bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xxs">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Escolaridade informada</span>
+<span class="font-body-lg text-body-lg text-on-surface">Ensino Fundamental I (3º ano)</span>
+</div>
+<div class="bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xxs">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">NIS / Documento de identificação</span>
+<span class="font-body-lg text-body-lg text-on-surface font-data-mono text-data-mono">Certidão 084129 (Livro A-12, Fl. 45)</span>
+</div>
+<div class="bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xxs">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Pessoa responsável de referência</span>
+<span class="font-body-lg text-body-lg text-on-surface">Maria Francisca dos Santos (Mãe)</span>
+</div>
+</div>
+<!-- Links secundários / recolhidos de apoio -->
+<div class="flex flex-wrap items-center gap-x-space-md gap-y-space-xs pt-space-xs">
+<button class="inline-flex items-center gap-space-xxs text-secondary hover:text-on-secondary-container font-label-md text-label-md" onclick="toggleDetalhe('detalhe-vestuario')" type="button">
+<span class="material-symbols-outlined text-[16px]">arrow_right</span>
+<span>Perfil de vestuário e calçado (Tamanho 8 / Calçado 31)</span>
+</button>
+<span class="text-tertiary-fixed-dim hidden sm:inline">•</span>
+<button class="inline-flex items-center gap-space-xxs text-secondary hover:text-on-secondary-container font-label-md text-label-md" onclick="toggleDetalhe('detalhe-historico')" type="button">
+<span class="material-symbols-outlined text-[16px]">arrow_right</span>
+<span>Ver histórico de alterações cadastrais</span>
+</button>
+</div>
+<!-- Painel Recolhido: Perfil de Vestuário -->
+<div class="hidden bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xs" id="detalhe-vestuario">
+<span class="font-title-sm text-title-sm text-on-surface">Informações de doação e enxoval</span>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-space-sm text-on-surface-variant font-body-sm text-body-sm">
+<div>Vestuário: <strong class="text-on-surface">Tam. 8 infantil</strong></div>
+<div>Calçado: <strong class="text-on-surface">Nº 31</strong></div>
+<div>Última medição: <strong class="text-on-surface">15/01/2026</strong></div>
+<div>Observação: <strong class="text-on-surface">Sem restrições</strong></div>
+</div>
+</div>
+<!-- Painel Recolhido: Histórico de Alterações -->
+<div class="hidden bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xs font-body-sm text-body-sm text-on-surface-variant" id="detalhe-historico">
+<span class="font-title-sm text-title-sm text-on-surface">Trilha de alterações cadastrais</span>
+<div class="flex flex-col gap-space-xxs">
+<div>• <strong>20/08/2025 às 14:22</strong> — Atualização de série escolar por <em>Maria Clara V. (Assistente Social)</em>.</div>
+<div>• <strong>12/03/2024 às 09:10</strong> — Cadastro inicial de acolhimento realizado no núcleo Parnaíba.</div>
+</div>
+</div>
+</section>
+<!-- SEÇÃO B: Vínculos familiares -->
+<section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-lg">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Vínculos familiares</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Relações de núcleo e coabitação registradas no sistema social</p>
+</div>
+<a class="inline-flex items-center gap-space-xxs text-primary hover:text-on-primary-fixed-variant font-title-sm text-title-sm" href="#">
+<span>Ver histórico completo</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tabela concisa e direta -->
+<div class="overflow-x-auto rounded-lg">
+<table class="w-full text-left font-body-md text-body-md border-collapse">
+<thead>
+<tr class="bg-surface-container font-title-sm text-title-sm text-secondary">
+<th class="py-space-sm px-space-md">Família / Código</th>
+<th class="py-space-sm px-space-md">Papel / Parentesco</th>
+<th class="py-space-sm px-space-md">Referência familiar</th>
+<th class="py-space-sm px-space-md">Período de vigência</th>
+<th class="py-space-sm px-space-md text-right">Situação</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-on-surface">Família Silva dos Santos</span>
+<span class="font-data-mono text-data-mono text-tertiary">FAM-2026-0103</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-on-surface">Filha</td>
+<td class="py-space-md px-space-md text-on-surface-variant">Não</td>
+<td class="py-space-md px-space-md text-on-surface">Desde 20/08/2025</td>
+<td class="py-space-md px-space-md text-right">
+<span class="inline-flex items-center gap-space-xxs px-space-sm py-space-xxs rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">check</span>
+<span>Ativo (Principal declarada)</span>
+</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors bg-secondary-container/10">
+<td class="py-space-md px-space-md">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-on-surface">Família Santos Oliveira</span>
+<span class="font-data-mono text-data-mono text-tertiary">FAM-2024-0089</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-on-surface">Dependente / Neta</td>
+<td class="py-space-md px-space-md text-on-surface-variant">Não</td>
+<td class="py-space-md px-space-md text-on-surface">12/03/2024 a 19/08/2025</td>
+<td class="py-space-md px-space-md text-right">
+<span class="inline-flex items-center gap-space-xxs px-space-sm py-space-xxs rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+<span>Histórico / Sob análise</span>
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Links secundários ao rodapé da seção -->
+<div class="flex flex-wrap items-center gap-x-space-md gap-y-space-xs pt-space-xs">
+<button class="inline-flex items-center gap-space-xxs text-secondary hover:text-on-secondary-container font-label-md text-label-md" onclick="toggleDetalhe('detalhe-atividades')" type="button">
+<span class="material-symbols-outlined text-[16px]">arrow_right</span>
+<span>Atividades e frequência vinculadas (Reforço Escolar, Evangelização)</span>
+</button>
+<span class="text-tertiary-fixed-dim hidden sm:inline">•</span>
+<button class="inline-flex items-center gap-space-xxs text-secondary hover:text-on-secondary-container font-label-md text-label-md" onclick="toggleDetalhe('detalhe-atendimentos')" type="button">
+<span class="material-symbols-outlined text-[16px]">arrow_right</span>
+<span>Atendimentos e entregas recebidas</span>
+</button>
+</div>
+<!-- Painel Recolhido: Atividades e Frequência -->
+<div class="hidden bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xs font-body-sm text-body-sm" id="detalhe-atividades">
+<span class="font-title-sm text-title-sm text-on-surface">Atividades socioeducativas ativas</span>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm text-on-surface-variant">
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<span class="font-title-sm text-on-surface block">Reforço Escolar (Fundamental I)</span>
+<span>Turma B • Terças e Quintas (08:30 - 10:00) • 92% de frequência</span>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded">
+<span class="font-title-sm text-on-surface block">Evangelização Infantojuvenil</span>
+<span>Ciclo 1 • Sábados (09:00 - 10:30) • 100% de frequência</span>
+</div>
+</div>
+</div>
+<!-- Painel Recolhido: Atendimentos e Entregas -->
+<div class="hidden bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xs font-body-sm text-body-sm text-on-surface-variant" id="detalhe-atendimentos">
+<span class="font-title-sm text-title-sm text-on-surface">Últimos atendimentos associados</span>
+<ul class="list-disc pl-5 flex flex-col gap-space-xxs">
+<li><strong>05/02/2026:</strong> Kit escolar 2026 entregue à responsável Maria Francisca.</li>
+<li><strong>18/12/2025:</strong> Campanha Natal Sem Fome — brinquedo e vestuário infantil concedidos.</li>
+</ul>
+</div>
+</section>
+</div>
+</div>
+<script>
+  function toggleMenu() {
+    const menu = document.getElementById('menu-dropdown');
+    menu.classList.toggle('hidden');
+  }
+
+  function toggleDetalhe(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.toggle('hidden');
+    }
+  }
+
+  // Fechar dropdown ao clicar fora
+  document.addEventListener('click', function(event) {
+    const btn = document.getElementById('btn-acoes');
+    const menu = document.getElementById('menu-dropdown');
+    if (btn && menu && !btn.contains(event.target) && !menu.contains(event.target)) {
+      menu.classList.add('hidden');
+    }
+  });
+</script></main></div>
+</body></html>
