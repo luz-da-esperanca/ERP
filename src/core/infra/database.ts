@@ -19,7 +19,7 @@ function translateDatabaseError(error: unknown) {
   if (
     error instanceof Prisma.PrismaClientInitializationError ||
     (error instanceof Prisma.PrismaClientKnownRequestError &&
-      ['P1001', 'P1002', 'P1017', 'P2024'].includes(error.code))
+      ['P1001', 'P1002', 'P1017', 'P2024', 'ECONNREFUSED'].includes(error.code))
   )
     return new DependencyUnavailableError();
   return error;
