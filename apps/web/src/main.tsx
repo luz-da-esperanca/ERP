@@ -10,6 +10,7 @@ import { FamiliesPage } from './features/registration/presentation/families-page
 import {
   NewFamilyPage,
   FamilyPage,
+  FamilyMembersPage,
 } from './features/registration/presentation/family-page';
 import './index.css';
 
@@ -26,6 +27,10 @@ function App() {
             <Route path="families" element={<FamiliesPage />} />
             <Route path="families/new" element={<NewFamilyPage />} />
             <Route path="families/:id" element={<FamilyPage />} />
+            <Route
+              path="families/:id/members"
+              element={<FamilyMembersPage />}
+            />
             <Route path="families/:id/edit" element={<FamilyPage edit />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
