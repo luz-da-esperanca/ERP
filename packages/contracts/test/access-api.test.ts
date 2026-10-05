@@ -1,6 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { passwordSchema, createUserSchema } from '../src/access-api';
+import {
+  passwordSchema,
+  createUserSchema,
+  usersPageSchema,
+} from '../src/access-api';
 describe('Access contracts', () => {
+  it('projects paginated public accounts without credentials', () => {
+    const account = {
+      id: '00000000-0000-4000-8000-000000000001',
+      login: 'test.operator',
+      displayName: 'Synthetic Operator',
+      active: true,
+      mustChangePassword: false,
+      revision: 1,
+      roleCodes: ['ADMINISTRATOR'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    expect(
+      usersPageSchema.parse({
+        data: [{ ...account, passwordHash: 'private', authVersion: 2 }],
+        pagination: { page: 1, pageSize: 20, total: 1 },
+      }),
+    ).toEqual({
+      data: [account],
+      pagination: { page: 1, pageSize: 20, total: 1 },
+    });
+  });
   it('preserves whitespace in passwords and counts Unicode characters separately from bytes', () => {
     expect(passwordSchema.parse('  valid-password  ')).toBe(
       '  valid-password  ',
