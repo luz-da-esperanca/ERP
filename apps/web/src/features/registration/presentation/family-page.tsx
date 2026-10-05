@@ -270,7 +270,11 @@ export function FamilyMembersPage() {
                 Vínculos vigentes em {asOf.split('-').reverse().join('/')}.
               </p>
             </div>
-            <div className="members-heading-actions">
+            <div
+              className="members-heading-actions"
+              role="group"
+              aria-label="Consulta de membros"
+            >
               <Field
                 label="Consultar membros em"
                 name="asOf"

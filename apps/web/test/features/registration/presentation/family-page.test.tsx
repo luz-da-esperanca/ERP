@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AuditEntry } from '@erp/contracts/audit';
@@ -119,6 +119,16 @@ describe('FamilyPage', () => {
         .getByRole('link', { name: 'Adicionar pessoa' })
         .getAttribute('href'),
     ).toBe(`/people/new?familyId=${family.id}`);
+    const memberActions = screen.getByRole('group', {
+      name: 'Consulta de membros',
+    });
+
+    expect(
+      within(memberActions).getByLabelText('Consultar membros em'),
+    ).toBeTruthy();
+    expect(
+      within(memberActions).getByRole('link', { name: 'Adicionar pessoa' }),
+    ).toBeTruthy();
     expect(
       screen.getByRole('columnheader', { name: 'Parentesco' }),
     ).toBeTruthy();

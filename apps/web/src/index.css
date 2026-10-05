@@ -708,13 +708,14 @@ tr:last-child td {
   margin-bottom: 0;
 }
 .members-heading-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  flex-wrap: wrap;
   gap: 12px;
 }
 .members-heading-actions .field {
   width: min(100%, 240px);
+  min-width: 0;
 }
 .audit-timeline {
   display: grid;
@@ -1038,12 +1039,8 @@ dd {
   }
   .members-heading-actions {
     align-items: stretch;
-    flex-direction: column;
   }
   .members-heading-actions .field {
-    width: 100%;
-  }
-  .members-heading-actions .button {
     width: 100%;
   }
   .family-composition-header,
