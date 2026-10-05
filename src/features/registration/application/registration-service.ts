@@ -10,8 +10,9 @@ import { RegistrationRevisionConflictError, RegistrationRuleError, RegistrationC
 import { assertMembershipPlan, isMembershipCurrent } from '../domain/membership-rules.js';
 import { identifyDuplicateCandidates, assertDuplicateReview } from '../domain/duplicate-rules.js';
 import type { DuplicateQuery } from '../domain/duplicate-rules.js';
-import type { FamiliesQuery, PersonPatch } from '../domain/registration.js';
+import type { FamiliesQuery, MembershipClosure, PersonPatch } from '../domain/registration.js';
 import type { RegistrationTransaction } from './registration-ports.js';
+import type { MembershipCorrection } from '../domain/registration.js';
 
 export class RegistrationService {
   constructor(
@@ -720,6 +721,144 @@ export class RegistrationService {
         return person;
       },
       [personId],
+    );
+  }
+  closeMembership(
+    context: CommandContext,
+    membershipId: string,
+    input: MembershipClosure,
+  ) {
+    return this.amendMembership(context, membershipId, input, 'CLOSE');
+  }
+  correctMembership(
+    context: CommandContext,
+    membershipId: string,
+    input: MembershipCorrection,
+  ) {
+    return this.amendMembership(context, membershipId, input, 'CORRECT');
+  }
+  private async amendMembership(
+    context: CommandContext,
+    membershipId: string,
+    input: MembershipCorrection,
+    action: 'CLOSE' | 'CORRECT',
+  ) {
+    assertPermission(
+      context.actor.user.roleCodes,
+      context.actor.user.mustChangePassword,
+      'registration.write',
+    );
+    const initial = await this.reader.membership(membershipId);
+    if (!initial) throw new ResourceNotFoundError();
+    return this.unitOfWork.run(
+      context.actor.user.id,
+      [initial.familyId],
+      async (tx) => {
+        const actor = await this.authorizedActor(tx, context);
+        const type =
+          action === 'CLOSE'
+            ? 'registration.memberships.close'
+            : 'registration.memberships.correct';
+        const fingerprint = this.fingerprints.calculate(
+          { type, membershipId, input },
+          null,
+        );
+        const existing = await tx.findOperation(type, context.key);
+        if (existing) {
+          if (
+            existing.actorId !== actor.user.id ||
+            !this.fingerprints.matches(existing.fingerprint, fingerprint) ||
+            !('person' in existing.resultReference)
+          )
+            throw new IdempotencyConflictError();
+          const refs = existing.resultReference;
+          return {
+            membership: await tx.readMembershipRevision(
+              refs.membership.entityId,
+              refs.membership.revision,
+            ),
+            family: await tx.readFamilyRevision(
+              refs.family.entityId,
+              refs.family.revision,
+            ),
+          };
+        }
+        const before = await tx.findMembership(membershipId);
+        if (!before) throw new ResourceNotFoundError();
+        const beforeFamily = await tx.findFamily(before.familyId);
+        if (!beforeFamily) throw new ResourceNotFoundError();
+        const { expectedRevision, expectedFamilyRevision, reason, ...changes } =
+          input;
+        if (before.revision !== expectedRevision)
+          throw new RegistrationRevisionConflictError(before.revision);
+        if (beforeFamily.revision !== expectedFamilyRevision)
+          throw new RegistrationRevisionConflictError(beforeFamily.revision);
+        if (
+          action === 'CLOSE' &&
+          before.validUntil &&
+          before.validUntil !== input.validUntil
+        )
+          throw new RegistrationConflictError('MEMBERSHIP_NOT_CURRENT');
+        const changed = (
+          Object.keys(changes) as Array<keyof typeof changes>
+        ).some((key) => before[key] !== changes[key]);
+        assertMembershipPlan(
+          (await tx.memberships([before.familyId], [before.personId])).map(
+            (row) => (row.id === membershipId ? { ...row, ...changes } : row),
+          ),
+          this.now(),
+        );
+        const operationId = await tx.createOperation(
+          type,
+          context.key,
+          actor.user.id,
+          fingerprint,
+        );
+        const membership = changed
+          ? await tx.updateMembership(membershipId, changes)
+          : before;
+        const family = changed
+          ? await tx.reviseFamily(before.familyId)
+          : beforeFamily;
+        if (changed) {
+          await tx.appendMembershipUpdateAudit(
+            operationId,
+            actor.user.id,
+            before,
+            membership,
+            reason,
+            action,
+            input.validUntil ?? input.validFrom ?? this.now(),
+          );
+          await tx.appendFamilyUpdateAudit(
+            operationId,
+            actor.user.id,
+            beforeFamily,
+            family,
+          );
+        }
+        const person = await tx.findPerson(before.personId);
+        if (!person) throw new ResourceNotFoundError();
+        await tx.completeOperation(operationId, {
+          person: {
+            entityType: 'Person',
+            entityId: person.id,
+            revision: person.revision,
+          },
+          membership: {
+            entityType: 'FamilyMembership',
+            entityId: membership.id,
+            revision: membership.revision,
+          },
+          family: {
+            entityType: 'Family',
+            entityId: family.id,
+            revision: family.revision,
+          },
+        });
+        return { membership, family };
+      },
+      [initial.personId],
     );
   }
 }
