@@ -22,6 +22,8 @@ enum AuditAction {
   PASSWORD_RESET
   CLOSE
   CORRECT
+  CANCEL
+  INVALIDATE
 }
 
 model UserAccount {
@@ -47,6 +49,10 @@ model UserAccount {
   responsibleActivities      Activity[]              @relation("ActivityResponsible")
   createdEnrollments         ParticipantEnrollment[] @relation("EnrollmentCreator")
   updatedEnrollments         ParticipantEnrollment[] @relation("EnrollmentUpdater")
+  recordedSessions           ActivitySession[]       @relation("SessionRecorder")
+  executedSessions           ActivitySession[]       @relation("SessionResponsible")
+  recordedAttendances        Attendance[]
+  coverageDeclarations       AttendanceCoverage[]
 }
 
 model Role {
@@ -128,6 +134,7 @@ model Family {
   mergedInto    Family?            @relation("FamilyAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
   aliases       Family[]           @relation("FamilyAliases")
   memberships   FamilyMembership[]
+  attendances   Attendance[]
   nameSearch    String             @default("") @db.VarChar(200)
 
   addressSearch String @default("") @db.VarChar(500)
@@ -153,6 +160,7 @@ model Person {
   nameSearch     String                  @default("") @db.VarChar(200)
   sizeProfile    SizeProfile?
   enrollments    ParticipantEnrollment[]
+  attendances    Attendance[]
 
   @@index([cpf])
 }
@@ -198,6 +206,7 @@ model FamilyMembership {
   supersededById          String?            @db.Uuid
   supersededBy            FamilyMembership?  @relation("MembershipSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
   superseded              FamilyMembership[] @relation("MembershipSupersession")
+  attendances             Attendance[]
 
   @@index([personId, validFrom])
   @@index([familyId, validFrom])
@@ -243,27 +252,29 @@ model Project {
 }
 
 model Activity {
-  id                 String                  @id @default(uuid()) @db.Uuid
-  projectId          String                  @db.Uuid
-  project            Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  name               String                  @db.VarChar(200)
-  nameSearch         String                  @db.VarChar(200)
-  nature             String                  @db.VarChar(10)
-  serviceTypeId      String?                 @db.Uuid
-  serviceType        ServiceType?            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
-  plannedSchedule    String?                 @db.VarChar(500)
-  responsibleId      String?                 @db.Uuid
-  responsibleAccount UserAccount?            @relation("ActivityResponsible", fields: [responsibleId], references: [id], onDelete: Restrict)
-  status             String                  @default("ACTIVE") @db.VarChar(10)
-  closedAt           DateTime?               @db.Timestamptz(3)
-  revision           Int                     @default(1)
-  createdAt          DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime                @updatedAt @db.Timestamptz(3)
-  createdBy          String                  @db.Uuid
-  creator            UserAccount             @relation("ActivityCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  updatedBy          String                  @db.Uuid
-  updater            UserAccount             @relation("ActivityUpdater", fields: [updatedBy], references: [id], onDelete: Restrict)
-  enrollments        ParticipantEnrollment[]
+  id                   String                  @id @default(uuid()) @db.Uuid
+  projectId            String                  @db.Uuid
+  project              Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  name                 String                  @db.VarChar(200)
+  nameSearch           String                  @db.VarChar(200)
+  nature               String                  @db.VarChar(10)
+  serviceTypeId        String?                 @db.Uuid
+  serviceType          ServiceType?            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  plannedSchedule      String?                 @db.VarChar(500)
+  responsibleId        String?                 @db.Uuid
+  responsibleAccount   UserAccount?            @relation("ActivityResponsible", fields: [responsibleId], references: [id], onDelete: Restrict)
+  status               String                  @default("ACTIVE") @db.VarChar(10)
+  closedAt             DateTime?               @db.Timestamptz(3)
+  revision             Int                     @default(1)
+  createdAt            DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                @updatedAt @db.Timestamptz(3)
+  createdBy            String                  @db.Uuid
+  creator              UserAccount             @relation("ActivityCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy            String                  @db.Uuid
+  updater              UserAccount             @relation("ActivityUpdater", fields: [updatedBy], references: [id], onDelete: Restrict)
+  enrollments          ParticipantEnrollment[]
+  sessions             ActivitySession[]
+  coverageDeclarations AttendanceCoverage[]
 }
 
 model ParticipantEnrollment {
@@ -287,4 +298,61 @@ model ParticipantEnrollment {
 
   @@index([activityId, validFrom])
   @@index([personId, validFrom])
+}
+
+model ActivitySession {
+  id            String       @id @default(uuid()) @db.Uuid
+  activityId    String       @db.Uuid
+  activity      Activity     @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  responsibleId String       @db.Uuid
+  responsible   UserAccount  @relation("SessionResponsible", fields: [responsibleId], references: [id], onDelete: Restrict)
+  occurredAt    DateTime     @db.Timestamptz(3)
+  recordedAt    DateTime     @default(now()) @db.Timestamptz(3)
+  recordedBy    String       @db.Uuid
+  recorder      UserAccount  @relation("SessionRecorder", fields: [recordedBy], references: [id], onDelete: Restrict)
+  status        String       @default("COMPLETED") @db.VarChar(10)
+  revision      Int          @default(1)
+  attendances   Attendance[]
+
+  @@index([activityId, occurredAt])
+}
+
+model Attendance {
+  id                 String           @id @default(uuid()) @db.Uuid
+  sessionId          String           @db.Uuid
+  session            ActivitySession  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  personId           String           @db.Uuid
+  person             Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
+  familyId           String           @db.Uuid
+  family             Family           @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  membershipId       String           @db.Uuid
+  membership         FamilyMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  membershipRevision Int
+  status             String           @db.VarChar(10)
+  recordedAt         DateTime         @default(now()) @db.Timestamptz(3)
+  recordedBy         String           @db.Uuid
+  recorder           UserAccount      @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  revision           Int              @default(1)
+  supersededById     String?          @db.Uuid
+  supersededBy       Attendance?      @relation("AttendanceSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
+  superseded         Attendance[]     @relation("AttendanceSupersession")
+
+  @@index([personId, sessionId])
+  @@index([membershipId])
+}
+
+model AttendanceCoverage {
+  id                 String      @id @default(uuid()) @db.Uuid
+  activityId         String      @db.Uuid
+  activity           Activity    @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  periodStart        DateTime    @db.Date
+  periodEndExclusive DateTime    @db.Date
+  declaredBy         String      @db.Uuid
+  declarer           UserAccount @relation(fields: [declaredBy], references: [id], onDelete: Restrict)
+  declaredAt         DateTime    @default(now()) @db.Timestamptz(3)
+  sourceVersions     Json
+  invalidatedPeriods Json        @default("[]")
+  revision           Int         @default(1)
+
+  @@index([activityId, periodStart, periodEndExclusive])
 }
