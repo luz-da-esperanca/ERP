@@ -628,6 +628,26 @@ tr:last-child td {
 .family-detail-history {
   margin-top: 24px;
 }
+.members-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.members-heading h2,
+.members-heading p {
+  margin-bottom: 0;
+}
+.members-heading-actions {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.members-heading-actions .field {
+  width: min(100%, 240px);
+}
 .audit-timeline {
   display: grid;
   gap: 0;
@@ -697,6 +717,70 @@ dd {
 .back-link {
   display: inline-block;
   margin-bottom: 16px;
+}
+.family-profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
+  margin-bottom: 8px;
+  background: var(--color-surface);
+  border: 1px solid #eee9e0;
+  border-radius: 14px;
+}
+.family-profile-header h1 {
+  margin: 4px 0 8px;
+}
+.family-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+.family-profile-meta span + span::before {
+  margin-right: 12px;
+  color: var(--color-border);
+  content: '•';
+}
+.family-profile-meta strong {
+  color: var(--color-text-strong);
+}
+.family-profile-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.family-profile-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  background: #f2ece2;
+  border: 1px solid #eee9e0;
+  border-radius: 10px 10px 0 0;
+}
+.family-profile-tabs a {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 6px 6px 0 0;
+}
+.family-profile-tabs a:hover {
+  color: var(--color-text-strong);
+  background: #f7f5f3;
+}
+.family-profile-tabs a[aria-current='page'] {
+  color: #315c1f;
+  background: var(--color-surface);
+  box-shadow: inset 0 -2px var(--color-primary);
 }
 
 .search-overlay {
@@ -880,8 +964,33 @@ dd {
   .form-grid {
     grid-template-columns: 1fr;
   }
+  .members-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .members-heading-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .members-heading-actions .field {
+    width: 100%;
+  }
+  .members-heading-actions .button {
+    width: 100%;
+  }
   .panel {
     padding: 18px;
+  }
+  .family-profile-header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+  }
+  .family-profile-actions {
+    width: 100%;
+  }
+  .family-profile-actions .button {
+    width: 100%;
   }
   .search-overlay {
     padding: 16px;

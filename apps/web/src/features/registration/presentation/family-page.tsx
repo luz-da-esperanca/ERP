@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import type { ReactNode } from 'react';
+import { Link, useLocation, useParams } from 'react-router';
+import type { FamilyDetail } from '@erp/contracts/registration';
 import { useErp } from '../../../app/erp-provider';
 import { useQuery } from '../../../shared/use-query';
 import {
@@ -9,136 +11,269 @@ import {
   BackLink,
   Field,
   Empty,
+  StatusBadge,
 } from '../../../shared/ui';
 import { civilToday, displayInstant } from '../../../shared/time';
 import { FamilyForm } from './family-form';
 import { FamilyAuditTimeline } from './family-audit-timeline';
-export function FamilyPage({ edit = false }: { edit?: boolean }) {
+
+interface FamilyProfileContentProps {
+  id: string;
+  detail: FamilyDetail;
+  asOf: string;
+  onAsOfChange: (asOf: string) => void;
+}
+
+function FamilyProfile({
+  actions,
+  children,
+}: {
+  actions?: (id: string) => ReactNode;
+  children: (props: FamilyProfileContentProps) => ReactNode;
+}) {
   const { id = '' } = useParams();
-  const { client, session } = useErp();
+  const location = useLocation();
+  const { client } = useErp();
   const [asOf, setAsOf] = useState(civilToday());
   const at = `${asOf}T23:59:59.999-03:00`;
-  const canReadAudit = Boolean(session?.capabilities.includes('audit.read'));
   const load = useCallback(
     () => client.registration.getFamily(id, at),
     [client, id, at],
   );
-  const loadAudit = useCallback(
-    () => (canReadAudit ? client.audit.list() : Promise.resolve([])),
-    [canReadAudit, client],
-  );
   const state = useQuery(load);
-  const auditState = useQuery(loadAudit);
+
   return (
     <>
       <BackLink to="/families">Famílias</BackLink>
       <AsyncView state={state}>
-        {({ family, members }) => (
-          <Page
-            title={family.referenceName ?? `Família ${family.code}`}
-            description={`Código ${family.code}`}
-            actions={
-              <Link
-                className="button secondary"
-                to={`/families/${id}${edit ? '' : '/edit'}`}
-              >
-                {edit ? 'Ver cadastro' : 'Editar cadastro'}
-              </Link>
-            }
-          >
-            {edit ? (
-              <Panel>
-                <FamilyForm family={family} />
-              </Panel>
-            ) : (
-              <>
-                <div className="detail-links">
-                  <Link
-                    className="button secondary"
-                    to={`/families/${id}/social-form`}
-                  >
-                    Ficha social
-                  </Link>
-                  <Link
-                    className="button secondary"
-                    to={`/families/${id}/eligibility`}
-                  >
-                    Aptidão familiar
-                  </Link>
-                  <Link
-                    className="button primary"
-                    to={`/people/new?familyId=${id}`}
-                  >
-                    Adicionar pessoa
-                  </Link>
+        {(detail) => {
+          const { family } = detail;
+          const isMembersView = location.pathname.endsWith('/members');
+
+          return (
+            <>
+              <header className="family-profile-header">
+                <div>
+                  <span className="eyebrow">Luz da Esperança</span>
+                  <h1>{family.referenceName ?? `Família ${family.code}`}</h1>
+                  <p className="family-profile-meta">
+                    <span>
+                      Código <strong>{family.code}</strong>
+                    </span>
+                    {family.referencePersonName ? (
+                      <span>
+                        Referência <strong>{family.referencePersonName}</strong>
+                      </span>
+                    ) : null}
+                    {family.neighborhood ? (
+                      <span>{family.neighborhood}</span>
+                    ) : null}
+                  </p>
                 </div>
-                <div className="two-columns">
-                  <Panel title="Dados cadastrais">
-                    <dl>
-                      <dt>Endereço</dt>
-                      <dd>{family.address ?? 'Não informado'}</dd>
-                      <dt>Bairro</dt>
-                      <dd>{family.neighborhood ?? 'Não informado'}</dd>
-                      <dt>Contato</dt>
-                      <dd>{family.contactPhone ?? 'Não informado'}</dd>
-                      <dt>Titular na referência</dt>
-                      <dd>{family.referencePersonName ?? 'Não informado'}</dd>
-                    </dl>
-                  </Panel>
-                  <Panel title="Composição familiar">
-                    <Field
-                      label="Consultar ao final do dia"
-                      name="asOf"
-                      type="date"
-                      value={asOf}
-                      max={civilToday()}
-                      onChange={(e) => {
-                        if (e.target.value) setAsOf(e.target.value);
-                      }}
-                    />
-                    <p>{family.memberCount} pessoas com vínculo vigente.</p>
-                    {members.length === 0 ? (
-                      <Empty>
-                        Sem membros nesta data. Isso não impede complementar o
-                        cadastro.
-                      </Empty>
-                    ) : (
-                      <ul className="record-list">
-                        {members.map(({ person, membership }) => (
-                          <li key={person.id}>
-                            <Link to={`/people/${person.id}`}>
-                              {person.name}
-                            </Link>
-                            <span>
-                              {membership.isReference
-                                ? 'Titular'
-                                : (membership.relationshipToReference ??
-                                  'Parentesco não informado')}
-                            </span>
-                            <small>
-                              Vínculo desde{' '}
-                              {displayInstant(membership.validFrom)}
-                            </small>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </Panel>
-                </div>
-                {canReadAudit ? (
-                  <div className="family-detail-history">
-                    <FamilyAuditTimeline
-                      state={auditState}
-                      familyId={family.id}
-                    />
-                  </div>
+                {actions ? (
+                  <div className="family-profile-actions">{actions(id)}</div>
                 ) : null}
-              </>
-            )}
-          </Page>
-        )}
+              </header>
+              <nav
+                className="family-profile-tabs"
+                aria-label="Navegação do perfil da família"
+              >
+                <Link
+                  to={`/families/${id}`}
+                  aria-current={isMembersView ? undefined : 'page'}
+                >
+                  Visão geral
+                </Link>
+                <Link
+                  to={`/families/${id}/members`}
+                  aria-current={isMembersView ? 'page' : undefined}
+                >
+                  Membros
+                </Link>
+              </nav>
+              <div className="family-profile-content">
+                {children({
+                  id,
+                  detail,
+                  asOf,
+                  onAsOfChange: setAsOf,
+                })}
+              </div>
+            </>
+          );
+        }}
       </AsyncView>
     </>
+  );
+}
+
+export function FamilyPage({ edit = false }: { edit?: boolean }) {
+  const { client, session } = useErp();
+  const canReadAudit = Boolean(session?.capabilities.includes('audit.read'));
+  const loadAudit = useCallback(
+    () => (canReadAudit ? client.audit.list() : Promise.resolve([])),
+    [canReadAudit, client],
+  );
+  const auditState = useQuery(loadAudit);
+
+  return (
+    <FamilyProfile
+      actions={(id) => (
+        <Link
+          className="button secondary"
+          to={`/families/${id}${edit ? '' : '/edit'}`}
+        >
+          {edit ? 'Ver cadastro' : 'Editar cadastro'}
+        </Link>
+      )}
+    >
+      {({ detail: { family, members }, asOf, onAsOfChange }) =>
+        edit ? (
+          <Panel>
+            <FamilyForm family={family} />
+          </Panel>
+        ) : (
+          <>
+            <div className="two-columns">
+              <Panel title="Dados cadastrais">
+                <dl>
+                  <dt>Endereço</dt>
+                  <dd>{family.address ?? 'Não informado'}</dd>
+                  <dt>Bairro</dt>
+                  <dd>{family.neighborhood ?? 'Não informado'}</dd>
+                  <dt>Contato</dt>
+                  <dd>{family.contactPhone ?? 'Não informado'}</dd>
+                  <dt>Titular na referência</dt>
+                  <dd>{family.referencePersonName ?? 'Não informado'}</dd>
+                </dl>
+              </Panel>
+              <Panel title="Composição familiar">
+                <Field
+                  label="Consultar ao final do dia"
+                  name="asOf"
+                  type="date"
+                  value={asOf}
+                  max={civilToday()}
+                  onChange={(e) => {
+                    if (e.target.value) onAsOfChange(e.target.value);
+                  }}
+                />
+                <p>{family.memberCount} pessoas com vínculo vigente.</p>
+                {members.length === 0 ? (
+                  <Empty>
+                    Sem membros nesta data. Isso não impede complementar o
+                    cadastro.
+                  </Empty>
+                ) : (
+                  <ul className="record-list">
+                    {members.map(({ person, membership }) => (
+                      <li key={person.id}>
+                        <Link to={`/people/${person.id}`}>{person.name}</Link>
+                        <span>
+                          {membership.isReference
+                            ? 'Titular'
+                            : (membership.relationshipToReference ??
+                              'Parentesco não informado')}
+                        </span>
+                        <small>
+                          Vínculo desde {displayInstant(membership.validFrom)}
+                        </small>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Panel>
+            </div>
+            {canReadAudit ? (
+              <div className="family-detail-history">
+                <FamilyAuditTimeline state={auditState} familyId={family.id} />
+              </div>
+            ) : null}
+          </>
+        )
+      }
+    </FamilyProfile>
+  );
+}
+
+function FamilyMembersTable({ detail }: { detail: FamilyDetail }) {
+  const { family, members } = detail;
+
+  if (members.length === 0)
+    return <Empty>Sem membros com vínculo vigente nesta data.</Empty>;
+
+  return (
+    <div className="table-wrap">
+      <table>
+        <caption className="sr-only">
+          Membros vigentes da família {family.code}
+        </caption>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Parentesco</th>
+            <th>Referência</th>
+            <th>Início do vínculo</th>
+            <th>Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {members.map(({ person, membership }) => (
+            <tr key={membership.id}>
+              <td>{person.name}</td>
+              <td>
+                {membership.isReference
+                  ? 'Titular'
+                  : (membership.relationshipToReference ?? 'Não informado')}
+              </td>
+              <td>{membership.isReference ? 'Sim' : 'Não'}</td>
+              <td>{displayInstant(membership.validFrom)}</td>
+              <td>
+                <StatusBadge>Ativo</StatusBadge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function FamilyMembersPage() {
+  return (
+    <FamilyProfile>
+      {({ id, detail, asOf, onAsOfChange }) => (
+        <Panel>
+          <div className="members-heading">
+            <div>
+              <h2>Membros da família</h2>
+              <p className="muted">
+                Vínculos vigentes em {asOf.split('-').reverse().join('/')}.
+              </p>
+            </div>
+            <div className="members-heading-actions">
+              <Field
+                label="Consultar membros em"
+                name="asOf"
+                type="date"
+                value={asOf}
+                max={civilToday()}
+                onChange={(event) => {
+                  if (event.target.value) onAsOfChange(event.target.value);
+                }}
+              />
+              <Link
+                className="button primary"
+                to={`/people/new?familyId=${id}`}
+              >
+                Adicionar pessoa
+              </Link>
+            </div>
+          </div>
+          <FamilyMembersTable detail={detail} />
+        </Panel>
+      )}
+    </FamilyProfile>
   );
 }
 export function NewFamilyPage() {
