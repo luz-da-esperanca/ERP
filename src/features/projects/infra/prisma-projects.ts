@@ -1,3 +1,18 @@
+import {
+  projectSelect,
+  activitySelect,
+  enrollmentSelect,
+  projectRecord,
+  activityRecord,
+  enrollmentRecord,
+} from './project-projections.js';
+import {
+  attendanceTransactionPorts,
+  sessionSelect,
+  sessionRecord,
+  coverageSelect,
+  coverageRecord,
+} from '../../attendance/infra/prisma-attendance.js';
 import { z } from 'zod';
 import type { Role } from '@erp/contracts/access';
 import {
@@ -30,13 +45,7 @@ import type {
   ProjectsTransaction,
   ProjectsUnitOfWork,
 } from '../application/projects-ports.js';
-import type {
-  Project,
-  Activity,
-  Enrollment,
-  ProjectsQuery,
-  ActivitiesQuery,
-} from '../domain/projects.js';
+import type { ProjectsQuery, ActivitiesQuery } from '../domain/projects.js';
 import type { EnrollmentsQuery } from '../domain/projects.js';
 import { normalizeSearch } from '../../registration/domain/duplicate-rules.js';
 import { initialInstitutes } from '../domain/initial-institutes.js';
@@ -48,78 +57,6 @@ const catalogSelect = {
   active: true,
   revision: true,
 } as const;
-const metadataSelect = {
-  id: true,
-  revision: true,
-  createdAt: true,
-  updatedAt: true,
-  createdBy: true,
-  updatedBy: true,
-} as const;
-const projectSelect = {
-  ...metadataSelect,
-  name: true,
-  instituteId: true,
-  description: true,
-  startsOn: true,
-  endsOn: true,
-  status: true,
-  closedAt: true,
-} satisfies Prisma.ProjectSelect;
-const activitySelect = {
-  ...metadataSelect,
-  projectId: true,
-  name: true,
-  nature: true,
-  serviceTypeId: true,
-  plannedSchedule: true,
-  responsibleId: true,
-  status: true,
-  closedAt: true,
-} satisfies Prisma.ActivitySelect;
-const enrollmentSelect = {
-  ...metadataSelect,
-  activityId: true,
-  personId: true,
-  validFrom: true,
-  validUntil: true,
-  supersededById: true,
-} satisfies Prisma.ParticipantEnrollmentSelect;
-function projectRecord(
-  row: Prisma.ProjectGetPayload<{ select: typeof projectSelect }>,
-): Project {
-  return projectDtoSchema.parse({
-    ...row,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    startsOn: row.startsOn?.toISOString().slice(0, 10) ?? null,
-    endsOn: row.endsOn?.toISOString().slice(0, 10) ?? null,
-    closedAt: row.closedAt?.toISOString() ?? null,
-  });
-}
-function activityRecord(
-  row: Prisma.ActivityGetPayload<{ select: typeof activitySelect }>,
-): Activity {
-  return activityDtoSchema.parse({
-    ...row,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    closedAt: row.closedAt?.toISOString() ?? null,
-  });
-}
-function enrollmentRecord(
-  row: Prisma.ParticipantEnrollmentGetPayload<{
-    select: typeof enrollmentSelect;
-  }>,
-): Enrollment {
-  return enrollmentDtoSchema.parse({
-    ...row,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    validFrom: row.validFrom.toISOString(),
-    validUntil: row.validUntil?.toISOString() ?? null,
-  });
-}
 const snapshotSchemas = {
   Institute: instituteDtoSchema,
   ServiceType: serviceTypeDtoSchema,
@@ -192,6 +129,25 @@ function transactionPorts(tx: Transaction): ProjectsTransaction {
     return snapshotSchemas[reference.entityType].parse(entry.after);
   }
   const ports: ProjectsTransaction = {
+    coverage: attendanceTransactionPorts(tx, false),
+    async activitySessions(activityId) {
+      return (
+        await tx.activitySession.findMany({
+          where: { activityId },
+          select: sessionSelect,
+          orderBy: { id: 'asc' },
+        })
+      ).map(sessionRecord);
+    },
+    async activityCoverage(activityId) {
+      return (
+        await tx.attendanceCoverage.findMany({
+          where: { activityId },
+          select: coverageSelect,
+          orderBy: { id: 'asc' },
+        })
+      ).map(coverageRecord);
+    },
     async findActor(id) {
       const row = await tx.userAccount.findUnique({
         where: { id },

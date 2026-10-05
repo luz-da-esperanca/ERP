@@ -1,5 +1,10 @@
 import type { Principal } from '../../access/application/ports.js';
 import type {
+  ActivitySession,
+  AttendanceCoverage,
+} from '../../attendance/domain/attendance.js';
+import type { AttendanceTransaction } from '../../attendance/application/attendance-ports.js';
+import type {
   CatalogEntity,
   CatalogQuery,
   CatalogRecord,
@@ -22,6 +27,9 @@ import type {
 import type { EnrollmentsQuery, EnrollmentItem } from '../domain/projects.js';
 
 export interface ProjectsTransaction {
+  coverage: Pick<AttendanceTransaction, 'updateCoverage' | 'audit'>;
+  activitySessions(id: string): Promise<ActivitySession[]>;
+  activityCoverage(id: string): Promise<AttendanceCoverage[]>;
   findActor(id: string): Promise<Principal | null>;
   findOperation(
     type: string,

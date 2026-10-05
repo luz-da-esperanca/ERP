@@ -2,6 +2,12 @@ import type {
   CommandContext,
   Principal,
 } from '../../access/application/ports.js';
+import { assertSessionDate } from '../../attendance/domain/frequency-rules.js';
+import { AttendanceRuleError } from '../../attendance/domain/attendance-errors.js';
+import {
+  invalidateCoverage,
+  changedCivilPeriods,
+} from '../../attendance/application/coverage-invalidation.js';
 import type { Capability } from '@erp/contracts/access';
 import type { OperationFingerprints } from '../../access/application/account-transactions.js';
 import {
@@ -351,6 +357,21 @@ export class ProjectsService {
         ) {
           const conflicts: string[] = [];
           for (const activity of await tx.projectActivities(id)) {
+            for (const session of await tx.activitySessions(activity.id)) {
+              if (session.status === 'CANCELED') continue;
+              try {
+                assertSessionDate(
+                  activity,
+                  next,
+                  session.occurredAt,
+                  this.now(),
+                  this.timeZone,
+                );
+              } catch (error) {
+                if (!(error instanceof AttendanceRuleError)) throw error;
+                conflicts.push(session.id);
+              }
+            }
             for (const enrollment of await tx.activityEnrollments(
               activity.id,
             )) {
@@ -458,7 +479,10 @@ export class ProjectsService {
           next.nature !== before.nature ||
           next.projectId !== before.projectId
         ) {
-          if ((await tx.activityEnrollments(id)).length)
+          if (
+            (await tx.activityEnrollments(id)).length ||
+            (await tx.activitySessions(id)).length
+          )
             throw new ProjectsConflictError('ACTIVITY_HAS_HISTORY', [id]);
           if (before.status !== 'ACTIVE')
             throw new ProjectsRuleError('RECORD_CLOSED');
@@ -527,6 +551,23 @@ export class ProjectsService {
       occurredAt,
     );
   }
+  private async invalidateEnrollmentCoverage(
+    tx: ProjectsTransaction,
+    operationId: string,
+    actorId: string,
+    before: Enrollment | null,
+    after: Enrollment,
+  ) {
+    await invalidateCoverage(
+      tx.coverage,
+      await tx.activityCoverage(after.activityId),
+      changedCivilPeriods(before, after, this.timeZone),
+      operationId,
+      actorId,
+      this.now(),
+      'ENROLLMENT_CHANGED',
+    );
+  }
   createEnrollment(
     context: CommandContext,
     activityId: string,
@@ -590,6 +631,13 @@ export class ProjectsService {
           activity,
           undefined,
           input.validFrom,
+        );
+        await this.invalidateEnrollmentCoverage(
+          tx,
+          operationId,
+          context.actor.user.id,
+          null,
+          after,
         );
         return after;
       },
@@ -697,6 +745,13 @@ export class ProjectsService {
           input.reason,
           occurredAt,
         );
+        await this.invalidateEnrollmentCoverage(
+          tx,
+          operationId,
+          context.actor.user.id,
+          before,
+          after,
+        );
         return after;
       },
     );
@@ -734,6 +789,13 @@ export class ProjectsService {
         'CLOSE',
       );
       changes.push(after);
+      await this.invalidateEnrollmentCoverage(
+        tx,
+        operationId,
+        actorId,
+        before,
+        after,
+      );
     }
     return changes;
   }
@@ -758,7 +820,13 @@ export class ProjectsService {
           return { activity: before, enrollments: [] };
         }
         const rows = await tx.activityEnrollments(id);
-        assertClosurePlan([], rows, input.effectiveAt, this.now());
+        assertClosurePlan(
+          [],
+          rows,
+          input.effectiveAt,
+          this.now(),
+          await tx.activitySessions(id),
+        );
         const enrollments = await this.closeEnrollmentIntervals(
           tx,
           operationId,
@@ -809,13 +877,17 @@ export class ProjectsService {
         }
         const allActivities = await tx.projectActivities(id);
         const allEnrollments: Enrollment[] = [];
+        const allSessions = [];
         for (const activity of allActivities)
           allEnrollments.push(...(await tx.activityEnrollments(activity.id)));
+        for (const activity of allActivities)
+          allSessions.push(...(await tx.activitySessions(activity.id)));
         assertClosurePlan(
           allActivities,
           allEnrollments,
           input.effectiveAt,
           this.now(),
+          allSessions,
         );
         const activities: Activity[] = [];
         const enrollments: Enrollment[] = [];
