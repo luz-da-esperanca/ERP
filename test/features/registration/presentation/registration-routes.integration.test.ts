@@ -3,6 +3,86 @@ import { setupIntegrationFixture } from '../../../support/integration-fixture.js
 
 const fixture = setupIntegrationFixture();
 describe('Registration HTTP API', () => {
+  it('preserves audited reference values when the effective change coincides with the segment start', async () => {
+    const actor = await fixture.operator('synthetic.social', [
+      'SOCIAL_ASSISTANCE',
+    ]);
+    const family = (
+      await fixture.runtime.app.inject({
+        method: 'POST',
+        url: '/api/v1/families',
+        headers: fixture.headers(actor.cookie),
+        payload: {},
+      })
+    ).json().data;
+    const first = (
+      await fixture.runtime.app.inject({
+        method: 'POST',
+        url: '/api/v1/people',
+        headers: fixture.headers(actor.cookie),
+        payload: {
+          name: 'First reference',
+          familyId: family.id,
+          expectedFamilyRevision: 1,
+          validFrom: '2026-01-01T00:00:00Z',
+          isReference: true,
+        },
+      })
+    ).json().data;
+    const second = (
+      await fixture.runtime.app.inject({
+        method: 'POST',
+        url: '/api/v1/people',
+        headers: fixture.headers(actor.cookie),
+        payload: {
+          name: 'Next reference',
+          familyId: family.id,
+          expectedFamilyRevision: 2,
+          validFrom: '2026-01-01T00:00:00Z',
+        },
+      })
+    ).json().data;
+    const response = await fixture.runtime.app.inject({
+      method: 'POST',
+      url: `/api/v1/families/${family.id}/reference-changes`,
+      headers: fixture.headers(actor.cookie),
+      payload: {
+        membershipId: second.membership.id,
+        expectedRevision: 3,
+        effectiveAt: '2026-01-01T00:00:00Z',
+        reason: 'Synthetic reference boundary',
+      },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.family.revision).toBe(4);
+    expect(await fixture.runtime.database.familyMembership.count()).toBe(2);
+    const original = await fixture.runtime.database.auditEntry.findFirstOrThrow(
+      {
+        where: {
+          entityType: 'FamilyMembership',
+          entityId: first.membership.id,
+          revision: 1,
+        },
+      },
+    );
+    expect(original.after).toMatchObject({
+      isReference: true,
+      validUntil: null,
+    });
+    const corrected =
+      await fixture.runtime.database.auditEntry.findFirstOrThrow({
+        where: {
+          entityType: 'FamilyMembership',
+          entityId: first.membership.id,
+          revision: 2,
+        },
+      });
+    expect(corrected).toMatchObject({
+      action: 'CORRECT',
+      before: { isReference: true },
+      after: { isReference: false },
+    });
+  });
   it('rejects competing authors sharing a concurrent idempotency key', async () => {
     const first = await fixture.operator('synthetic.first', [
       'SOCIAL_ASSISTANCE',
@@ -61,6 +141,155 @@ describe('Registration HTTP API', () => {
       },
       members: [],
     });
+  });
+  it('changes the family reference without rewriting previous membership attributes', async () => {
+    const actor = await fixture.operator('synthetic.social', [
+      'SOCIAL_ASSISTANCE',
+    ]);
+    const family = (
+      await fixture.runtime.app.inject({
+        method: 'POST',
+        url: '/api/v1/families',
+        headers: fixture.headers(actor.cookie),
+        payload: {},
+      })
+    ).json().data;
+    const createMember = async (
+      name: string,
+      revision: number,
+      isReference: boolean,
+    ) =>
+      (
+        await fixture.runtime.app.inject({
+          method: 'POST',
+          url: '/api/v1/people',
+          headers: fixture.headers(actor.cookie),
+          payload: {
+            name,
+            familyId: family.id,
+            expectedFamilyRevision: revision,
+            validFrom: '2026-01-01T00:00:00Z',
+            isReference,
+          },
+        })
+      ).json().data;
+    await createMember('Synthetic First', 1, true);
+    const second = await createMember('Synthetic Second', 2, false);
+    const response = await fixture.runtime.app.inject({
+      method: 'POST',
+      url: `/api/v1/families/${family.id}/reference-changes`,
+      headers: fixture.headers(actor.cookie),
+      payload: {
+        membershipId: second.membership.id,
+        effectiveAt: '2026-02-01T00:00:00Z',
+        expectedRevision: 3,
+        reason: 'Synthetic reference change',
+      },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    const detail = async (asOf: string) =>
+      (
+        await fixture.runtime.app.inject({
+          method: 'GET',
+          url: `/api/v1/families/${family.id}?asOf=${asOf}`,
+          headers: { cookie: actor.cookie },
+        })
+      ).json().data;
+    const before = await detail('2026-01-31T23:59:59Z');
+    const after = await detail('2026-02-01T00:00:00Z');
+    expect(before.family).toMatchObject({
+      memberCount: 2,
+      referencePersonName: 'Synthetic First',
+    });
+    expect(after.family).toMatchObject({
+      memberCount: 2,
+      referencePersonName: 'Synthetic Second',
+      revision: 4,
+    });
+    expect(
+      before.members.find(
+        (member: { person: { id: string } }) =>
+          member.person.id === second.person.id,
+      ).membership.isReference,
+    ).toBe(false);
+  });
+  it('transfers membership at an exclusive boundary while preserving previous family composition', async () => {
+    const actor = await fixture.operator('synthetic.social', [
+      'SOCIAL_ASSISTANCE',
+    ]);
+    const createFamily = async () =>
+      (
+        await fixture.runtime.app.inject({
+          method: 'POST',
+          url: '/api/v1/families',
+          headers: fixture.headers(actor.cookie),
+          payload: {},
+        })
+      ).json().data;
+    const source = await createFamily();
+    const target = await createFamily();
+    const created = await fixture.runtime.app.inject({
+      method: 'POST',
+      url: '/api/v1/people',
+      headers: fixture.headers(actor.cookie),
+      payload: {
+        name: 'Synthetic Transfer',
+        familyId: source.id,
+        expectedFamilyRevision: 1,
+        validFrom: '2026-01-01T00:00:00Z',
+        isReference: true,
+      },
+    });
+    const { person, membership } = created.json().data;
+    const request = {
+      method: 'POST' as const,
+      url: `/api/v1/people/${person.id}/membership-transfers`,
+      headers: fixture.headers(actor.cookie),
+      payload: {
+        membershipId: membership.id,
+        targetFamilyId: target.id,
+        effectiveAt: '2026-02-01T00:00:00Z',
+        expectedMembershipRevision: 1,
+        expectedSourceFamilyRevision: 2,
+        expectedTargetFamilyRevision: 1,
+        isReference: true,
+        reason: 'Synthetic household change',
+      },
+    };
+    const response = await fixture.runtime.app.inject(request);
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data).toMatchObject({
+      previousMembership: {
+        validUntil: '2026-02-01T00:00:00.000Z',
+        revision: 2,
+      },
+      membership: {
+        familyId: target.id,
+        validFrom: '2026-02-01T00:00:00.000Z',
+      },
+      sourceFamily: { revision: 3 },
+      targetFamily: { revision: 2 },
+    });
+    expect((await fixture.runtime.app.inject(request)).json()).toEqual(
+      response.json(),
+    );
+    const detail = async (id: string, asOf: string) =>
+      (
+        await fixture.runtime.app.inject({
+          method: 'GET',
+          url: `/api/v1/families/${id}?asOf=${asOf}`,
+          headers: { cookie: actor.cookie },
+        })
+      ).json().data.family;
+    expect((await detail(source.id, '2026-01-31T23:59:59Z')).memberCount).toBe(
+      1,
+    );
+    expect((await detail(source.id, '2026-02-01T00:00:00Z')).memberCount).toBe(
+      0,
+    );
+    expect((await detail(target.id, '2026-02-01T00:00:00Z')).memberCount).toBe(
+      1,
+    );
   });
   it('updates optional fields without erasing omitted data and restricts participant searches to minimal identities', async () => {
     const social = await fixture.operator('synthetic.social', [
