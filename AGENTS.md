@@ -15,13 +15,13 @@
 
 Este projeto acompanha pessoas assistidas e suas famílias no Luz da Esperança. A família é a referência da assistência; a participação em atividades é individual. O MVP é um recorte do produto documentado, definido pelo responsável pelo projeto:
 
-| Área | Incluído no MVP | Referências da ERS |
-| --- | --- | --- |
-| Cadastro | Pessoas, famílias, vínculos históricos, titularidade, busca e tratamento de duplicidades e dados ausentes | CAD |
-| Ficha social | Situação familiar, dados por membro, necessidades e versões da ficha, conforme seleção de campos aprovada | FIC |
-| Projetos e atividades | Organização de projetos, atividades, participantes e encontros; frequência e avaliação de aptidão familiar | ATV, FRQ, APT |
-| Consultas e relatórios | Históricos, frequência, aptidão, alcance e qualidade cadastral, somente sobre os módulos deste MVP | REL, parcialmente |
-| Acesso e auditoria | Autenticação, usuários, perfis, autorização e autoria das alterações | ACS |
+| Área                   | Incluído no MVP                                                                                            | Referências da ERS |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------ |
+| Cadastro               | Pessoas, famílias, vínculos históricos, titularidade, busca e tratamento de duplicidades e dados ausentes  | CAD                |
+| Ficha social           | Situação familiar, dados por membro, necessidades e versões da ficha, conforme seleção de campos aprovada  | FIC                |
+| Projetos e atividades  | Organização de projetos, atividades, participantes e encontros; frequência e avaliação de aptidão familiar | ATV, FRQ, APT      |
+| Consultas e relatórios | Históricos, frequência, aptidão, alcance e qualidade cadastral, somente sobre os módulos deste MVP         | REL, parcialmente  |
+| Acesso e auditoria     | Autenticação, usuários, perfis, autorização e autoria das alterações                                       | ACS                |
 
 Atendimentos pontuais realizados, estoque social, entregas, integração com Bazar e migração do Bússola Social ficam fora deste MVP. A natureza periódica ou pontual de uma atividade pode ser representada no cadastro; isso não inclui implementar o módulo de atendimentos. Consultas e relatórios não devem introduzir módulos excluídos para completar requisitos do produto maior.
 
@@ -64,11 +64,12 @@ O monorepo usa `apps/web`, `apps/api` e `packages/contracts`, com **pnpm workspa
 
 Organize cada aplicação por feature/responsabilidade de negócio. No backend, quando a feature precisar dessa separação, use:
 
-| Diretório na feature | Responsabilidade |
-| --- | --- |
-| `domain` | Regras e conceitos de negócio, sem dependência de framework, I/O ou infraestrutura |
-| `application` | Casos de uso e orquestração; contratos necessários nas fronteiras com efeitos externos |
-| `infra` | Implementações de adaptadores, gateways, repositórios e controllers/rotas |
+| Diretório na feature | Responsabilidade                                                                                                                                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain`             | Regras de negócio puras: entidades, value objects, serviços de domínio, erros e contratos estritamente ligados ao domínio. Não conhece HTTP, banco, framework nem Fastify.                                                                  |
+| `application`        | Casos de uso da aplicação e orquestração do fluxo. Define portas/contratos necessários para executar os casos de uso, como repositórios, gateways e serviços externos.                                                                      |
+| `presentation`       | Interface de entrada da aplicação. Recebe HTTP/CLI/eventos, valida e transforma a entrada, chama os casos de uso e converte a saída para o formato externo. Aqui entram controllers, presenters, schemas HTTP e mapeamento de status codes. |
+| `infra`              | Implementações concretas das dependências externas: Prisma/PostgreSQL, APIs externas, filesystem, filas, cache, serviços de e-mail etc. Implementa os contratos definidos pelas camadas internas.                                           |
 
 Crie apenas as pastas necessárias; camadas globais `domain`, `application` e `infra` não substituem a divisão por feature. Mantenha erros e contratos próximos da responsabilidade a que pertencem. Compartilhe somente contratos usados entre módulos/aplicações.
 
@@ -123,6 +124,7 @@ Dependências apontam para as regras e contratos internos; efeitos externos fica
 - Mantenha testes determinísticos e isolados, verificando comportamento observável. Use doubles nas fronteiras externas, sem substituir regras internas do domínio. Prefira stub, fake ou `vi.fn()` quando suficientes; `vitest-mock-extended` cabe quando mocks tipados de fronteiras trouxerem ganho concreto, com dependência justificada. Dificuldade de testar uma regra é motivo para revisar seu acoplamento.
 - Execute scripts oficiais do pacote com pnpm: testes direcionados, verificação de tipos, lint, suíte pertinente e build quando afetado, conforme os comandos existentes. Amplie para todo o repositório quando contratos compartilhados, mudanças transversais, falhas ou verificações obrigatórias exigirem.
 - Informe verificações executadas, limitações e a razão quando não houver teste automatizado novo/ajustado. Alterações apenas documentais exigem revisão de conteúdo e links, sem testes que fixem a redação. A tarefa termina com o escopo autorizado concluído e a validação pertinente realizada, ou com um impedimento concreto identificado.
+- Sempre use TDD, escrevendo primeiro o teste que define o comportamento desejado. Se a tarefa for apenas de documentação, registre a decisão de não escrever teste. Evite escrever código sem teste que defina comportamento; se necessário, registre a lacuna e justifique a decisão.
 
 ## Commits
 
