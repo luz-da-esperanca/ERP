@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { ClipboardList, Clock3, History, Users } from 'lucide-react';
 import type { AuditEntry } from '@erp/contracts/audit';
 import { useErp } from '../../../app/erp-provider';
+import { auditDescription } from '../../../shared/audit';
 import { displayInstant } from '../../../shared/time';
 import { AsyncView, Empty, Panel, StatusBadge } from '../../../shared/ui';
 import { useQuery } from '../../../shared/use-query';
@@ -10,20 +11,6 @@ import { useQuery } from '../../../shared/use-query';
 function greeting(name: string) {
   const [firstName] = name.split(/\s|·/);
   return `Olá, ${firstName || 'pessoa usuária'}. Paz e bem.`;
-}
-
-function auditDescription(entry: AuditEntry) {
-  const actions = {
-    CREATE: 'Cadastro criado',
-    UPDATE: 'Cadastro atualizado',
-    CORRECT: 'Registro corrigido',
-    CLOSE: 'Registro encerrado',
-    CANCEL: 'Registro cancelado',
-    PUBLISH: 'Registro publicado',
-    ACTIVATE: 'Conta ativada',
-    DEACTIVATE: 'Conta desativada',
-  } as const;
-  return `${actions[entry.action]} — ${entry.entityLabel}`;
 }
 
 function RecentActivity({ entries }: { entries: AuditEntry[] }) {

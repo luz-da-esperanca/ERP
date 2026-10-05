@@ -1,1 +1,1 @@
-export { NewFamilyPage } from './features/registration';
+export { FamilyPage } from './features/registration';

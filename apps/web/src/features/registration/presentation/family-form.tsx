@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import type { Family, FamilyInput } from '@erp/contracts/registration';
 import { familyInputSchema } from '@erp/contracts/registration';
 import { useErp } from '../../../app/erp-provider';
@@ -38,23 +38,17 @@ export function FamilyForm({ family }: { family?: Family }) {
     });
   }
   return (
-    <form onSubmit={submit} className="form-stack family-form">
+    <form onSubmit={submit} className="form-stack">
       <p className="muted">
-        Informe os dados disponíveis. Campos sem informação podem ser
-        complementados depois.
+        Os dados desta família podem ser complementados depois. Membros são
+        adicionados pelo cadastro individual.
       </p>
-      <div className="family-form-fields">
+      <div className="form-grid">
         <Field
           label="Nome de referência"
           name="referenceName"
           maxLength={200}
           defaultValue={family?.referenceName ?? ''}
-        />
-        <Field
-          label="Endereço"
-          name="address"
-          maxLength={500}
-          defaultValue={family?.address ?? ''}
         />
         <Field
           label="Bairro"
@@ -63,18 +57,21 @@ export function FamilyForm({ family }: { family?: Family }) {
           defaultValue={family?.neighborhood ?? ''}
         />
         <Field
-          label="CEP"
+          label="Endereço"
+          name="address"
+          maxLength={500}
+          defaultValue={family?.address ?? ''}
+        />
+        <Field
+          label="CEP (8 dígitos)"
           name="postalCode"
           pattern="[0-9]{8}"
-          inputMode="numeric"
-          placeholder="Somente números"
           defaultValue={family?.postalCode ?? ''}
         />
         <Field
-          label="Telefone para contato"
+          label="Telefone"
           name="contactPhone"
           maxLength={50}
-          type="tel"
           defaultValue={family?.contactPhone ?? ''}
         />
         <SelectField
@@ -88,17 +85,9 @@ export function FamilyForm({ family }: { family?: Family }) {
         </SelectField>
       </div>
       {action.error && <Alert error>{action.error}</Alert>}
-      <div className="family-form-actions">
-        <Link
-          className="button secondary"
-          to={family ? `/families/${family.id}` : '/families'}
-        >
-          Cancelar
-        </Link>
-        <Submit pending={action.pending}>
-          {family ? 'Salvar cadastro' : 'Criar família'}
-        </Submit>
-      </div>
+      <Submit pending={action.pending}>
+        {family ? 'Salvar cadastro' : 'Criar família'}
+      </Submit>
     </form>
   );
 }

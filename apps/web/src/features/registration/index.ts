@@ -1,1 +1,1 @@
-export { NewFamilyPage } from './presentation/family-page';
+export { FamilyPage } from './presentation/family-page';
