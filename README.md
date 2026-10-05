@@ -4,7 +4,7 @@ Monorepo TypeScript do MVP. O recorte e suas decisões estão no [índice das sp
 
 ## Estado da implementação
 
-O backend entrega **CORE, ACS, a primeira etapa de CAD e auditoria de contas/cadastro**:
+O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV e auditoria de contas/cadastro/atividades**:
 
 - Fastify com contratos Zod, paginação, erros padronizados e validação da configuração.
 - PostgreSQL/Prisma com migration reproduzível, revisões, autoria e auditoria imutável.
@@ -16,8 +16,11 @@ O backend entrega **CORE, ACS, a primeira etapa de CAD e auditoria de contas/cad
 - Pessoas/famílias, códigos gerados, vínculos históricos, titularidade, transferência, correção e encerramento.
 - Busca de duplicidades com análise explícita, ocorrências de qualidade e tamanhos datados/versionados.
 - Consultas por data, revisões e projeção mínima de participantes conforme o perfil.
+- Seis institutos, tipos pontuais, projetos e atividades com natureza, vigência, responsável e revisões.
+- Inscrições temporais, correção e saída; encerramento atômico de projetos/atividades preservando o histórico.
+- Auditoria de ATV, replay das respostas originais e integridade de intervalos sob concorrência.
 
-Os contratos entregues, payloads e regras de integração estão no [guia do backend](docs/api/README.md) e na [referência de cadastro](docs/api/registration.md). **Ainda não há endpoints de FIC, ATV, FRQ, APT ou REL.** Unificação de CAD e reconciliação com frequência dependem desses módulos; pendências automáticas de dados ausentes dependem da seleção dos campos relevantes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões institucionais também está pendente; o mecanismo de inicialização já recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+Os contratos entregues, payloads e regras de integração estão no [guia do backend](docs/api/README.md), na [referência de cadastro](docs/api/registration.md), na [referência de ATV](docs/api/projects.md) e no [guia para integrar ATV](docs/api/integrating-projects.md). **Ainda não há endpoints de FIC, FRQ, APT ou REL.** As verificações de ATV sobre encontros/chamada serão completadas com FRQ. Unificação de CAD e reconciliação com frequência dependem desses módulos; pendências automáticas de dados ausentes dependem da seleção dos campos relevantes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões institucionais também está pendente; o mecanismo de inicialização já recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
 
 `apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
 
@@ -49,6 +52,11 @@ src/
     application/            # casos de uso e unidade de trabalho
     presentation/           # contratos e rotas cadastrais
     infra/                  # projeções e persistência PostgreSQL
+  features/projects/
+    domain/                 # natureza, vigência, intervalos e encerramento
+    application/            # casos de uso e unidade de trabalho ATV
+    presentation/           # contratos e rotas de ATV
+    infra/                  # catálogos, projeções e persistência PostgreSQL
 prisma/                     # schema e migrations
 test/                       # espelha src/: core e features
   support/                  # doubles, fixtures e preparação da integração
@@ -105,22 +113,24 @@ Disponibilidade: `GET http://127.0.0.1:3001/api/v1/health`. Essa rota verifica o
 
 ## Contratos HTTP entregues
 
-| Método    | Caminho sob `/api/v1`                   | Acesso                                                |
-| --------- | --------------------------------------- | ----------------------------------------------------- |
-| GET       | `/health`                               | Público, sem manter sessão viva                       |
-| POST      | `/auth/login`                           | Login e senha                                         |
-| GET       | `/auth/session`                         | Sessão válida; perfis/capacidades atuais              |
-| POST      | `/auth/logout`                          | Limpa sessão/cookie; ausência aceita                  |
-| PUT       | `/auth/password`                        | Própria conta, revisão e senha atual                  |
-| GET, POST | `/users`                                | `accounts.manage`                                     |
-| PATCH     | `/users/:userId`                        | `accounts.manage`, revisão                            |
-| POST      | `/users/:userId/activation`             | `accounts.manage`, revisão e motivo                   |
-| PUT       | `/users/:userId/password`               | `accounts.manage`, revisão e motivo                   |
-| GET       | `/roles`                                | `accounts.manage`                                     |
-| GET       | `/audit-entries?entityType=UserAccount` | `audit.read` e `accounts.manage`                      |
+| Método    | Caminho sob `/api/v1`                   | Acesso                                                      |
+| --------- | --------------------------------------- | ----------------------------------------------------------- |
+| GET       | `/health`                               | Público, sem manter sessão viva                             |
+| POST      | `/auth/login`                           | Login e senha                                               |
+| GET       | `/auth/session`                         | Sessão válida; perfis/capacidades atuais                    |
+| POST      | `/auth/logout`                          | Limpa sessão/cookie; ausência aceita                        |
+| PUT       | `/auth/password`                        | Própria conta, revisão e senha atual                        |
+| GET, POST | `/users`                                | `accounts.manage`                                           |
+| PATCH     | `/users/:userId`                        | `accounts.manage`, revisão                                  |
+| POST      | `/users/:userId/activation`             | `accounts.manage`, revisão e motivo                         |
+| PUT       | `/users/:userId/password`               | `accounts.manage`, revisão e motivo                         |
+| GET       | `/roles`                                | `accounts.manage`                                           |
+| GET       | `/audit-entries?entityType=UserAccount` | `audit.read` e `accounts.manage`                            |
 | GET       | `/audit-entries/:entryId`               | Autorização da entidade; detalhe fora do acesso retorna 404 |
 
 CAD acrescenta 16 rotas de pessoas, famílias, vínculos, tamanhos, candidatos e ocorrências, com contratos detalhados em [Cadastro](docs/api/registration.md#rotas-e-permissões). Auditoria também aceita entidades cadastrais com `registration.read` e `audit.read`. O perfil de atividade recebe identificação mínima por `/people`; Administrador isolado não recebe cadastro ou auditoria assistencial.
+
+ATV acrescenta 19 rotas de institutos, tipos pontuais, projetos, atividades e inscrições, detalhadas em [Projetos e atividades](docs/api/projects.md). Todas as escritas são idempotentes e auditadas. A migration cria os seis institutos; tipos pontuais são cadastrados pela coordenação. Auditoria de ATV exige `projects.read` e `audit.read`. Inscrição não registra presença, atendimento realizado ou aptidão.
 
 As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts) e [account-audit-api.ts](packages/contracts/src/account-audit-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
 
@@ -155,11 +165,10 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. ATV: catálogos, projetos, atividades e inscrições temporais.
-2. FIC e FRQ: seleção/habilitação de campos, versões sociais, encontros, chamada, correções e cancelamentos.
-3. APT: políticas versionadas e evidências; sem política, estado Pendente.
-4. Fechar CAD transversal: reconciliação de fatos, unificação autorizada e seleção de dados relevantes para pendências.
-5. REL: consultas e detalhamento de totais somente sobre os módulos acima.
-6. A frente de frontend integra esses contratos, incluindo autenticação real e troca obrigatória de senha; esta entrega está limitada ao backend e à documentação.
+1. FIC e FRQ: seleção/habilitação de campos, versões sociais, encontros, chamada, correções e cancelamentos. FRQ amplia as verificações de histórico/vigência/encerramento de ATV e os conflitos de inscrição com chamada/cobertura.
+2. APT: políticas versionadas e evidências; sem política, estado Pendente.
+3. Fechar CAD transversal: reconciliação de fatos, unificação autorizada e seleção de dados relevantes para pendências.
+4. REL: consultas e detalhamento de totais somente sobre os módulos acima.
+5. A frente de frontend integra esses contratos, incluindo autenticação real e troca obrigatória de senha; esta entrega está limitada ao backend e à documentação.
 
 Não foram introduzidos atendimentos, estoque, entregas, Bazar ou migração. A referência normativa continua no [AGENTS.md](AGENTS.md) e nas specs. Referências técnicas da base: [Prisma 7 e adapter PostgreSQL](https://docs.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Fastify: erros](https://fastify.dev/docs/latest/Reference/Errors/).

@@ -2,17 +2,21 @@
 
 Versão 1.0 · Dependências: [CORE](00-foundation.md), [CAD](02-registration.md), [ACS](01-access.md) e [AUD](08-audit.md). Fontes: PRD 1.1 OBJ-03, CAP-03, RN-04/08/09 e DEC-04; ERS RF-ATV-01–08, LAC-04, RNF-MAN-01; modelagem D-01/D-02/D-03. Turmas, vagas, espera e agenda RF-ATV-09 ficam fora.
 
+**Implementação backend em 05/10/2026:** catálogos, projetos, atividades, inscrições temporais, correções, encerramentos e auditoria estão entregues. Contratos concretos, limites, revisões e comandos estão na [referência HTTP](../api/projects.md); o [guia de integração](../api/integrating-projects.md) orienta a frente de interface. UI e verificações sobre encontros/marcações/cobertura permanecem para FRQ e frontend, conforme o índice. Esta etapa não declara os cenários de encontro AC07/AC10 concluídos.
+
+Derivações técnicas desta entrega: códigos de tipos usam até 40 caracteres em `A-Z`, `0-9`, `_`, iniciando por letra; tipos começam vazios e são administrados pela coordenação; inscrição tardia em contexto encerrado informa fim até o corte; correção mantém ID e antes/depois na auditoria. Datas civis declaradas não geram encerramento automático. A projeção de participantes em ATV é sempre mínima; sem `asOf`, a lista inclui intervalos efetivos históricos e interpreta a família no início de cada inscrição. As revisões adicionais dos agregados são especificadas na referência HTTP. Essas escolhas concretizam a integração técnica sem aprovar novas políticas institucionais.
+
 ## 1. Resultado e modelo
 
 Organizar atividades em projetos e manter uma lista temporal simples de participantes de atividades periódicas. Cadastros pontuais representam sua natureza/tipo, sem registrar atendimento realizado.
 
-| Entidade | Campos |
-| --- | --- |
-| `Institute` | `id`, `code`, `name`, `active`, `revision`; código único |
-| `Project` | `id`, `name`, `description?`, `instituteId`, `startsOn?`, `endsOn?`, `status`, `closedAt?`, `revision`, autoria |
-| `Activity` | `id`, `projectId`, `name`, `nature`, `serviceTypeId?`, `plannedSchedule?`, `responsibleId?`, `status`, `closedAt?`, `revision`, autoria |
-| `ServiceType` | `id`, `code`, `name`, `active`, `revision`; código único, catálogo sem enum fechado |
-| `ParticipantEnrollment` | `id`, `activityId`, `personId`, `validFrom`, `validUntil?`, `revision`, `supersededById?`, autoria |
+| Entidade                | Campos                                                                                                                                  |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `Institute`             | `id`, `code`, `name`, `active`, `revision`; código único                                                                                |
+| `Project`               | `id`, `name`, `description?`, `instituteId`, `startsOn?`, `endsOn?`, `status`, `closedAt?`, `revision`, autoria                         |
+| `Activity`              | `id`, `projectId`, `name`, `nature`, `serviceTypeId?`, `plannedSchedule?`, `responsibleId?`, `status`, `closedAt?`, `revision`, autoria |
+| `ServiceType`           | `id`, `code`, `name`, `active`, `revision`; código único, catálogo sem enum fechado                                                     |
+| `ParticipantEnrollment` | `id`, `activityId`, `personId`, `validFrom`, `validUntil?`, `revision`, `supersededById?`, autoria                                      |
 
 `status`: `ACTIVE` ou `CLOSED`. `nature`: `PERIODIC` ou `ONE_OFF`. Nome e descrição seguem CORE; `plannedSchedule` é texto até 500, não um gerador de agenda. Responsável aponta a conta do operador que assume a atividade, sem criar pessoa assistida para representá-lo. Pode ser desconhecido até designação; para registrar encontro, indicar executor/responsável conhecido conforme SPEC-FRQ.
 
@@ -43,27 +47,27 @@ Uma visita avulsa na chamada não cria inscrição automaticamente. Número de p
 
 ## 4. API e interface
 
-| Método / caminho | Entrada / resultado |
-| --- | --- |
-| `GET /institutes` | `active?`, paginação; catálogo conforme perfil |
-| `PATCH /institutes/:instituteId` | `expectedRevision`, nome/ativo, motivo |
-| `GET /service-types` | `active?`, paginação |
-| `POST /service-types` | `code`, nome; coordenação |
-| `PATCH /service-types/:typeId` | Revisão, nome/ativo, motivo; código imutável |
-| `GET /projects` | `q?`, `instituteId?`, `status?`, paginação |
-| `POST /projects` | Nome, instituto, descrição/datas opcionais |
-| `GET /projects/:projectId` | Cadastro, atividades e situação |
-| `PATCH /projects/:projectId` | Revisão e dados cadastrais; valida fatos ao mudar vigência |
-| `POST /projects/:projectId/closure` | Revisão, `effectiveAt`, motivo; valida fatos posteriores e encerra atividades ativas/inscrições atomicamente |
-| `GET /activities` | `projectId?`, `nature?`, `status?`, `q?`, paginação |
-| `POST /projects/:projectId/activities` | Revisão do projeto, nome, natureza, tipo/horário/responsável conforme natureza |
-| `GET /activities/:activityId` | Cadastro e projeção autorizada |
-| `PATCH /activities/:activityId` | Revisão, campos permitidos; natureza/projeto obedecem bloqueio de histórico |
-| `POST /activities/:activityId/closure` | Revisão, `effectiveAt`, motivo; valida encontros/intervalos posteriores ao corte |
-| `GET /activities/:activityId/enrollments` | `asOf?`, `personId?`, paginação |
-| `POST /activities/:activityId/enrollments` | Pessoa, `validFrom`, `validUntil?`, revisão da atividade; natureza periódica |
-| `PATCH /enrollments/:enrollmentId` | Revisão, correção de datas, motivo; conflitos com chamada/cobertura são expostos |
-| `POST /enrollments/:enrollmentId/closure` | Revisão, `validUntil`, motivo |
+| Método / caminho                           | Entrada / resultado                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `GET /institutes`                          | `active?`, paginação; catálogo conforme perfil                                                               |
+| `PATCH /institutes/:instituteId`           | `expectedRevision`, nome/ativo, motivo                                                                       |
+| `GET /service-types`                       | `active?`, paginação                                                                                         |
+| `POST /service-types`                      | `code`, nome; coordenação                                                                                    |
+| `PATCH /service-types/:typeId`             | Revisão, nome/ativo, motivo; código imutável                                                                 |
+| `GET /projects`                            | `q?`, `instituteId?`, `status?`, paginação                                                                   |
+| `POST /projects`                           | Nome, instituto, descrição/datas opcionais                                                                   |
+| `GET /projects/:projectId`                 | Cadastro, atividades e situação                                                                              |
+| `PATCH /projects/:projectId`               | Revisão e dados cadastrais; valida fatos ao mudar vigência                                                   |
+| `POST /projects/:projectId/closure`        | Revisão, `effectiveAt`, motivo; valida fatos posteriores e encerra atividades ativas/inscrições atomicamente |
+| `GET /activities`                          | `projectId?`, `nature?`, `status?`, `q?`, paginação                                                          |
+| `POST /projects/:projectId/activities`     | Revisão do projeto, nome, natureza, tipo/horário/responsável conforme natureza                               |
+| `GET /activities/:activityId`              | Cadastro e projeção autorizada                                                                               |
+| `PATCH /activities/:activityId`            | Revisão, campos permitidos; natureza/projeto obedecem bloqueio de histórico                                  |
+| `POST /activities/:activityId/closure`     | Revisão, `effectiveAt`, motivo; valida encontros/intervalos posteriores ao corte                             |
+| `GET /activities/:activityId/enrollments`  | `asOf?`, `personId?`, paginação                                                                              |
+| `POST /activities/:activityId/enrollments` | Pessoa, `validFrom`, `validUntil?`, revisão da atividade; natureza periódica                                 |
+| `PATCH /enrollments/:enrollmentId`         | Revisão, correção de datas, motivo; conflitos com chamada/cobertura são expostos                             |
+| `POST /enrollments/:enrollmentId/closure`  | Revisão, `validUntil`, motivo                                                                                |
 
 Todas as escritas de catálogo/projeto requerem `projects.write`; inscrições requerem `attendance.write` ou `projects.write`. Leituras requerem `projects.read`, e retorno de pessoas usa projeção mínima ou cadastro conforme autorização. `responsibleId` não equivale a concessão de perfil na conta.
 
@@ -71,18 +75,18 @@ Todas as escritas de catálogo/projeto requerem `projects.write`; inscrições r
 
 ## 5. Critérios de aceite
 
-| ID | Cenário |
-| --- | --- |
-| ATV-AC01 | Os seis institutos documentados aparecem, sem incluir gestão da Escola Espírita |
-| ATV-AC02 | Atividade periódica pertence a projeto e aceita lista simples; inscrição não gera presença |
-| ATV-AC03 | Pontual exige tipo e rejeita inscrição/encontro, sem criar atendimento ou aptidão |
-| ATV-AC04 | Natureza pode mudar antes de fatos; inscrição/encontro mesmo cancelado bloqueia a troca |
-| ATV-AC05 | Criação de registro e troca de natureza concorrentes não deixam estado incompatível |
-| ATV-AC06 | Projeto encerrado preserva fatos e encerra atividades/inscrições, tudo ou nada |
-| ATV-AC07 | Lançamento/correção tardia de encontro anterior ao encerramento é admitido; fato posterior é rejeitado |
-| ATV-AC08 | Reinscrição mantém dois intervalos não sobrepostos e preserva presença anterior |
-| ATV-AC09 | Catálogo renomeado/inativo preserva interpretação do histórico e impede nova seleção inativa |
-| ATV-AC10 | Alterar vigência conflitante com fatos exige resolução; nenhuma presença é movida silenciosamente |
-| ATV-AC11 | Encerramento retroativo com encontro ou início de inscrição posterior conflita; não cria intervalo invertido nem cancela fato |
-| ATV-AC12 | Encerrar projeto preserva encerramento anterior de atividade; audita somente as mudanças efetivas |
+| ID       | Cenário                                                                                                                           |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| ATV-AC01 | Os seis institutos documentados aparecem, sem incluir gestão da Escola Espírita                                                   |
+| ATV-AC02 | Atividade periódica pertence a projeto e aceita lista simples; inscrição não gera presença                                        |
+| ATV-AC03 | Pontual exige tipo e rejeita inscrição/encontro, sem criar atendimento ou aptidão                                                 |
+| ATV-AC04 | Natureza pode mudar antes de fatos; inscrição/encontro mesmo cancelado bloqueia a troca                                           |
+| ATV-AC05 | Criação de registro e troca de natureza concorrentes não deixam estado incompatível                                               |
+| ATV-AC06 | Projeto encerrado preserva fatos e encerra atividades/inscrições, tudo ou nada                                                    |
+| ATV-AC07 | Lançamento/correção tardia de encontro anterior ao encerramento é admitido; fato posterior é rejeitado                            |
+| ATV-AC08 | Reinscrição mantém dois intervalos não sobrepostos e preserva presença anterior                                                   |
+| ATV-AC09 | Catálogo renomeado/inativo preserva interpretação do histórico e impede nova seleção inativa                                      |
+| ATV-AC10 | Alterar vigência conflitante com fatos exige resolução; nenhuma presença é movida silenciosamente                                 |
+| ATV-AC11 | Encerramento retroativo com encontro ou início de inscrição posterior conflita; não cria intervalo invertido nem cancela fato     |
+| ATV-AC12 | Encerrar projeto preserva encerramento anterior de atividade; audita somente as mudanças efetivas                                 |
 | ATV-AC13 | Projeto exige exatamente um instituto existente e ativo na criação; instituto inativado depois não apaga sua associação histórica |
