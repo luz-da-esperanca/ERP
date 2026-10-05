@@ -83,6 +83,71 @@ describe('Registration HTTP API', () => {
       after: { isReference: false },
     });
   });
+  it('requires a review for matching CPF and persists distinct people when the operator confirms it', async () => {
+    const actor = await fixture.operator('synthetic.social', [
+      'SOCIAL_ASSISTANCE',
+    ]);
+    const family = (
+      await fixture.runtime.app.inject({
+        method: 'POST',
+        url: '/api/v1/families',
+        headers: fixture.headers(actor.cookie),
+        payload: {},
+      })
+    ).json().data;
+    const first = await fixture.runtime.app.inject({
+      method: 'POST',
+      url: '/api/v1/people',
+      headers: fixture.headers(actor.cookie),
+      payload: {
+        name: 'First Identity',
+        cpf: '12345678900',
+        familyId: family.id,
+        expectedFamilyRevision: 1,
+        validFrom: '2026-01-01T00:00:00Z',
+      },
+    });
+    const candidateId = first.json().data.person.id;
+    const request = {
+      method: 'POST' as const,
+      url: '/api/v1/people',
+      headers: fixture.headers(actor.cookie),
+      payload: {
+        name: 'Second Identity',
+        cpf: '123.456.789-00',
+        familyId: family.id,
+        expectedFamilyRevision: 2,
+        validFrom: '2026-01-01T00:00:00Z',
+      },
+    };
+    expect((await fixture.runtime.app.inject(request)).statusCode).toBe(409);
+    const response = await fixture.runtime.app.inject({
+      ...request,
+      payload: {
+        ...request.payload,
+        duplicateReview: {
+          candidateIds: [candidateId],
+          decision: 'DISTINCT',
+          reason: 'Synthetic shared document review',
+        },
+      },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json().data.person.id).not.toBe(candidateId);
+    expect(
+      await fixture.runtime.database.person.count({
+        where: { cpf: '12345678900' },
+      }),
+    ).toBe(2);
+    const issue =
+      await fixture.runtime.database.dataQualityIssue.findFirstOrThrow();
+    expect(issue).toMatchObject({
+      entityId: response.json().data.person.id,
+      resolution: 'DISTINCT',
+      resolvedBy: actor.user.id,
+      candidateIds: [candidateId],
+    });
+  });
   it('rejects competing authors sharing a concurrent idempotency key', async () => {
     const first = await fixture.operator('synthetic.first', [
       'SOCIAL_ASSISTANCE',
@@ -376,6 +441,52 @@ describe('Registration HTTP API', () => {
         })
       ).statusCode,
     ).toBe(403);
+  });
+  it('requires a reviewed set of duplicate candidates without merging or imposing CPF uniqueness', async () => {
+    const actor = await fixture.operator('synthetic.social', [
+      'SOCIAL_ASSISTANCE',
+    ]);
+    const created = await fixture.runtime.app.inject({
+      method: 'POST',
+      url: '/api/v1/families',
+      headers: fixture.headers(actor.cookie),
+      payload: { referenceName: 'Família Sintética José' },
+    });
+    const candidateId = created.json().data.id;
+    const candidateResponse = await fixture.runtime.app.inject({
+      method: 'GET',
+      url: '/api/v1/duplicate-candidates?entityType=FAMILY&referenceName=Familia%20Sintetica%20Jose',
+      headers: { cookie: actor.cookie },
+    });
+    expect(candidateResponse.statusCode, candidateResponse.body).toBe(200);
+    expect(candidateResponse.json().data).toEqual([
+      { id: candidateId, entityType: 'FAMILY', reasons: ['NAME_SIMILAR'] },
+    ]);
+    const request = {
+      method: 'POST' as const,
+      url: '/api/v1/families',
+      headers: fixture.headers(actor.cookie),
+      payload: { referenceName: 'Familia Sintetica Jose' },
+    };
+    const rejected = await fixture.runtime.app.inject(request);
+    expect(rejected.statusCode, rejected.body).toBe(409);
+    expect(rejected.json().error.details).toMatchObject({
+      rule: 'DUPLICATE_REVIEW_REQUIRED',
+      ids: [candidateId],
+    });
+    const distinct = await fixture.runtime.app.inject({
+      ...request,
+      payload: {
+        ...request.payload,
+        duplicateReview: {
+          candidateIds: [candidateId],
+          decision: 'DISTINCT',
+          reason: 'Synthetic unrelated household',
+        },
+      },
+    });
+    expect(distinct.statusCode, distinct.body).toBe(201);
+    expect(distinct.json().data.id).not.toBe(candidateId);
   });
   it('creates a person and first membership atomically without inventing birth date or documents', async () => {
     const actor = await fixture.operator('synthetic.social', [
