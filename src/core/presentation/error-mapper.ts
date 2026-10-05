@@ -16,8 +16,34 @@ import {
 } from '../application/errors.js';
 import { HttpError } from './http-error.js';
 import type { HttpFailure } from './http-error.js';
+import {
+  RegistrationConflictError,
+  RegistrationRevisionConflictError,
+  RegistrationRuleError,
+} from '../../features/registration/domain/registration-errors.js';
 
 export function mapError(error: unknown): HttpFailure {
+  if (error instanceof RegistrationRevisionConflictError)
+    return {
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: error.message,
+      details: { currentRevision: error.currentRevision },
+    };
+  if (error instanceof RegistrationConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule, ids: error.ids },
+    };
+  if (error instanceof RegistrationRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
   if (error instanceof HttpError)
     return {
       status: error.status,

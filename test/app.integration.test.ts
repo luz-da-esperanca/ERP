@@ -17,6 +17,7 @@ describe('Application data mode and dependency errors', () => {
     const app = createApp(config, {
       access: runtime.access,
       accounts: runtime.accounts,
+      registration: runtime.registration,
       audit: new AuditService(new PrismaAuditReader(database)),
       dataMode: new DataModeGuard(
         config.DATA_MODE,
@@ -85,6 +86,7 @@ describe('Application data mode and dependency errors', () => {
     const app = createApp(config, {
       access: runtime.access,
       accounts: runtime.accounts,
+      registration: runtime.registration,
       audit: new AuditService(new PrismaAuditReader(runtime.database)),
       dataMode: new DataModeGuard(
         'REAL',

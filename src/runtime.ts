@@ -19,6 +19,8 @@ import { createPasswordHasher } from './features/access/infra/bcrypt-passwords.j
 import { createTokenSigner } from './features/access/infra/jwt-tokens.js';
 import { AccessService } from './features/access/application/access-service.js';
 import { createApp } from './app.js';
+import { PrismaRegistration } from './features/registration/infra/prisma-registration.js';
+import { RegistrationService } from './features/registration/application/registration-service.js';
 
 export function createAccounts(database: Database, config: ApiConfig) {
   const persistence = new PrismaAccounts(
@@ -57,16 +59,30 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       createTokenSigner(config),
     );
     const audit = new AuditService(new PrismaAuditReader(database));
+    const registrationPersistence = new PrismaRegistration(database);
+    const registration = new RegistrationService(
+      registrationPersistence,
+      registrationPersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      () =>
+        new Intl.DateTimeFormat('en-CA', {
+          timeZone: config.APP_TIMEZONE,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date()),
+    );
     const app = createApp(
       config,
-      { access, accounts, audit, dataMode },
+      { access, accounts, audit, dataMode, registration },
       logging,
     );
     app.addHook('onClose', async () => {
       if (redis.isOpen) await redis.close();
       await database.$disconnect();
     });
-    return { app, database, redis, accounts, access, sessions };
+    return { app, database, redis, accounts, access, sessions, registration };
   } catch {
     if (redis.isOpen) redis.destroy();
     await database.$disconnect();

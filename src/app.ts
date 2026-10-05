@@ -12,12 +12,15 @@ import type { AuditService } from './features/audit/application/audit-service.js
 import { assertPermission } from './features/access/domain/permissions.js';
 import { registerAccessRoutes } from './features/access/presentation/access-routes.js';
 import { registerAuditRoutes } from './features/audit/presentation/audit-routes.js';
+import type { RegistrationService } from './features/registration/application/registration-service.js';
+import { registerRegistrationRoutes } from './features/registration/presentation/registration-routes.js';
 
 export interface AppServices {
   access: AccessService;
   accounts: AccountsService;
   audit: AuditService;
   dataMode: DataModeGuard;
+  registration: RegistrationService;
 }
 
 export function createApp(
@@ -134,5 +137,6 @@ export function createApp(
     principal,
   );
   registerAuditRoutes(app, services.audit, principal);
+  registerRegistrationRoutes(app, services.registration, principal);
   return app;
 }
