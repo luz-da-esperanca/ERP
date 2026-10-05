@@ -1,5 +1,10 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import {
+  attendanceTransactionPorts,
+  coverageSelect,
+  coverageRecord,
+} from '../../attendance/infra/prisma-attendance.js';
+import {
   databaseOperation,
   serializable,
   type Database,
@@ -195,7 +200,9 @@ async function duplicateRecords(
     cpf: person.cpf,
   }));
 }
-function transactionPorts(tx: Transaction): RegistrationTransaction {
+export function registrationTransactionPorts(
+  tx: Transaction,
+): RegistrationTransaction {
   const reference = z
     .object({
       entityType: z.string(),
@@ -218,6 +225,43 @@ function transactionPorts(tx: Transaction): RegistrationTransaction {
     return entry.after;
   }
   return {
+    coverage: attendanceTransactionPorts(tx, false),
+    async personCoverage(personId) {
+      return (
+        await tx.attendanceCoverage.findMany({
+          where: {
+            activity: {
+              OR: [
+                { enrollments: { some: { personId, supersededById: null } } },
+                {
+                  sessions: {
+                    some: {
+                      attendances: { some: { personId, supersededById: null } },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          select: coverageSelect,
+        })
+      ).map(coverageRecord);
+    },
+    async membershipMarkings(membershipId) {
+      return (
+        await tx.attendance.findMany({
+          where: {
+            membershipId,
+            supersededById: null,
+            session: { status: 'COMPLETED' },
+          },
+          select: { id: true, session: { select: { occurredAt: true } } },
+        })
+      ).map((row) => ({
+        id: row.id,
+        occurredAt: row.session.occurredAt.toISOString(),
+      }));
+    },
     async recordPossibleDuplicates(
       operationId,
       actorId,
@@ -1004,7 +1048,7 @@ export class PrismaRegistration
         await tx.$queryRaw`SELECT id FROM "Person" WHERE id IN (${Prisma.join([...new Set(personIds)].sort().map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR UPDATE`;
       if (familyIds.length)
         await tx.$queryRaw`SELECT id FROM "Family" WHERE id IN (${Prisma.join([...new Set(familyIds)].sort().map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR UPDATE`;
-      return work(transactionPorts(tx));
+      return work(registrationTransactionPorts(tx));
     });
   }
 }

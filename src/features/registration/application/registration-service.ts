@@ -48,6 +48,10 @@ import type {
 } from '../domain/registration.js';
 import type { RegistrationTransaction } from './registration-ports.js';
 import type { MembershipCorrection } from '../domain/registration.js';
+import {
+  invalidateCoverage,
+  changedCivilPeriods,
+} from '../../attendance/application/coverage-invalidation.js';
 import type {
   QualityQuery,
   ResolveQualityIssue,
@@ -60,7 +64,38 @@ export class RegistrationService {
     private readonly fingerprints: OperationFingerprints,
     private readonly now: () => string,
     private readonly today: () => string,
+    private readonly timeZone: string,
   ) {}
+  private async assertMembershipFacts(
+    tx: RegistrationTransaction,
+    next: RegisteredMembership,
+  ) {
+    const invalid = (await tx.membershipMarkings(next.id)).filter(
+      (row) => !isMembershipCurrent(next, row.occurredAt),
+    );
+    if (invalid.length)
+      throw new RegistrationConflictError(
+        'MEMBERSHIP_ATTENDANCE_CONFLICT',
+        invalid.map((row) => row.id),
+      );
+  }
+  private async invalidateMembershipCoverage(
+    tx: RegistrationTransaction,
+    operationId: string,
+    actorId: string,
+    before: RegisteredMembership,
+    after: RegisteredMembership,
+  ) {
+    await invalidateCoverage(
+      tx.coverage,
+      await tx.personCoverage(before.personId),
+      changedCivilPeriods(before, after, this.timeZone),
+      operationId,
+      actorId,
+      this.now(),
+      'MEMBERSHIP_CHANGED',
+    );
+  }
 
   private async authorizedActor(
     tx: RegistrationTransaction,
@@ -431,6 +466,7 @@ export class RegistrationService {
           )
         ).filter((membership) => membership.id !== before.id);
         const predecessor = { ...before, validUntil: input.effectiveAt };
+        await this.assertMembershipFacts(tx, predecessor);
         const successor = {
           ...before,
           familyId: input.targetFamilyId,
@@ -448,6 +484,13 @@ export class RegistrationService {
         const previousMembership = await tx.updateMembership(before.id, {
           validUntil: input.effectiveAt,
         });
+        await this.invalidateMembershipCoverage(
+          tx,
+          operationId,
+          actor.user.id,
+          before,
+          previousMembership,
+        );
         const membership = await tx.createMembership({
           personId,
           familyId: successor.familyId,
@@ -569,6 +612,16 @@ export class RegistrationService {
             isMembershipCurrent(row, input.effectiveAt) &&
             (row.id === target.id || row.isReference),
         );
+        for (const row of changes) {
+          if (
+            row.isReference !== (row.id === target.id) &&
+            row.validFrom !== input.effectiveAt
+          )
+            await this.assertMembershipFacts(tx, {
+              ...row,
+              validUntil: input.effectiveAt,
+            });
+        }
         const operationId = await tx.createOperation(
           type,
           context.key,
@@ -594,6 +647,13 @@ export class RegistrationService {
             input.effectiveAt,
           );
           memberships.push(updated);
+          await this.invalidateMembershipCoverage(
+            tx,
+            operationId,
+            actor.user.id,
+            row,
+            updated,
+          );
           if (!atStart) {
             const successor = await tx.createMembership({
               personId: row.personId,
@@ -913,6 +973,9 @@ export class RegistrationService {
         const changed = (
           Object.keys(changes) as Array<keyof typeof changes>
         ).some((key) => before[key] !== changes[key]);
+        if (changed) {
+          await this.assertMembershipFacts(tx, { ...before, ...changes });
+        }
         assertMembershipPlan(
           (await tx.memberships([before.familyId], [before.personId])).map(
             (row) => (row.id === membershipId ? { ...row, ...changes } : row),
@@ -932,6 +995,13 @@ export class RegistrationService {
           ? await tx.reviseFamily(before.familyId)
           : beforeFamily;
         if (changed) {
+          await this.invalidateMembershipCoverage(
+            tx,
+            operationId,
+            actor.user.id,
+            before,
+            membership,
+          );
           await tx.appendMembershipUpdateAudit(
             operationId,
             actor.user.id,

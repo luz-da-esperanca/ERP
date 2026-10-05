@@ -61,6 +61,7 @@ function fixture() {
     fingerprints,
     () => '2026-10-05T01:00:00.000Z',
     () => '2026-10-04',
+    'America/Fortaleza',
   );
   return {
     service,

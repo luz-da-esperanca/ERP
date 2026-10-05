@@ -12,7 +12,7 @@ export interface MembershipInterval {
   validUntil: string | null;
 }
 export function isMembershipCurrent(
-  membership: MembershipInterval,
+  membership: Pick<MembershipInterval, 'validFrom' | 'validUntil'>,
   instant: string,
 ) {
   const time = Date.parse(instant);
