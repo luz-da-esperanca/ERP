@@ -31,6 +31,8 @@ export default ts.config(
               'data-quality-api',
               'audit-api',
               'projects-api',
+              'attendance-api',
+              'membership-reconciliation-api',
             ].map((contract) => ({
               name: `@erp/contracts/${contract}`,
               message: 'Keep HTTP DTOs outside the domain.',
@@ -91,6 +93,8 @@ export default ts.config(
               'data-quality-api',
               'audit-api',
               'projects-api',
+              'attendance-api',
+              'membership-reconciliation-api',
             ].map((contract) => ({
               name: `@erp/contracts/${contract}`,
               message: 'Map HTTP DTOs to application inputs in presentation.',
