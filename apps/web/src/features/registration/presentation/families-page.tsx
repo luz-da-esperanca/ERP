@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { FamilySummary } from '@erp/contracts/registration';
-import { useErp } from '../../app/erp-provider';
-import { useQuery } from '../../shared/use-query';
+import { useErp } from '../../../app/erp-provider';
+import { useQuery } from '../../../shared/use-query';
 import {
   Page,
   Panel,
@@ -10,9 +10,9 @@ import {
   Empty,
   Field,
   PendingBadge,
-} from '../../shared/ui';
-import { normalizeSearch } from './domain/memberships';
-import { displayInstant } from '../../shared/time';
+} from '../../../shared/ui';
+import { normalizeSearch } from '../domain/memberships';
+import { displayInstant } from '../../../shared/time';
 export function FamilyTable({ families }: { families: FamilySummary[] }) {
   if (!families.length) return <Empty>Nenhuma família encontrada.</Empty>;
   return (

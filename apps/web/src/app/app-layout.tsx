@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import type { Capability } from '@erp/contracts/access';
 import { useErp } from './erp-provider';
-import { roleLabels } from '../features/access/role-labels';
+import { roleLabels } from '../features/access/presentation/role-labels';
 
 const navigation: Array<{
   to: string;

@@ -1,6 +1,6 @@
 import { Navigate, useNavigate } from 'react-router';
 import { ShieldCheck } from 'lucide-react';
-import { useErp } from '../../app/erp-provider';
+import { useErp } from '../../../app/erp-provider';
 import { roleLabels } from './role-labels';
 export function LoginPage() {
   const { client, session } = useErp();

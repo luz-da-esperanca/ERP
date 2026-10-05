@@ -2,15 +2,15 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import type { Family, FamilyInput } from '@erp/contracts/registration';
 import { familyInputSchema } from '@erp/contracts/registration';
-import { useErp } from '../../app/erp-provider';
+import { useErp } from '../../../app/erp-provider';
 import {
   Field,
   SelectField,
   Submit,
   Alert,
   nullableValue,
-} from '../../shared/ui';
-import { useAction } from '../../shared/use-action';
+} from '../../../shared/ui';
+import { useAction } from '../../../shared/use-action';
 export function FamilyForm({ family }: { family?: Family }) {
   const { client } = useErp();
   const navigate = useNavigate();

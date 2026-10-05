@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { useErp } from '../../app/erp-provider';
-import { useQuery } from '../../shared/use-query';
+import { useErp } from '../../../app/erp-provider';
+import { useQuery } from '../../../shared/use-query';
 import {
   Page,
   Panel,
@@ -9,8 +9,8 @@ import {
   BackLink,
   Field,
   Empty,
-} from '../../shared/ui';
-import { civilToday, displayInstant } from '../../shared/time';
+} from '../../../shared/ui';
+import { civilToday, displayInstant } from '../../../shared/time';
 import { FamilyForm } from './family-form';
 export function FamilyPage({ edit = false }: { edit?: boolean }) {
   const { id = '' } = useParams();
