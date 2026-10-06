@@ -100,6 +100,23 @@ describe('Social form HTTP lifecycle', () => {
       });
       expect(denied.statusCode).toBe(403);
     }
+    for (const cookie of [manager.cookie, social.cookie, fixture.adminCookie]) {
+      const restricted = await fixture.runtime.app.inject({
+        method: 'GET',
+        url: '/api/v1/social-form-configuration',
+        headers: fixture.headers(cookie),
+      });
+      expect(restricted.statusCode).toBe(403);
+    }
+    const configuration = await fixture.runtime.app.inject({
+      method: 'GET',
+      url: '/api/v1/social-form-configuration',
+      headers: fixture.headers(coordinator.cookie),
+    });
+    expect(configuration.statusCode, configuration.body).toBe(200);
+    expect(configuration.json().data.selection.fields.length).toBeGreaterThan(
+      0,
+    );
     const denied = await fixture.runtime.app.inject({
       method: 'POST',
       url: '/api/v1/feature-decisions/FIC_HEALTH',

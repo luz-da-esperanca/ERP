@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { FamilySummary } from '@erp/contracts/registration';
@@ -27,7 +28,7 @@ export function FamilyTable({
   eligibilityLabel,
 }: {
   families: FamilySummary[];
-  eligibilityLabel?: string;
+  eligibilityLabel?: string | ((family: FamilySummary) => ReactNode);
 }) {
   if (!families.length) return <Empty>Nenhuma família encontrada.</Empty>;
   return (
@@ -58,7 +59,11 @@ export function FamilyTable({
               <td>{family.neighborhood ?? 'Não informado'}</td>
               <td>{family.memberCount}</td>
               <td>{family.referencePersonName ?? 'Não informado'}</td>
-              <td>{eligibilityLabel ?? <PendingBadge />}</td>
+              <td>
+                {typeof eligibilityLabel === 'function'
+                  ? eligibilityLabel(family)
+                  : (eligibilityLabel ?? <PendingBadge />)}
+              </td>
               <td>{displayInstant(family.updatedAt)}</td>
             </tr>
           ))}

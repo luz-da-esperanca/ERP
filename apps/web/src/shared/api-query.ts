@@ -26,7 +26,14 @@ export async function allApiPages<T>(
       apiQuery(path, { ...query, page, pageSize: 100 }),
       schema,
     );
-    if (result.pagination.page !== page)
+    const expectedItems = Math.min(
+      result.pagination.pageSize,
+      Math.max(
+        0,
+        result.pagination.total - (page - 1) * result.pagination.pageSize,
+      ),
+    );
+    if (result.pagination.page !== page || result.data.length !== expectedItems)
       throw new ApiRequestError('INVALID_RESPONSE', 200);
     items.push(...result.data);
     if (page * result.pagination.pageSize >= result.pagination.total)

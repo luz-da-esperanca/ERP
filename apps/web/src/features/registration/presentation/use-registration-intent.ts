@@ -1,17 +1,21 @@
 import { useRef, useState } from 'react';
-import type { z } from 'zod';
+import { z } from 'zod';
+import { ApiRequestError } from '../../../shared/api-client';
 import { duplicateReviewSchema } from '@erp/contracts/registration-api';
 import type { DuplicateCandidate } from '../application/registration-gateway';
 
 type Review = z.infer<typeof duplicateReviewSchema>;
 
-export function useRegistrationIntent<T extends object>() {
+export function useRegistrationIntent<T extends object>(
+  entityType: 'PERSON' | 'FAMILY' = 'FAMILY',
+) {
   const [review, setReview] = useState<{
     input: string;
     candidates: DuplicateCandidate[];
   } | null>(null);
   const intent = useRef<{
     fingerprint: string;
+    input: T;
     body: T & { duplicateReview?: Review };
     key: string;
   } | null>(null);
@@ -52,12 +56,47 @@ export function useRegistrationIntent<T extends object>() {
       });
     }
     const body = { ...input, ...(duplicateReview ? { duplicateReview } : {}) };
-    intent.current = { fingerprint, body, key: crypto.randomUUID() };
+    intent.current = { fingerprint, input, body, key: crypto.randomUUID() };
     return intent.current;
+  }
+  function captureRejectedReview(error: unknown) {
+    if (
+      !canRefreshDuplicateReview(error) ||
+      !intent.current ||
+      !(error instanceof ApiRequestError)
+    )
+      return;
+    const result = z
+      .object({ ids: z.array(z.uuid()).min(1) })
+      .safeParse(error.details);
+    if (!result.success) return;
+    setReview({
+      input: JSON.stringify(intent.current.input),
+      candidates: result.data.ids.map((id) => ({
+        id,
+        entityType,
+        reasons: [],
+      })),
+    });
+    intent.current = null;
   }
   function reset() {
     intent.current = null;
     setReview(null);
   }
-  return { prepare, review, reset };
+  return { prepare, review, reset, captureRejectedReview };
+}
+
+export function canRefreshDuplicateReview(error: unknown) {
+  const metadata = z
+    .object({
+      rule: z.enum(['DUPLICATE_REVIEW_REQUIRED', 'DUPLICATE_REVIEW_CHANGED']),
+    })
+    .safeParse(error instanceof ApiRequestError ? error.details : null);
+  return (
+    error instanceof ApiRequestError &&
+    error.status === 409 &&
+    error.code === 'DOMAIN_CONFLICT' &&
+    metadata.success
+  );
 }

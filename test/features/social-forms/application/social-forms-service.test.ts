@@ -576,6 +576,41 @@ describe('Social form publication', () => {
   });
 });
 describe('Social form configuration', () => {
+  it('returns complete disabled configuration metadata only to configuration managers', async () => {
+    const f = fixture();
+    await f.service.configureSelection(f.context, {
+      expectedRevision: null,
+      fields: [
+        {
+          fieldKey: 'housing.roomCount',
+          included: true,
+          required: false,
+          appliesTo: 'FAMILY',
+          allowedRoleCodes: ['SOCIAL_ASSISTANCE'],
+          cardinality: 'SINGLE',
+          purpose: 'Synthetic evaluation',
+          decisionReference: 'SYNTHETIC-TEST',
+        },
+      ],
+      decisionReference: 'SYNTHETIC-TEST',
+      reason: 'Synthetic setup',
+    });
+    expect((await f.service.fields(f.principal)).selection?.fields).toEqual([]);
+    expect(
+      (await f.service.configuration(f.principal)).selection?.fields,
+    ).toHaveLength(1);
+    const socialActor: Principal = {
+      ...f.principal,
+      user: { ...f.principal.user, roleCodes: ['SOCIAL_ASSISTANCE'] },
+    };
+    expect(() => f.service.configuration(socialActor)).toThrow();
+    const administrator: Principal = {
+      ...f.principal,
+      user: { ...f.principal.user, roleCodes: ['ADMINISTRATOR'] },
+    };
+    expect(() => f.service.configuration(administrator)).toThrow();
+  });
+
   it('reports a stale numeric configuration revision without replacing the current decision', async () => {
     const f = fixture();
     await f.service.configureSelection(f.context, {

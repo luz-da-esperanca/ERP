@@ -54,8 +54,13 @@ function renderConnected(fetcher: typeof fetch, path: string) {
   );
 }
 let dialog: ReturnType<typeof installNativeDialogDouble>;
-beforeEach(() => { dialog = installNativeDialogDouble(); });
-afterEach(() => { cleanup(); dialog.restore(); });
+beforeEach(() => {
+  dialog = installNativeDialogDouble();
+});
+afterEach(() => {
+  cleanup();
+  dialog.restore();
+});
 
 describe('Connected business screens', () => {
   it('searches authorized families and people through the API and closes the search with Escape', async () => {
@@ -117,6 +122,217 @@ describe('Connected business screens', () => {
     expect(document.activeElement).toBe(
       screen.getByRole('button', { name: /Buscar por família/ }),
     );
+  });
+
+  it('preserves server search results matching an address or a historical code', async () => {
+    const user = userEvent.setup();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      if (url.pathname.endsWith('/auth/session'))
+        return Response.json({ data: session });
+      return Response.json({
+        data: url.pathname.endsWith('/people')
+          ? []
+          : [{ ...family, memberCount: 0, referencePersonName: null }],
+        pagination: {
+          page: 1,
+          pageSize: 100,
+          total: url.pathname.endsWith('/people') ? 0 : 1,
+        },
+      });
+    });
+    renderConnected(fetcher, '/');
+    await user.click(
+      await screen.findByRole('button', { name: /Buscar por família/ }),
+    );
+    await user.type(
+      screen.getByLabelText('Buscar por família, pessoa ou código'),
+      'Rua da Esperança',
+    );
+    expect(
+      await screen.findByRole('link', { name: /Família sintética/ }),
+    ).toBeTruthy();
+  });
+
+  it('keeps a minimal creation key after a lost response without offering to discard the uncertain operation', async () => {
+    const user = userEvent.setup();
+    const writes: RequestInit[] = [];
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async (value, options) => {
+        const url = new URL(String(value), 'http://localhost');
+        if (url.pathname.endsWith('/auth/session'))
+          return Response.json({ data: session });
+        if (options?.method === 'POST') {
+          writes.push(options);
+          if (writes.length === 1) throw new TypeError('Lost response');
+          return Response.json({ data: family }, { status: 201 });
+        }
+        return Response.json({
+          data: {
+            family: { ...family, memberCount: 0, referencePersonName: null },
+            members: [],
+          },
+        });
+      });
+    renderConnected(fetcher, '/families/new');
+    await user.click(
+      await screen.findByRole('button', { name: 'Criar família' }),
+    );
+    await screen.findByRole('alert');
+    expect(
+      screen.queryByRole('button', { name: 'Consultar candidatos novamente' }),
+    ).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Criar família' }));
+    await screen.findByRole('heading', { name: 'Família sintética', level: 1 });
+    expect(writes[0]).toEqual(writes[1]);
+  });
+
+  it('queries family audit using the canonical identity returned for a historical identifier', async () => {
+    const alias = '00000000-0000-4000-8000-000000000099';
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      if (url.pathname.endsWith('/auth/session'))
+        return Response.json({
+          data: {
+            ...session,
+            capabilities: [...session.capabilities, 'audit.read'],
+          },
+        });
+      if (url.pathname.endsWith('/audit-entries'))
+        return Response.json({
+          data: [],
+          pagination: { page: 1, pageSize: 100, total: 0 },
+        });
+      return Response.json({
+        data: {
+          family: { ...family, memberCount: 0, referencePersonName: null },
+          members: [],
+        },
+      });
+    });
+    renderConnected(fetcher, `/families/${alias}`);
+    await screen.findByText('Nenhuma alteração disponível para esta família.');
+    const audits = fetcher.mock.calls.filter(([url]) =>
+      String(url).includes('/audit-entries'),
+    );
+    expect(audits.length).toBeGreaterThan(0);
+    expect(
+      audits.every(
+        ([url]) =>
+          new URL(String(url), 'http://localhost').searchParams.get(
+            'entityId',
+          ) === familyId,
+      ),
+    ).toBe(true);
+  });
+
+  it('requires a new duplicate confirmation when the draft and candidates change', async () => {
+    const user = userEvent.setup();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      if (url.pathname.endsWith('/auth/session'))
+        return Response.json({ data: session });
+      return Response.json({
+        data: [
+          {
+            id: url.searchParams.get('name')?.includes('Nova')
+              ? userId
+              : familyId,
+            entityType: 'FAMILY',
+            reasons: ['NAME_SIMILAR'],
+          },
+        ],
+      });
+    });
+    renderConnected(fetcher, '/families/new');
+    const name = await screen.findByLabelText('Nome de referência');
+    await user.type(name, 'Família sintética');
+    await user.click(screen.getByRole('button', { name: 'Criar família' }));
+    const confirmation = await screen.findByLabelText(/^Conferi os candidatos/);
+    await user.click(confirmation);
+    await user.type(
+      screen.getByLabelText(/^Motivo para cadastrar como distinto/),
+      'Reviewed original candidate',
+    );
+    await user.clear(name);
+    await user.type(name, 'Nova família');
+    await user.click(screen.getByRole('button', { name: 'Criar família' }));
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText(/^Conferi os candidatos/) as HTMLInputElement)
+          .checked,
+      ).toBe(false),
+    );
+    expect(
+      (
+        screen.getByLabelText(
+          /^Motivo para cadastrar como distinto/,
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('');
+    expect(
+      fetcher.mock.calls.some(([, options]) => options?.method === 'POST'),
+    ).toBe(false);
+  });
+
+  it('recovers authorized server duplicate candidates missed by preflight and requires a fresh distinct-record review', async () => {
+    const user = userEvent.setup();
+    const writes: RequestInit[] = [];
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async (value, options) => {
+        const url = new URL(String(value), 'http://localhost');
+        if (url.pathname.endsWith('/auth/session'))
+          return Response.json({ data: session });
+        if (url.pathname.endsWith('/duplicate-candidates'))
+          return Response.json({ data: [] });
+        if (options?.method === 'POST') {
+          writes.push(options);
+          if (writes.length === 1)
+            return Response.json(
+              {
+                error: {
+                  code: 'DOMAIN_CONFLICT',
+                  requestId: 'review',
+                  details: {
+                    rule: 'DUPLICATE_REVIEW_REQUIRED',
+                    ids: [familyId],
+                  },
+                },
+              },
+              { status: 409 },
+            );
+          return Response.json({ data: family }, { status: 201 });
+        }
+        return Response.json({
+          data: {
+            family: { ...family, memberCount: 0, referencePersonName: null },
+            members: [],
+          },
+        });
+      });
+    renderConnected(fetcher, '/families/new');
+    await user.type(
+      await screen.findByLabelText('Nome de referência'),
+      'New synthetic',
+    );
+    await user.click(screen.getByRole('button', { name: 'Criar família' }));
+    await screen.findByText('Possíveis cadastros duplicados');
+    await user.type(
+      screen.getByLabelText(/^Motivo para cadastrar como distinto/),
+      'Server candidates reviewed',
+    );
+    await user.click(screen.getByLabelText(/^Conferi os candidatos/));
+    await user.click(screen.getByRole('button', { name: 'Criar família' }));
+    await screen.findByRole('heading', { name: 'Família sintética', level: 1 });
+    expect(JSON.parse(String(writes[1]?.body))).toMatchObject({
+      duplicateReview: {
+        candidateIds: [familyId],
+        decision: 'DISTINCT',
+        reason: 'Server candidates reviewed',
+      },
+    });
   });
 
   it('creates a person with unknown optional data and the displayed family revision, then edits without overwriting a revision conflict', async () => {
@@ -337,19 +553,76 @@ describe('Connected business screens', () => {
     ).toBeTruthy();
   });
 
-  it('blocks direct access before issuing registration queries for an administrator without social permission', async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        Response.json({
+  it('consults family eligibility only on request and displays server statuses without persisting assessments', async () => {
+    const user = userEvent.setup();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      if (url.pathname.endsWith('/auth/session'))
+        return Response.json({
           data: {
             ...session,
-            roles: ['ADMINISTRATOR'],
-            user: { ...session.user, roleCodes: ['ADMINISTRATOR'] },
-            capabilities: ['accounts.manage'],
+            capabilities: [...session.capabilities, 'eligibility.read'],
           },
-        }),
-      );
+        });
+      if (url.pathname.endsWith('/eligibility-preview'))
+        return Response.json({
+          data: {
+            familyId,
+            referenceDate: url.searchParams.get('referenceDate'),
+            evaluatedAt: family.updatedAt,
+            policyId: null,
+            status: 'PENDING',
+            pendingReasons: ['POLICY_UNDEFINED'],
+            explanation: {
+              rule: 'POLICY_UNDEFINED',
+              period: null,
+              minimum: null,
+              activityIds: [],
+              activityCombination: null,
+              membershipScope: null,
+              opportunityRule: null,
+              qualifyingPersonIds: [],
+            },
+            evidences: [],
+            sourceFingerprint: 'a'.repeat(64),
+          },
+        });
+      return Response.json({
+        data: [{ ...family, memberCount: 0, referencePersonName: null }],
+        pagination: { page: 1, pageSize: 20, total: 1 },
+      });
+    });
+    renderConnected(fetcher, '/families');
+    await screen.findByText('Não consultada');
+    expect(
+      fetcher.mock.calls.some(([url]) =>
+        String(url).includes('eligibility-preview'),
+      ),
+    ).toBe(false);
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Consultar aptidão das famílias desta página',
+      }),
+    );
+    await screen.findByRole('link', {
+      name: 'Pendente — consultar evidências',
+    });
+    expect(
+      fetcher.mock.calls.some(([, options]) => options?.method === 'POST'),
+    ).toBe(false);
+  });
+
+  it('blocks direct access before issuing registration queries for an administrator without social permission', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        data: {
+          ...session,
+          roles: ['ADMINISTRATOR'],
+          user: { ...session.user, roleCodes: ['ADMINISTRATOR'] },
+          capabilities: ['accounts.manage'],
+        },
+      }),
+    );
     renderConnected(fetcher, '/families');
     expect(
       await screen.findByText('Seu perfil não permite acessar esta área.'),

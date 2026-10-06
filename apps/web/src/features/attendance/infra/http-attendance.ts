@@ -147,4 +147,55 @@ export class HttpAttendance {
       }),
     );
   }
+  async correctSession(
+    id: string,
+    input: z.input<typeof contracts.sessionCorrectionSchema>,
+    key: string,
+  ) {
+    return (
+      await this.api.request(
+        `/sessions/${z.uuid().parse(id)}`,
+        z.object({ data: contracts.sessionResultSchema }),
+        {
+          method: 'PATCH',
+          body: contracts.sessionCorrectionSchema.parse(input),
+          idempotencyKey: key,
+        },
+      )
+    ).data;
+  }
+  async correctContext(
+    id: string,
+    input: z.input<typeof contracts.contextCorrectionSchema>,
+    key: string,
+  ) {
+    return (
+      await this.api.request(
+        `/attendances/${z.uuid().parse(id)}/context-corrections`,
+        z.object({ data: contracts.sessionResultSchema }),
+        {
+          method: 'POST',
+          body: contracts.contextCorrectionSchema.parse(input),
+          idempotencyKey: key,
+        },
+      )
+    ).data;
+  }
+  async declareCoverage(
+    id: string,
+    input: z.input<typeof contracts.coverageDeclarationSchema>,
+    key: string,
+  ) {
+    return (
+      await this.api.request(
+        `/activities/${z.uuid().parse(id)}/coverage-declarations`,
+        z.object({ data: contracts.coverageDtoSchema }),
+        {
+          method: 'POST',
+          body: contracts.coverageDeclarationSchema.parse(input),
+          idempotencyKey: key,
+        },
+      )
+    ).data;
+  }
 }

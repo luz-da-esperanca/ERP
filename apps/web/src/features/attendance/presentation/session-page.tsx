@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import type { AttendancePageProps } from './attendance-page';
 import { AttendanceEditor, markingLabel } from './attendance-draft';
 import { attendanceRuleMessages } from './attendance-messages';
@@ -73,6 +73,15 @@ function SessionContent({
             title="Detalhe do encontro"
             description={displayInstant(session.occurredAt)}
           >
+            {capabilities.includes('attendance.write') &&
+              session.status === 'COMPLETED' && (
+                <Link
+                  className="button secondary"
+                  to={`/activities/${activityId}/attendance/${session.id}/correction`}
+                >
+                  Corrigir data, responsável ou contexto
+                </Link>
+              )}
             {message && <Alert>{message}</Alert>}
             <Panel>
               <StatusBadge>

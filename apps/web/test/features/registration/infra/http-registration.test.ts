@@ -17,6 +17,197 @@ const family = {
 };
 
 describe('HTTP registration', () => {
+  it('searches duplicates by CPF when the registered name has one character', async () => {
+    const candidate = {
+      id: '00000000-0000-4000-8000-000000000020',
+      entityType: 'PERSON',
+      reasons: ['CPF_MATCH'],
+    };
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ data: [candidate] }));
+    const registration = new HttpRegistration(new ApiClient(fetcher));
+    expect(
+      await registration.reviewPersonDuplicates({
+        name: 'A',
+        cpf: '12345678901',
+        birthDate: null,
+        sex: null,
+        rg: null,
+        occupation: null,
+        educationLevel: null,
+        contactPhone: null,
+        familyId: family.id,
+        expectedFamilyRevision: family.revision,
+        validFrom: family.createdAt,
+        relationshipToReference: null,
+        isReference: false,
+      }),
+    ).toEqual([candidate]);
+    const url = new URL(String(fetcher.mock.lastCall?.[0]), 'http://localhost');
+    expect(url.pathname).toBe('/api/v1/duplicate-candidates');
+    expect(url.searchParams.get('cpf')).toBe('12345678901');
+    expect(url.searchParams.has('name')).toBe(false);
+  });
+
+  it('preserves matching name and birth evidence for candidates found through CPF', async () => {
+    const personId = '00000000-0000-4000-8000-000000000020';
+    const otherId = '00000000-0000-4000-8000-000000000021';
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      if (url.pathname.endsWith('/duplicate-candidates'))
+        return Response.json({
+          data: [personId, otherId].map((id) => ({
+            id,
+            entityType: 'PERSON',
+            reasons: ['CPF_MATCH'],
+          })),
+        });
+      return Response.json({
+        data: {
+          person: {
+            id: url.pathname.endsWith(personId) ? personId : otherId,
+            name: url.pathname.endsWith(personId) ? 'A' : 'B',
+            birthDate: '1990-01-01',
+            cpf: '12345678901',
+            sex: null,
+            rg: null,
+            occupation: null,
+            educationLevel: null,
+            contactPhone: null,
+            revision: 1,
+            createdAt: family.createdAt,
+            updatedAt: family.updatedAt,
+          },
+          memberships: [],
+          currentFamily: null,
+          sizeProfile: null,
+        },
+      });
+    });
+    const registration = new HttpRegistration(new ApiClient(fetcher));
+    const result = await registration.reviewPersonDuplicates({
+      name: 'Á',
+      cpf: '12345678901',
+      birthDate: '1990-01-01',
+      sex: null,
+      rg: null,
+      occupation: null,
+      educationLevel: null,
+      contactPhone: null,
+      familyId: family.id,
+      expectedFamilyRevision: family.revision,
+      validFrom: family.createdAt,
+      relationshipToReference: null,
+      isReference: false,
+    });
+    expect(result).toEqual([
+      {
+        id: personId,
+        entityType: 'PERSON',
+        reasons: ['CPF_MATCH', 'NAME_BIRTH_MATCH'],
+      },
+      { id: otherId, entityType: 'PERSON', reasons: ['CPF_MATCH'] },
+    ]);
+  });
+
+  it('reviews long addresses through the bounded search and the complete family address', async () => {
+    const address = `Rua ${'da Associação '.repeat(20)}fim`;
+    const candidate = {
+      id: family.id,
+      entityType: 'FAMILY',
+      reasons: ['ADDRESS_SIMILAR'],
+    };
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      return url.pathname.endsWith('/duplicate-candidates')
+        ? Response.json({ data: [candidate] })
+        : Response.json({
+            data: {
+              family: {
+                ...family,
+                address: address.toUpperCase(),
+                memberCount: 0,
+                referencePersonName: null,
+              },
+              members: [],
+            },
+          });
+    });
+    const registration = new HttpRegistration(new ApiClient(fetcher));
+    expect(
+      await registration.reviewFamilyDuplicates({
+        referenceName: null,
+        address,
+        neighborhood: null,
+        postalCode: null,
+        location: null,
+        contactPhone: null,
+      }),
+    ).toEqual([candidate]);
+    const query = new URL(
+      String(fetcher.mock.calls[0]?.[0]),
+      'http://localhost',
+    ).searchParams.get('address');
+    expect(query).toBeTruthy();
+    expect(query!.length).toBeLessThanOrEqual(200);
+    expect(address.startsWith(query!)).toBe(true);
+    expect(fetcher.mock.lastCall?.[0]).toBe(`/api/v1/families/${family.id}`);
+  });
+
+  it('removes prefix-only address matches while preserving independent name evidence', async () => {
+    const address = `Rua ${'da Associação '.repeat(20)}fim`;
+    const nameId = '00000000-0000-4000-8000-000000000012';
+    const nameOnlyId = '00000000-0000-4000-8000-000000000013';
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      if (url.pathname.endsWith('/duplicate-candidates'))
+        return Response.json({
+          data: [
+            {
+              id: family.id,
+              entityType: 'FAMILY',
+              reasons: ['ADDRESS_SIMILAR'],
+            },
+            {
+              id: nameId,
+              entityType: 'FAMILY',
+              reasons: ['NAME_SIMILAR', 'ADDRESS_SIMILAR'],
+            },
+            { id: nameOnlyId, entityType: 'FAMILY', reasons: ['NAME_SIMILAR'] },
+          ],
+        });
+      if (url.pathname.endsWith(nameOnlyId))
+        throw new Error('Name-only candidates do not need address lookup');
+      return Response.json({
+        data: {
+          family: {
+            ...family,
+            id: url.pathname.endsWith(nameId) ? nameId : family.id,
+            address: `${address.slice(0, 200)}different ending`,
+            memberCount: 0,
+            referencePersonName: null,
+          },
+          members: [],
+        },
+      });
+    });
+    const registration = new HttpRegistration(new ApiClient(fetcher));
+    expect(
+      await registration.reviewFamilyDuplicates({
+        referenceName: 'Matching name',
+        address,
+        neighborhood: null,
+        postalCode: null,
+        location: null,
+        contactPhone: null,
+      }),
+    ).toEqual([
+      { id: nameId, entityType: 'FAMILY', reasons: ['NAME_SIMILAR'] },
+      { id: nameOnlyId, entityType: 'FAMILY', reasons: ['NAME_SIMILAR'] },
+    ]);
+  });
+
   it('sends the displayed revision and the caller operation key without silently retrying conflicts', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

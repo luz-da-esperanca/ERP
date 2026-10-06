@@ -6,3 +6,4 @@ export { ProjectForm } from './features/projects/presentation/project-forms';
 export { ManagedProjectsPage } from './features/projects/presentation/projects-page';
 export { ManagedActivityPage } from './features/projects/presentation/activity-page';
 export { EnrollmentManagement } from './features/projects/presentation/enrollment-management';
+export { CatalogsPage } from './features/projects/presentation/catalogs-page';

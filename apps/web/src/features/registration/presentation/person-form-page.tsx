@@ -21,7 +21,10 @@ import {
   textValue,
 } from '../../../shared/ui';
 import { civilToday } from '../../../shared/time';
-import { useRegistrationIntent } from './use-registration-intent';
+import {
+  useRegistrationIntent,
+  canRefreshDuplicateReview,
+} from './use-registration-intent';
 import { DuplicateCreationReview as DuplicateReview } from './duplicate-review';
 
 function PersonForm({
@@ -35,7 +38,7 @@ function PersonForm({
 }) {
   const navigate = useNavigate();
   const action = useAction();
-  const intent = useRegistrationIntent();
+  const intent = useRegistrationIntent('PERSON');
   const [today] = useState(civilToday);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,10 +79,12 @@ function PersonForm({
           registration.reviewPersonDuplicates(input),
         );
         if (!prepared) return;
-        const result = await registration.createRegisteredPerson(
-          { ...input, ...prepared.body },
-          prepared.key,
-        );
+        const result = await registration
+          .createRegisteredPerson({ ...input, ...prepared.body }, prepared.key)
+          .catch((error: unknown) => {
+            intent.captureRejectedReview(error);
+            throw error;
+          });
         navigate(`/people/${result.person.id}`);
       }
     });
@@ -174,10 +179,13 @@ function PersonForm({
         )}
       </div>
       {intent.review && (
-        <DuplicateReview candidates={intent.review.candidates} />
+        <DuplicateReview
+          key={`${intent.review.input}:${intent.review.candidates.map((candidate) => candidate.id).join()}`}
+          candidates={intent.review.candidates}
+        />
       )}
       {action.error && <Alert error>{action.error}</Alert>}
-      {action.error && !person && (
+      {canRefreshDuplicateReview(action.cause) && !person && (
         <button
           className="button secondary"
           type="button"

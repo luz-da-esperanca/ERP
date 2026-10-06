@@ -602,6 +602,15 @@ export class SocialFormsService {
       )
       .map((decision) => decision.code);
   }
+  configuration(actor: Principal) {
+    assertPermission(
+      actor.user.roleCodes,
+      actor.user.mustChangePassword,
+      'featureDecisions.manage',
+    );
+    // Configuration metadata must include disabled fields so replacement preserves the full selection.
+    return this.repository.read((tx) => tx.configuration());
+  }
   fields(actor: Principal) {
     assertPermission(
       actor.user.roleCodes,

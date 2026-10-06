@@ -98,7 +98,48 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const items = navigation
+  const connectedNavigation: typeof navigation = showDataQuality
+    ? [
+        ...navigation,
+        {
+          to: '/eligibility-policies',
+          label: 'Políticas de aptidão',
+          icon: FolderOpen,
+          capability: 'eligibility.read',
+        },
+        {
+          to: '/reports',
+          label: 'Relatórios',
+          icon: FolderOpen,
+          capability: 'reports.read',
+        },
+        {
+          to: '/audit',
+          label: 'Auditoria',
+          icon: FolderOpen,
+          capability: 'audit.read',
+        },
+        {
+          to: '/social-form-configuration',
+          label: 'Configuração da ficha',
+          icon: FolderOpen,
+          capability: 'featureDecisions.manage',
+        },
+        {
+          to: '/registration-configuration',
+          label: 'Campos cadastrais',
+          icon: FolderOpen,
+          capability: 'featureDecisions.manage',
+        },
+        {
+          to: '/users',
+          label: 'Usuários e perfis',
+          icon: Users,
+          capability: 'accounts.manage',
+        },
+      ]
+    : navigation;
+  const items = connectedNavigation
     .filter((item) => item.to !== '/data-quality' || showDataQuality)
     .filter(
       (item) => !item.capability || capabilities.includes(item.capability),

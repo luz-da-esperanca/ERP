@@ -7,3 +7,5 @@ export {
 } from './features/attendance/presentation/attendance-draft';
 export { FrequencyQuery } from './features/attendance/presentation/frequency-query';
 export { SessionHistory } from './features/attendance/presentation/session-history';
+export { CoveragePage } from './features/attendance/presentation/coverage-page';
+export { SessionCorrectionPage } from './features/attendance/presentation/session-correction-page';

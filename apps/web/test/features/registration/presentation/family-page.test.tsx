@@ -203,7 +203,7 @@ describe('FamilyPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Histórico de alterações' }),
     ).toBeTruthy();
-    expect(screen.getByText(/Cadastro atualizado/)).toBeTruthy();
+    expect(await screen.findByText(/Cadastro atualizado/)).toBeTruthy();
     expect(screen.getByText('Motivo: Address correction')).toBeTruthy();
     expect(screen.queryByText('Família não selecionada')).toBeNull();
   });

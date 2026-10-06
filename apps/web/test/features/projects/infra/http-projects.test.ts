@@ -39,6 +39,44 @@ const activity = {
 };
 
 describe('HTTP projects', () => {
+  it('creates and edits projects using caller revisions and keys, preserving the key after network uncertainty', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () =>
+        Response.json({ data: project }, { status: 201 }),
+      );
+    const onChange = vi.fn();
+    const projects = new HttpProjects(new ApiClient(fetcher), onChange);
+    const key = '00000000-0000-4000-8000-000000000010';
+    const input = {
+      name: 'Synthetic project',
+      instituteId: ids[1]!,
+      description: null,
+      startsOn: null,
+      endsOn: null,
+    };
+    await projects.createProject(input, key);
+    expect(fetcher.mock.lastCall?.[0]).toBe('/api/v1/projects');
+    expect(fetcher.mock.lastCall?.[1]).toMatchObject({
+      method: 'POST',
+      headers: { 'Idempotency-Key': key },
+    });
+    fetcher.mockRejectedValueOnce(new TypeError('Lost response'));
+    await expect(
+      projects.updateProject(ids[0]!, { ...input, expectedRevision: 1 }, key),
+    ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+    await projects.updateProject(
+      ids[0]!,
+      { ...input, expectedRevision: 1 },
+      key,
+    );
+    expect(fetcher.mock.calls[1]?.[1]).toEqual(fetcher.mock.calls[2]?.[1]);
+    expect(JSON.parse(String(fetcher.mock.lastCall?.[1]?.body))).toMatchObject({
+      expectedRevision: 1,
+    });
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
   it('loads projects, activities and catalogs from their public paginated endpoints', async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
       const url = new URL(String(value), 'http://localhost');
@@ -151,4 +189,49 @@ describe('Projects HTTP management', () => {
       }),
     ]);
   });
+});
+it('updates catalogs with a reason and revision, and rejects incomplete server pagination', async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      Response.json(
+        { error: { code: 'REVISION_CONFLICT', requestId: 'catalog' } },
+        { status: 409 },
+      ),
+    );
+  const gateway = new HttpProjects(new ApiClient(fetcher));
+  await expect(
+    gateway.updateInstitute(
+      ids[1]!,
+      {
+        expectedRevision: 3,
+        active: false,
+        reason: 'Synthetic catalog correction',
+      },
+      ids[0]!,
+    ),
+  ).rejects.toMatchObject({ code: 'REVISION_CONFLICT' });
+  expect(fetcher.mock.lastCall?.[0]).toBe(`/api/v1/institutes/${ids[1]}`);
+  fetcher.mockImplementation(async () =>
+    Response.json({
+      data: [],
+      pagination: { page: 1, pageSize: 20, total: 21 },
+    }),
+  );
+  await expect(gateway.enrollments(ids[1]!)).rejects.toMatchObject({
+    code: 'INVALID_RESPONSE',
+  });
+});
+it('rejects an empty final page that claims existing records instead of silently returning an incomplete list', async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      Response.json({
+        data: [],
+        pagination: { page: 1, pageSize: 100, total: 1 },
+      }),
+    );
+  await expect(
+    new HttpProjects(new ApiClient(fetcher)).enrollments(ids[1]!),
+  ).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });

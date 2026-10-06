@@ -1,3 +1,7 @@
+import type { HttpEligibility } from '../../eligibility/infra/http-eligibility';
+import { eligibilityLabels } from '../../eligibility/presentation/eligibility-page';
+import type { FamilySummary } from '@erp/contracts/registration';
+import { useAction } from '../../../shared/use-action';
 import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router';
@@ -6,12 +10,14 @@ import { useErp } from '../../../app/erp-provider';
 import { useQuery } from '../../../shared/use-query';
 import { Alert, AsyncView, Field, Page, Panel } from '../../../shared/ui';
 import { FamilyTable } from './families-page';
-import { displayInstant } from '../../../shared/time';
+import { civilToday, displayInstant } from '../../../shared/time';
 
 export function ConnectedFamiliesPage({
   registration,
+  eligibility,
 }: {
   registration: HttpRegistration;
+  eligibility?: HttpEligibility;
 }) {
   const { session } = useErp();
   const [query, setQuery] = useState('');
@@ -76,9 +82,17 @@ export function ConnectedFamiliesPage({
               {result.pagination.total} famílias · Composição em{' '}
               {displayInstant(asOf)}.
             </p>
-            <FamilyTable
+            <FamilyEligibilityTable
+              key={result.data
+                .map((family) => `${family.id}:${family.revision}`)
+                .join()}
               families={result.data}
-              eligibilityLabel="Não consultada"
+              gateway={
+                session?.capabilities.includes('eligibility.read')
+                  ? eligibility
+                  : undefined
+              }
+              referenceDate={civilToday(new Date(asOf))}
             />
             {result.pagination.total > result.pagination.pageSize && (
               <div className="pagination">
@@ -118,5 +132,69 @@ export function ConnectedFamiliesPage({
         </button>
       )}
     </Page>
+  );
+}
+
+function FamilyEligibilityTable({
+  families,
+  gateway,
+  referenceDate,
+}: {
+  families: FamilySummary[];
+  gateway?: HttpEligibility;
+  referenceDate: string;
+}) {
+  const [statuses, setStatuses] = useState<
+    Record<string, keyof typeof eligibilityLabels>
+  >({});
+  const action = useAction();
+  return (
+    <>
+      <FamilyTable
+        families={families}
+        eligibilityLabel={(family) =>
+          statuses[family.id] ? (
+            <Link
+              to={`/families/${family.id}/eligibility?referenceDate=${referenceDate}`}
+            >
+              {eligibilityLabels[statuses[family.id]!]} — consultar evidências
+            </Link>
+          ) : (
+            'Não consultada'
+          )
+        }
+      />
+      {gateway && families.length > 0 && (
+        <>
+          <p>
+            Aptidão na referência {referenceDate}. A consulta não registra uma
+            avaliação.
+          </p>
+          <button
+            className="button secondary"
+            disabled={action.pending}
+            onClick={() => {
+              void action.run(async () => {
+                const results = await Promise.all(
+                  families.map((family) =>
+                    gateway.preview(family.id, referenceDate),
+                  ),
+                );
+                setStatuses(
+                  Object.fromEntries(
+                    results.map((result) => [result.familyId, result.status]),
+                  ),
+                );
+              });
+            }}
+          >
+            {action.pending
+              ? 'Consultando aptidão…'
+              : 'Consultar aptidão das famílias desta página'}
+          </button>
+          {action.error && <Alert error>{action.error}</Alert>}
+        </>
+      )}
+    </>
   );
 }

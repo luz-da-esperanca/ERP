@@ -1,11 +1,21 @@
-import { auditPageSchema } from '@erp/contracts/audit-api';
+import type { z } from 'zod';
+import {
+  auditPageSchema,
+  authorizedAuditQuerySchema,
+} from '@erp/contracts/audit-api';
 import type { AuditEntry } from '@erp/contracts/audit';
 import { ApiRequestError } from '../../../shared/api-client';
 import type { ApiClient } from '../../../shared/api-client';
-import { allApiPages } from '../../../shared/api-query';
+import { apiQuery, allApiPages } from '../../../shared/api-query';
 
 export class HttpAudit {
   constructor(private readonly api: ApiClient) {}
+  query(input: z.input<typeof authorizedAuditQuerySchema>) {
+    return this.api.request(
+      apiQuery('/audit-entries', authorizedAuditQuerySchema.parse(input)),
+      auditPageSchema,
+    );
+  }
   readonly list = async (familyId?: string): Promise<AuditEntry[]> => {
     const entries = await allApiPages(
       this.api,

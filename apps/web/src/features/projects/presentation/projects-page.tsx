@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import type { Capability } from '@erp/contracts/access';
 import type { ProjectDto } from '@erp/contracts/projects-api';
 import type { HttpProjects } from '../infra/http-projects';
@@ -136,6 +137,9 @@ export function ManagedProjectsPage({
         canWrite &&
         !selection && (
           <div className="project-creation-buttons">
+            <Link className="button secondary" to="/catalogs">
+              Gerenciar catálogos
+            </Link>
             <button
               className="button secondary"
               onClick={() => {

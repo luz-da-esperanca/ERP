@@ -37,19 +37,7 @@ Em 05/10/2026 a suíte de integração completa foi executada com PostgreSQL/Red
 
 Em 06/10/2026, a entrega de pendências cadastrais passou em 401 testes unitários/de contratos e 114 testes de integração com PostgreSQL e Redis reais, incluindo instalação em banco novo, concorrência nas duas ordens, unicidade, imutabilidade, rollback de auditoria e reconciliação após unificação. Verificação de tipos, lint e build da API também passaram. O [roteiro da demo](docs/demo-backend.md) descreve configuração e operação com dados sintéticos.
 
-`apps/web` usa a API para autenticação, busca global, listagem paginada de famílias, composição por data, histórico cadastral familiar, perfis individuais e criação/edição de famílias e pessoas. Os formulários consultam possíveis duplicidades, exigem análise explícita quando há candidatos e preservam a solicitação após falha de rede. Projetos, atividades e inscrições podem ser consultados, criados, editados e encerrados por HTTP. Qualidade cadastral oferece revisão de duplicidades e unificação; frequência oferece encontros, chamada, correções, cancelamento, consulta e cobertura. As capacidades vêm do servidor, e a sessão usa o mesmo cliente HTTP das consultas. A lista não presume aptidão: exibe “Não consultada” até integrar APT. O [inventário de telas e integrações](docs/frontend-status.md) registra as próximas entregas. Os adaptadores em memória permanecem para o protótipo e seus testes; não alimentam a entrada conectada.
-
-A tela `/activities/:id`, acessível pela listagem de projetos e atividades,
-consulta o gateway existente e apresenta nome, projeto, natureza, situação,
-agenda planejada, tipo pontual e data de encerramento quando disponíveis.
-Atividades encerradas continuam consultáveis. O responsável ainda não faz parte
-do contrato consumido pela UI, embora exista no DTO HTTP; seu campo informa que
-a consulta ainda não está disponível. A seção de registros recentes também
-informa a indisponibilidade da consulta, sem afirmar que o histórico está vazio.
-Chamada, registros recentes e histórico aguardam FRQ e integração HTTP; os adaptadores de frequência
-em memória não comprovam suporte real. Edição, encerramento e gestão de
-participantes aguardam seus fluxos na UI. Registro de atendimento realizado
-permanece fora do MVP. A tela não oferece ações provisórias para essas pendências.
+`apps/web` integra os módulos do MVP à API: cadastro e composição histórica, duplicidades/unificação, tamanhos, projetos/atividades/inscrições, encontros/frequência/cobertura, ficha social, aptidão, relatórios, auditoria e administração de contas. O início consulta totais autorizados; a aptidão da lista familiar é consultada mediante solicitação. Configurações de campos, catálogos e políticas exigem as capacidades correspondentes. A ficha fica no perfil familiar; tamanhos e gestão de vínculos ficam no perfil individual. O [inventário de telas e integrações](docs/frontend-status.md) detalha os fluxos e limites. Adaptadores em memória ficam restritos ao protótipo e seus testes.
 
 A entrada conectada oferece busca global para contas com leitura cadastral. O diálogo fecha por Escape ou pelos botões e devolve o foco ao controle que o abriu. Ajuda e sino permanecem no protótipo; não representam serviços de notificações entregues.
 
@@ -199,7 +187,7 @@ ATV acrescenta 19 rotas de institutos, tipos pontuais, projetos, atividades e in
 
 FRQ acrescenta 11 rotas de encontros, marcações, frequência e cobertura, detalhadas em [Encontros e frequência](docs/api/attendance.md). Auditoria de FRQ exige `attendance.read` e `audit.read`. CAD acrescenta duas rotas de prévia/confirmação de [reconciliação composta](docs/api/membership-reconciliation.md); mudanças de chamada exigem também `attendance.write`. A prévia não grava e dispensa chave; a confirmação é idempotente e atômica.
 
-FIC acrescenta dez rotas de contexto, versões, ciência, seleção, opções e decisões, detalhadas em [Ficha social](docs/api/social-forms.md). Operar ficha exige acesso social; configurar campos/flags exige Coordenação. Auditoria aplica essas capacidades cumulativamente com `audit.read` e projeta conteúdo conforme seleção/flags atuais antes da paginação. Nenhum bloco é habilitado pela instalação.
+FIC acrescenta onze rotas de contexto, versões, ciência, seleção, opções e decisões, detalhadas em [Ficha social](docs/api/social-forms.md). Operar ficha exige acesso social; configurar campos/flags exige Coordenação. Auditoria aplica essas capacidades cumulativamente com `audit.read` e projeta conteúdo conforme seleção/flags atuais antes da paginação. Nenhum bloco é habilitado pela instalação.
 
 APT acrescenta seis rotas de políticas, prévia e avaliações, detalhadas em [Aptidão familiar](docs/api/eligibility.md). Publicar política exige Coordenação; ler e avaliar exigem acesso social. Responsável por Atividade e Administrador não recebem o resultado familiar nem sua auditoria. Nenhuma política é criada pela instalação.
 
@@ -240,7 +228,7 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. Concluir as telas pela frente de frontend e integrar os módulos aos contratos HTTP entregues.
+1. Homologar as telas integradas, incluindo escritas, conflitos e perfis de acesso.
 2. Validar os fluxos da apresentação com o [roteiro de demonstração sintética](docs/demo-backend.md).
 3. Medir desempenho com volume identificado e resolver as decisões institucionais antes do piloto.
 

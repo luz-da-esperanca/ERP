@@ -6,22 +6,25 @@ Backend de [SPEC-FIC](../specs/03-social-forms.md). Os contratos públicos estã
 
 Prefixo `/api/v1`. Coordenação e Assistência Social têm `socialForms.read` e `socialForms.write`. Somente Coordenação tem `featureDecisions.manage`. Administrador ou Responsável por Atividade isolados não recebem ficha social. Uma definição de campo restringe os perfis existentes; não concede novas capacidades.
 
-| Método / caminho                          | Capacidade                | Resposta                            |
-| ----------------------------------------- | ------------------------- | ----------------------------------- |
-| `GET /families/:id/social-form-context`   | `socialForms.read`        | 200, contexto para publicação       |
-| `GET /families/:id/social-forms`          | `socialForms.read`        | 200, página de metadados            |
-| `POST /families/:id/social-forms`         | `socialForms.write`       | 201, versão publicada               |
-| `GET /social-forms/:id`                   | `socialForms.read`        | 200, versão projetada               |
-| `POST /social-forms/:id/acknowledgements` | `socialForms.write`       | 201, ciência registrada/corrigida   |
-| `GET /social-form-fields`                 | `socialForms.read`        | 200, seleção e catálogos permitidos |
-| `POST /social-form-field-selections`      | `featureDecisions.manage` | 201, nova seleção completa          |
-| `POST /social-form-options`               | `featureDecisions.manage` | 201, opção criada                   |
-| `PATCH /social-form-options/:id`          | `featureDecisions.manage` | 200, opção atualizada               |
-| `POST /feature-decisions/:code`           | `featureDecisions.manage` | 200, decisão configurada            |
+| Método / caminho                          | Capacidade                | Resposta                                   |
+| ----------------------------------------- | ------------------------- | ------------------------------------------ |
+| `GET /families/:id/social-form-context`   | `socialForms.read`        | 200, contexto para publicação              |
+| `GET /families/:id/social-forms`          | `socialForms.read`        | 200, página de metadados                   |
+| `POST /families/:id/social-forms`         | `socialForms.write`       | 201, versão publicada                      |
+| `GET /social-forms/:id`                   | `socialForms.read`        | 200, versão projetada                      |
+| `POST /social-forms/:id/acknowledgements` | `socialForms.write`       | 201, ciência registrada/corrigida          |
+| `GET /social-form-configuration`          | `featureDecisions.manage` | 200, metadados completos para configuração |
+| `GET /social-form-fields`                 | `socialForms.read`        | 200, seleção e catálogos permitidos        |
+| `POST /social-form-field-selections`      | `featureDecisions.manage` | 201, nova seleção completa                 |
+| `POST /social-form-options`               | `featureDecisions.manage` | 201, opção criada                          |
+| `PATCH /social-form-options/:id`          | `featureDecisions.manage` | 200, opção atualizada                      |
+| `POST /feature-decisions/:code`           | `featureDecisions.manage` | 200, decisão configurada                   |
 
 Todas as escritas exigem `Idempotency-Key` UUID. Autor ativo, versão da autenticação, troca de senha e capacidades atuais são revalidados dentro da transação antes de escrita ou replay. A mesma chave/autor/conteúdo recupera o resultado original; outra intenção retorna `409 IDEMPOTENCY_CONFLICT`. O resultado da ficha é sempre projetado segundo acesso, seleção e flags atuais, inclusive no replay.
 
 ## Configuração de campos e decisões
+
+`GET /social-form-configuration` retorna seleção completa, opções e decisões, incluindo campos excluídos ou desabilitados, sem valores pessoais. Exige `featureDecisions.manage` e rejeita parâmetros de consulta. Essa leitura permite substituir a coleção completa sem perder definições invisíveis ao formulário. `/social-form-fields` e o contexto continuam projetados por seleção, flags e perfis.
 
 A instalação cria catálogos candidatos, sem seleção de campos nem flags habilitadas. Antes de publicar, Coordenação cria uma seleção por `POST /social-form-field-selections`:
 
@@ -149,4 +152,4 @@ TEST_REDIS_URL=redis://localhost:56379 \
 pnpm test:integration test/features/social-forms
 ```
 
-Prepare serviços exclusivos conforme o [README](../../README.md#validar). Os testes de integração escritos abrangem concorrência, rollback, imutabilidade, tamanhos, origens, escolhas e auditoria protegida. Nesta entrega, sua execução ficou impedida pela indisponibilidade do PostgreSQL de teste e do daemon Docker; essas garantias ainda precisam de validação real no ambiente de integração. Regras/contratos/criptografia foram validados localmente. Documentação foi revisada por conteúdo e links, sem testes que fixem redação. A UI permanece sem integração HTTP; a aprovação institucional não é comprovada por estes testes.
+Prepare serviços exclusivos conforme o [README](../../README.md#validar). Em 06/10/2026, os três testes de `social-forms-routes.integration.test.ts` passaram com PostgreSQL/Redis reais, incluindo proteção da configuração completa. A UI conecta versões, publicação, ciência e configuração; veja o [inventário](../frontend-status.md). Documentação foi revisada por conteúdo e links, sem testes que fixem redação. Testes não comprovam aprovação institucional.

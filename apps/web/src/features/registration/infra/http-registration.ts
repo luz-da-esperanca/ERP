@@ -24,6 +24,7 @@ import type {
 import type { FamilyInput, PersonDetail } from '@erp/contracts/registration';
 import type { ApiClient } from '../../../shared/api-client';
 import { apiQuery, allApiPages } from '../../../shared/api-query';
+import { normalizeSearch } from '../domain/memberships';
 
 export class HttpRegistration {
   constructor(
@@ -59,8 +60,8 @@ export class HttpRegistration {
         ? input.referenceName
         : undefined;
     const address =
-      input.address && input.address.length >= 2 && input.address.length <= 200
-        ? input.address
+      input.address && input.address.length >= 2
+        ? input.address.slice(0, 200)
         : undefined;
     if (!referenceName && !address) return [];
     const query = duplicateQuerySchema.parse({
@@ -72,6 +73,25 @@ export class HttpRegistration {
       apiQuery('/duplicate-candidates', query),
       z.object({ data: z.array(duplicateCandidateSchema) }),
     );
+    if (input.address && input.address.length > 200) {
+      const fullAddress = normalizeSearch(input.address);
+      const candidates = await Promise.all(
+        result.data.map(async (candidate) => {
+          if (!candidate.reasons.includes('ADDRESS_SIMILAR')) return candidate;
+          const { family } = await this.getFamily(candidate.id);
+          const addressMatches = normalizeSearch(family.address ?? '').includes(
+            fullAddress,
+          );
+          return {
+            ...candidate,
+            reasons: candidate.reasons.filter(
+              (reason) => reason !== 'ADDRESS_SIMILAR' || addressMatches,
+            ),
+          };
+        }),
+      );
+      return candidates.filter((candidate) => candidate.reasons.length);
+    }
     return result.data;
   };
 
@@ -87,10 +107,11 @@ export class HttpRegistration {
   }
 
   readonly reviewPersonDuplicates = async (input: CreatePersonInput) => {
-    if (input.name.trim().length < 2 && !input.cpf) return [];
+    const name = input.name.trim().length >= 2 ? input.name : undefined;
+    if (!name && !input.cpf) return [];
     const query = duplicateQuerySchema.parse({
       entityType: 'PERSON',
-      name: input.name,
+      ...(name ? { name } : {}),
       ...(input.birthDate ? { birthDate: input.birthDate } : {}),
       ...(input.cpf ? { cpf: input.cpf } : {}),
     });
@@ -98,6 +119,20 @@ export class HttpRegistration {
       apiQuery('/duplicate-candidates', query),
       z.object({ data: z.array(duplicateCandidateSchema) }),
     );
+    if (!name && input.birthDate)
+      return Promise.all(
+        data.map(async (candidate) => {
+          const { person } = await this.getPerson(candidate.id);
+          return {
+            ...candidate,
+            reasons:
+              normalizeSearch(person.name) === normalizeSearch(input.name) &&
+              person.birthDate === input.birthDate
+                ? [...candidate.reasons, 'NAME_BIRTH_MATCH' as const]
+                : candidate.reasons,
+          };
+        }),
+      );
     return data;
   };
 

@@ -25,7 +25,9 @@ export const localDateTime = (value: string) =>
     .format(new Date(value))
     .replace(' ', 'T');
 export const toInstant = (value: string) =>
-  new Date(`${value}:00-03:00`).toISOString();
+  new Date(
+    `${value.length === 16 ? `${value}:00` : value}-03:00`,
+  ).toISOString();
 export const displayDate = (value: string | null) =>
   value ? value.split('-').reverse().join('/') : 'Não informado';
 export const displayInstant = (value: string) =>
@@ -37,3 +39,8 @@ export const displayInstant = (value: string) =>
 export const isWithin = (instant: string, from: string, until: string | null) =>
   Date.parse(from) <= Date.parse(instant) &&
   (until === null || Date.parse(instant) < Date.parse(until));
+
+export function localDateTimeExact(value: string) {
+  const date = new Date(value);
+  return `${localDateTime(value)}:${String(date.getUTCSeconds()).padStart(2, '0')}.${String(date.getUTCMilliseconds()).padStart(3, '0')}`;
+}

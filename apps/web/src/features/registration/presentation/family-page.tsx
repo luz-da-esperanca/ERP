@@ -71,7 +71,9 @@ function FamilyProfile({
                   </p>
                 </div>
                 {actions ? (
-                  <div className="family-profile-actions">{actions(id)}</div>
+                  <div className="family-profile-actions">
+                    {actions(family.id)}
+                  </div>
                 ) : null}
               </header>
               <nav
@@ -79,13 +81,13 @@ function FamilyProfile({
                 aria-label="Navegação do perfil da família"
               >
                 <Link
-                  to={`/families/${id}`}
+                  to={`/families/${family.id}`}
                   aria-current={isMembersView ? undefined : 'page'}
                 >
                   Visão geral
                 </Link>
                 <Link
-                  to={`/families/${id}/members`}
+                  to={`/families/${family.id}/members`}
                   aria-current={isMembersView ? 'page' : undefined}
                 >
                   Membros
@@ -93,7 +95,7 @@ function FamilyProfile({
               </nav>
               <div className="family-profile-content">
                 {children({
-                  id,
+                  id: family.id,
                   detail,
                   asOf,
                   onAsOfChange: setAsOf,
@@ -107,15 +109,15 @@ function FamilyProfile({
   );
 }
 
-export function FamilyPage({ edit = false }: { edit?: boolean }) {
-  const { client, session } = useErp();
-  const { id } = useParams();
+export function FamilyPage({
+  edit = false,
+  connected = false,
+}: {
+  edit?: boolean;
+  connected?: boolean;
+}) {
+  const { session } = useErp();
   const canReadAudit = Boolean(session?.capabilities.includes('audit.read'));
-  const loadAudit = useCallback(
-    () => (canReadAudit ? client.audit.list(id) : Promise.resolve([])),
-    [canReadAudit, client, id],
-  );
-  const auditState = useQuery(loadAudit);
 
   return (
     <FamilyProfile
@@ -140,6 +142,28 @@ export function FamilyPage({ edit = false }: { edit?: boolean }) {
           </Panel>
         ) : (
           <>
+            {connected && (
+              <nav
+                className="flex flex-wrap gap-4 mb-4"
+                aria-label="Consultas da família"
+              >
+                {session?.capabilities.includes('reports.read') && (
+                  <Link to={`/families/${family.id}/history`}>
+                    Histórico consolidado
+                  </Link>
+                )}
+                {session?.capabilities.includes('socialForms.read') && (
+                  <Link to={`/families/${family.id}/social-forms`}>
+                    Ficha social
+                  </Link>
+                )}
+                {session?.capabilities.includes('eligibility.read') && (
+                  <Link to={`/families/${family.id}/eligibility`}>
+                    Aptidão familiar
+                  </Link>
+                )}
+              </nav>
+            )}
             <div className="two-columns">
               <Panel title="Dados cadastrais">
                 <dl>
@@ -211,7 +235,7 @@ export function FamilyPage({ edit = false }: { edit?: boolean }) {
             </div>
             {canReadAudit ? (
               <div className="family-detail-history">
-                <FamilyAuditTimeline state={auditState} familyId={family.id} />
+                <CanonicalFamilyAudit familyId={family.id} />
               </div>
             ) : null}
           </>
@@ -219,6 +243,16 @@ export function FamilyPage({ edit = false }: { edit?: boolean }) {
       }
     </FamilyProfile>
   );
+}
+
+function CanonicalFamilyAudit({ familyId }: { familyId: string }) {
+  const { client } = useErp();
+  const load = useCallback(
+    () => client.audit.list(familyId),
+    [client, familyId],
+  );
+  const state = useQuery(load);
+  return <FamilyAuditTimeline state={state} familyId={familyId} />;
 }
 
 function FamilyMembersTable({ detail }: { detail: FamilyDetail }) {
@@ -264,7 +298,11 @@ function FamilyMembersTable({ detail }: { detail: FamilyDetail }) {
   );
 }
 
-export function FamilyMembersPage() {
+export function FamilyMembersPage({
+  connected = false,
+}: {
+  connected?: boolean;
+}) {
   const { session } = useErp();
   return (
     <FamilyProfile>
@@ -292,6 +330,15 @@ export function FamilyMembersPage() {
                   if (event.target.value) onAsOfChange(event.target.value);
                 }}
               />
+              {connected &&
+                session?.capabilities.includes('registration.write') && (
+                  <Link
+                    className="button secondary"
+                    to={`/families/${id}/members/link`}
+                  >
+                    Vincular pessoa existente
+                  </Link>
+                )}
               {session?.capabilities.includes('registration.write') && (
                 <Link
                   className="button primary"

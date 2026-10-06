@@ -12,6 +12,7 @@ interface SearchResultsProps {
   people: Person[];
   query: string;
   onSelect: () => void;
+  serverFiltered: boolean;
 }
 
 function matches(query: string, value: string) {
@@ -23,20 +24,23 @@ function SearchResults({
   people,
   query,
   onSelect,
+  serverFiltered,
 }: SearchResultsProps) {
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2)
     return <Empty>Digite pelo menos dois caracteres para buscar.</Empty>;
 
-  const familyMatches = families.filter((family) =>
-    matches(
-      normalizedQuery,
-      `${family.code} ${family.referenceName ?? ''} ${family.neighborhood ?? ''}`,
-    ),
-  );
-  const peopleMatches = people.filter((person) =>
-    matches(normalizedQuery, person.name),
-  );
+  const familyMatches = serverFiltered
+    ? families
+    : families.filter((family) =>
+        matches(
+          normalizedQuery,
+          `${family.code} ${family.referenceName ?? ''} ${family.neighborhood ?? ''}`,
+        ),
+      );
+  const peopleMatches = serverFiltered
+    ? people
+    : people.filter((person) => matches(normalizedQuery, person.name));
 
   if (!familyMatches.length && !peopleMatches.length)
     return <Empty>Nenhum cadastro encontrado para esta busca.</Empty>;
@@ -100,9 +104,11 @@ function SearchResults({
 export function SearchPage({
   onClose,
   returnFocusTo,
+  serverFiltered = false,
 }: {
   onClose: () => void;
   returnFocusTo?: Element | null;
+  serverFiltered?: boolean;
 }) {
   const { client, session } = useErp();
   const [query, setQuery] = useState('');
@@ -188,6 +194,7 @@ export function SearchPage({
               <AsyncView state={people}>
                 {(peopleData) => (
                   <SearchResults
+                    serverFiltered={serverFiltered}
                     families={familyData}
                     people={peopleData}
                     query={query}

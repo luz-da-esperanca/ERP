@@ -144,7 +144,13 @@ export function EnrollmentManagement({
     </>
   );
 }
-export function PersonSelection({ gateway }: { gateway: HttpProjects }) {
+export function PersonSelection({
+  gateway,
+  label = 'Participante',
+}: {
+  gateway: HttpProjects;
+  label?: string;
+}) {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const load = useCallback(
@@ -176,7 +182,7 @@ export function PersonSelection({ gateway }: { gateway: HttpProjects }) {
           <>
             <SelectField
               key={search}
-              label="Participante"
+              label={label}
               name="personId"
               required
               defaultValue=""

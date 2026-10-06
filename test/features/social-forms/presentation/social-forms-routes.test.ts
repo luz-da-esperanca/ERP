@@ -67,6 +67,16 @@ describe('Social form HTTP transport', () => {
         options: [],
         decisions: [],
       });
+      const configuration = await app.inject({
+        method: 'GET',
+        url: '/api/v1/social-form-configuration',
+      });
+      expect(configuration.statusCode).toBe(200);
+      expect(configuration.json().data).toEqual({
+        selection: null,
+        options: [],
+        decisions: [],
+      });
       const invalid = await app.inject({
         method: 'POST',
         url: `/api/v1/families/${actor.user.id}/social-forms`,

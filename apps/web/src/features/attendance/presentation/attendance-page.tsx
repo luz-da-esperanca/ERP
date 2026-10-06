@@ -31,6 +31,9 @@ export function AttendancePage(props: AttendancePageProps) {
   const { id = '' } = useParams();
   return (
     <>
+      <Link className="text-link" to={`/activities/${id}/coverage`}>
+        Consultar e declarar cobertura
+      </Link>
       <BackLink to={`/activities/${id}`}>Atividade</BackLink>
       {props.capabilities.includes('attendance.read') ? (
         <AttendanceContent key={id} {...props} activityId={id} />

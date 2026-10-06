@@ -211,7 +211,13 @@ function PersonProfile({
   );
 }
 
-export function PersonPage({ allowEdit = false }: { allowEdit?: boolean }) {
+export function PersonPage({
+  allowEdit = false,
+  connected = false,
+}: {
+  allowEdit?: boolean;
+  connected?: boolean;
+}) {
   const { id = '' } = useParams();
   const { client, session } = useErp();
   const load = useCallback(
@@ -222,6 +228,23 @@ export function PersonPage({ allowEdit = false }: { allowEdit?: boolean }) {
 
   return (
     <>
+      {connected && (
+        <nav
+          className="flex flex-wrap gap-4 mb-4"
+          aria-label="Ações individuais"
+        >
+          {session?.capabilities.includes('registration.write') && (
+            <>
+              <Link to={`/people/${id}/sizes`}>Editar tamanhos</Link>
+              <Link to={`/people/${id}/memberships`}>Gerenciar vínculos</Link>
+            </>
+          )}
+          {session?.capabilities.includes('reports.read') && (
+            <Link to={`/people/${id}/history`}>Histórico individual</Link>
+          )}
+        </nav>
+      )}
+
       <BackLink to="/families">Pessoas e famílias</BackLink>
       <AsyncView state={state}>
         {(detail) => (

@@ -7,21 +7,24 @@ import { responsibleCandidatesPageSchema } from '@erp/contracts/access-api';
 import type { ApiClient } from '../../../shared/api-client';
 
 export class HttpProjects {
-  constructor(private readonly api: ApiClient) {}
-  private async all<T>(
+  constructor(
+    private readonly api: ApiClient,
+    private readonly onChange = () => {},
+  ) {}
+  private all<T>(
     path: string,
-    schema: z.ZodType<{ data: T[]; pagination: { total: number } }>,
+    schema: z.ZodType<{
+      data: T[];
+      pagination: { total: number; page: number; pageSize: number };
+    }>,
   ) {
-    const data: T[] = [];
-    for (let page = 1; ; page++) {
-      const result = await this.api.request(
-        `${path}${path.includes('?') ? '&' : '?'}page=${page}&pageSize=100`,
-        schema,
-      );
-      data.push(...result.data);
-      if (data.length >= result.pagination.total || !result.data.length)
-        return data;
-    }
+    const url = new URL(path, 'http://localhost');
+    return allApiPages(
+      this.api,
+      url.pathname,
+      schema,
+      Object.fromEntries(url.searchParams),
+    );
   }
   overview = async () => {
     const [projects, activities, institutes, serviceTypes] = await Promise.all([
@@ -62,13 +65,13 @@ export class HttpProjects {
     key: string,
     schema: z.ZodType<T>,
   ) {
-    return (
-      await this.api.request(path, z.object({ data: schema }), {
-        method,
-        body,
-        idempotencyKey: key,
-      })
-    ).data;
+    const { data } = await this.api.request(path, z.object({ data: schema }), {
+      method,
+      body,
+      idempotencyKey: key,
+    });
+    this.onChange();
+    return data;
   }
   createProject(input: contracts.CreateProjectInput, key: string) {
     return this.write(
@@ -192,4 +195,39 @@ export class HttpProjects {
       })),
     };
   };
+  updateInstitute(
+    id: string,
+    input: contracts.UpdateCatalogInput,
+    key: string,
+  ) {
+    return this.write(
+      `/institutes/${z.uuid().parse(id)}`,
+      'PATCH',
+      contracts.updateCatalogSchema.parse(input),
+      key,
+      contracts.instituteDtoSchema,
+    );
+  }
+  createServiceType(input: contracts.CreateServiceTypeInput, key: string) {
+    return this.write(
+      '/service-types',
+      'POST',
+      contracts.createServiceTypeSchema.parse(input),
+      key,
+      contracts.serviceTypeDtoSchema,
+    );
+  }
+  updateServiceType(
+    id: string,
+    input: contracts.UpdateCatalogInput,
+    key: string,
+  ) {
+    return this.write(
+      `/service-types/${z.uuid().parse(id)}`,
+      'PATCH',
+      contracts.updateCatalogSchema.parse(input),
+      key,
+      contracts.serviceTypeDtoSchema,
+    );
+  }
 }

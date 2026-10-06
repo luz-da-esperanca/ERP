@@ -47,7 +47,14 @@ describe('Connected application authentication', () => {
     const user = userEvent.setup();
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(Response.json({ data: session }));
+      .mockImplementation(async (value) =>
+        String(value).includes('/families?')
+          ? Response.json({
+              data: [],
+              pagination: { page: 1, pageSize: 1, total: 0 },
+            })
+          : Response.json({ data: session }),
+      );
     const api = renderApp(fetcher);
     await screen.findByRole('heading', { name: 'Início', level: 1 });
     fetcher.mockImplementation(async () =>
@@ -57,7 +64,11 @@ describe('Connected application authentication', () => {
       ),
     );
     await user.click(screen.getByRole('button', { name: 'Sair' }));
-    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        'Não foi possível conectar ao serviço de acesso. Tente novamente.',
+      ),
+    ).toBeTruthy();
     expect(screen.getByRole('navigation')).toBeTruthy();
     fetcher.mockResolvedValue(new Response(null, { status: 204 }));
     await user.click(screen.getByRole('button', { name: 'Sair' }));
@@ -255,7 +266,11 @@ describe('Connected application authentication', () => {
     expect(
       await screen.findByRole('heading', { name: 'Início', level: 1 }),
     ).toBeTruthy();
-    expect(fetcher.mock.lastCall?.[1]?.body).toBe(
+    expect(
+      fetcher.mock.calls.findLast(([url]) =>
+        String(url).endsWith('/auth/login'),
+      )?.[1]?.body,
+    ).toBe(
       '{"login":"synthetic.operator","password":"  synthetic-password  "}',
     );
     expect(screen.getByText('Synthetic Operator')).toBeTruthy();

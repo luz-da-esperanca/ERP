@@ -35,3 +35,53 @@ describe('Attendance HTTP', () => {
     ]);
   });
 });
+it('declares coverage with the exact queried source fingerprint, revision and explicit confirmation', async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      Response.json(
+        { error: { code: 'REVISION_CONFLICT', requestId: 'coverage' } },
+        { status: 409 },
+      ),
+    );
+  const gateway = new HttpAttendance(new ApiClient(fetcher));
+  const input = {
+    periodStart: '2026-09-01',
+    periodEndExclusive: '2026-10-05',
+    expectedActivityRevision: 3,
+    expectedSourceFingerprint: 'a'.repeat(64),
+    confirmed: true as const,
+    reason: 'Synthetic coverage confirmation',
+  };
+  await expect(gateway.declareCoverage(id, input, id)).rejects.toMatchObject({
+    code: 'REVISION_CONFLICT',
+  });
+  expect(fetcher.mock.lastCall?.[1]).toMatchObject({
+    method: 'POST',
+    body: JSON.stringify(input),
+    headers: { 'Idempotency-Key': id },
+  });
+});
+it('corrects session metadata through PATCH without replacing the captured revisions or roster fingerprint', async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      Response.json(
+        { error: { code: 'REVISION_CONFLICT', requestId: 'session' } },
+        { status: 409 },
+      ),
+    );
+  const gateway = new HttpAttendance(new ApiClient(fetcher));
+  const input = {
+    expectedSessionRevision: 4,
+    responsibleId: id,
+    reason: 'Synthetic correction',
+  };
+  await expect(gateway.correctSession(id, input, id)).rejects.toMatchObject({
+    code: 'REVISION_CONFLICT',
+  });
+  expect(fetcher.mock.lastCall?.[1]).toMatchObject({
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+});

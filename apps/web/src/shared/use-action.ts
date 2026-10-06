@@ -52,18 +52,21 @@ export function errorMessage(error: unknown): string {
 export function useAction() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cause, setCause] = useState<unknown>(null);
   async function run(action: () => Promise<unknown>) {
     setPending(true);
     setError(null);
+    setCause(null);
     try {
       await action();
       return true;
     } catch (cause) {
+      setCause(cause);
       setError(errorMessage(cause));
       return false;
     } finally {
       setPending(false);
     }
   }
-  return { pending, error, run };
+  return { pending, error, cause, run };
 }

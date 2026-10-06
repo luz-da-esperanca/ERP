@@ -11,7 +11,10 @@ import {
   nullableValue,
 } from '../../../shared/ui';
 import { useAction } from '../../../shared/use-action';
-import { useRegistrationIntent } from './use-registration-intent';
+import {
+  useRegistrationIntent,
+  canRefreshDuplicateReview,
+} from './use-registration-intent';
 import { DuplicateCreationReview as DuplicateReview } from './duplicate-review';
 export function FamilyForm({ family }: { family?: Family }) {
   const { client } = useErp();
@@ -43,7 +46,12 @@ export function FamilyForm({ family }: { family?: Family }) {
             input,
             prepared.key,
           )
-        : await client.registration.createFamily(prepared.body, prepared.key);
+        : await client.registration
+            .createFamily(prepared.body, prepared.key)
+            .catch((error: unknown) => {
+              intent.captureRejectedReview(error);
+              throw error;
+            });
       navigate(`/families/${saved.id}`);
     });
   }
@@ -95,10 +103,13 @@ export function FamilyForm({ family }: { family?: Family }) {
         </SelectField>
       </div>
       {intent.review && (
-        <DuplicateReview candidates={intent.review.candidates} />
+        <DuplicateReview
+          key={`${intent.review.input}:${intent.review.candidates.map((candidate) => candidate.id).join()}`}
+          candidates={intent.review.candidates}
+        />
       )}
       {action.error && <Alert error>{action.error}</Alert>}
-      {action.error && !family && (
+      {canRefreshDuplicateReview(action.cause) && !family && (
         <button
           className="button secondary"
           type="button"

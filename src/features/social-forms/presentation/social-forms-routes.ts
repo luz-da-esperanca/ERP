@@ -89,6 +89,13 @@ export function registerSocialFormsRoutes(
       });
     },
   );
+  app.get('/api/v1/social-form-configuration', async (request) => {
+    const actor = await principal(request, 'featureDecisions.manage');
+    z.object({}).strict().parse(request.query);
+    return {
+      data: socialFormFieldsSchema.parse(await forms.configuration(actor)),
+    };
+  });
   app.get('/api/v1/social-form-fields', async (request) => {
     const actor = await principal(request, 'socialForms.read');
     z.object({}).strict().parse(request.query);
