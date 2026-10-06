@@ -24,6 +24,16 @@ Os contratos entregues, payloads e regras de integração estão no [guia do bac
 
 `apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
 
+A tela `/activities/:id`, acessível pela listagem de projetos e atividades,
+consulta o gateway existente e apresenta nome, projeto, natureza, situação,
+agenda planejada, tipo pontual e data de encerramento quando disponíveis.
+Atividades encerradas continuam consultáveis. O responsável ainda não faz parte
+do contrato consumido pela UI, embora exista no DTO HTTP. Chamada, registros
+recentes e histórico aguardam FRQ e integração HTTP; os adaptadores de frequência
+em memória não comprovam suporte real. Edição, encerramento e gestão de
+participantes aguardam seus fluxos na UI. Registro de atendimento realizado
+permanece fora do MVP. A tela não oferece ações provisórias para essas pendências.
+
 O cabeçalho compartilhado das telas autenticadas inclui ajuda com dúvidas frequentes e um sino com painel padrão de notificações. Nesta etapa, o painel informa a indisponibilidade das notificações; eventos, armazenamento e integração de notificações ficam para uma etapa posterior. Os painéis fecham pelo botão, por Escape ou ao sair deles com o foco/clique, sem mudar a tela atual.
 
 Os comandos padrão `pnpm dev` e `pnpm build` operam a API nesta etapa. A aplicação web permanece em preparação; sua configuração e seus módulos entram na verificação de tipos e lint.
