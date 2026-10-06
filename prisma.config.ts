@@ -3,6 +3,6 @@ import { defineConfig } from 'prisma/config';
 if (existsSync('.env')) process.loadEnvFile('.env');
 export default defineConfig({
   schema: 'prisma/schema.prisma',
-  migrations: { path: 'prisma/migrations' },
+  migrations: { path: 'prisma/migrations', seed: 'pnpm db:seed' },
   datasource: { url: process.env.DATABASE_URL ?? 'postgresql://localhost/erp' },
 });
