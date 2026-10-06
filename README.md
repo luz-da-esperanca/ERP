@@ -145,7 +145,9 @@ pnpm db:bootstrap
 pnpm dev
 ```
 
-O bootstrap local pede login, nome e senha com entrada oculta; funciona apenas se não existir nenhuma conta. Cria um administrador que precisa trocar a senha no primeiro acesso. Não há usuário/senha padrão nem seed de pessoas ou aprovações. O catálogo fixo de perfis é criado nessa mesma transação.
+O bootstrap local pede login, nome e senha com entrada oculta; funciona apenas se não existir nenhuma conta. Cria um administrador que precisa trocar a senha no primeiro acesso. Não há usuário/senha padrão. O catálogo fixo de perfis é criado nessa mesma transação.
+
+Para showcase e testes manuais, execute `pnpm db:seed` **no lugar de `pnpm db:bootstrap`**, em um banco vazio com `DATA_MODE=SYNTHETIC`. O [seed de demonstração](docs/showcase-seed.md) cria contas dos quatro perfis, famílias, fichas, atividades e exemplos de frequência/aptidão. A senha gerada fica no arquivo local `.env.demo`, ignorado pelo Git. A execução pode ser repetida sem duplicar registros ou sobrescrever alterações manuais; políticas e seleções publicadas são explicitamente fictícias.
 
 Disponibilidade: `GET http://127.0.0.1:3001/api/v1/health`. Essa rota verifica o processo HTTP; não é diagnóstico completo das dependências.
 
@@ -157,7 +159,7 @@ Com a API iniciada, execute em outro terminal:
 pnpm dev:web
 ```
 
-Abra `http://localhost:5173` e mantenha `APP_ORIGIN=http://localhost:5173` na API, conforme `.env.example`. O Vite recusa outra porta e encaminha `/api` para `http://127.0.0.1:3001`, preservando a origem do navegador. Se mudar a porta da API, ajuste o destino em `apps/web/vite.config.ts`. A sessão usa o cookie HttpOnly; a UI não armazena tokens. Use a conta criada pelo bootstrap e troque a senha quando solicitado. Não há credenciais padrão.
+Abra `http://localhost:5173` e mantenha `APP_ORIGIN=http://localhost:5173` na API, conforme `.env.example`. O Vite recusa outra porta e encaminha `/api` para `http://127.0.0.1:3001`, preservando a origem do navegador. Se mudar a porta da API, ajuste o destino em `apps/web/vite.config.ts`. A sessão usa o cookie HttpOnly; a UI não armazena tokens. Use a conta criada pelo bootstrap e troque a senha quando solicitado, ou uma das contas do seed com a senha gerada em `.env.demo`.
 
 Login, logout e troca de senha tratam falhas sem repetição automática. Após trocar a senha, é necessário entrar novamente. Uma resposta 401 remove a sessão local. Produção deve servir o build web e `/api` na mesma origem; `vite preview` isolado não substitui essa configuração.
 

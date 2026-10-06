@@ -2,7 +2,7 @@
 
 Na estação atual, o `.env` está configurado para desenvolvimento, com `DATA_MODE=SYNTHETIC`, API em `127.0.0.1:3001` e frontend em `http://localhost:5173`. As chaves de autenticação, idempotência e criptografia de FIC foram geradas separadamente; não habilitam campos protegidos. O arquivo tem permissão `600` e é ignorado pelo Git.
 
-PostgreSQL 18.4 e Redis 7.4.6 foram instalados no diretório do usuário `~/.local/share/erp-social-dev`, pois esta estação não possui Compose disponível nem acesso ao daemon Docker. Estão ativos em `127.0.0.1:5432` e `127.0.0.1:6379`. O banco `erp` é novo, possui as 13 migrations aplicadas e não contém pessoas ou contas da aplicação.
+PostgreSQL 18.4 e Redis 7.4.6 foram instalados no diretório do usuário `~/.local/share/erp-social-dev`, pois esta estação não possui Compose disponível nem acesso ao daemon Docker. Estão ativos em `127.0.0.1:5432` e `127.0.0.1:6379`. O banco `erp` possui as 13 migrations aplicadas e foi preenchido com o [seed de demonstração](showcase-seed.md): quatro contas, quatro famílias, oito pessoas, dois projetos e três atividades.
 
 Para iniciar o backend, na raiz do projeto:
 
@@ -10,13 +10,15 @@ Para iniciar o backend, na raiz do projeto:
 pnpm dev
 ```
 
-Para criar a primeira conta, execute em outro terminal:
+Para navegar pelos módulos sociais, entre como `demo.coordination` com a senha `DEMO_SEED_PASSWORD` do arquivo local `.env.demo`. Os demais acessos e cenários estão no [guia do seed](showcase-seed.md#acessos). A data de referência da demonstração é `2026-10-05`, com período `[2026-09-06, 2026-10-06)`.
+
+Para conferir ou retomar o seed, execute:
 
 ```bash
-pnpm db:bootstrap
+pnpm db:seed
 ```
 
-O comando pede login, nome e senha e cria o primeiro Administrador, que precisa trocar a senha no primeiro acesso. Ele funciona somente enquanto não houver contas; não há credencial padrão. Para operar módulos sociais, siga a atribuição explícita dos perfis no [guia do backend](api/README.md#preparar-o-ambiente-e-a-conta).
+Repetir o comando preserva os registros e mudanças manuais. O `.env.example` continua como modelo de configuração, sem credenciais geradas. Para preparar outro banco sem exemplos, siga o bootstrap no [guia do backend](api/README.md#preparar-o-ambiente-e-a-conta); ele funciona somente enquanto não houver contas.
 
 Se reiniciar a estação ou parar os serviços locais, inicie-os antes da API:
 

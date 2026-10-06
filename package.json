@@ -21,6 +21,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:bootstrap": "node --env-file-if-exists=.env --import tsx src/bootstrap.ts",
+    "db:seed": "node --env-file-if-exists=.env --import tsx src/seed.ts",
     "format": "prettier --write src test apps packages *.json *.mjs *.ts pnpm-workspace.yaml",
     "format:check": "prettier --check src test apps packages *.json *.mjs *.ts pnpm-workspace.yaml",
     "start": "node --env-file-if-exists=.env dist/main.js",
