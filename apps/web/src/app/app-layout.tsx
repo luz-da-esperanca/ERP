@@ -13,6 +13,7 @@ import type { Capability } from '@erp/contracts/access';
 import { useErp } from './erp-provider';
 import { roleLabels } from '../features/access/presentation/role-labels';
 import { SearchPage } from '../features/registration/presentation/search-page';
+import { GlobalActions } from './global-actions';
 
 const navigation: Array<{
   to: string;
@@ -124,6 +125,7 @@ export function AppLayout() {
           <span className="top-account" title="Ambiente de demonstração">
             Dados sintéticos
           </span>
+          <GlobalActions />
         </header>
         <main id="main-content" className="page-wrap" tabIndex={-1}>
           <Outlet />

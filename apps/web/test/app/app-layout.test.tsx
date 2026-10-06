@@ -42,6 +42,76 @@ function renderLayout(role = 'COORDINATION') {
 describe('AppLayout', () => {
   afterEach(cleanup);
 
+  it('opens global help and restores focus when dismissed with Escape', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+    const trigger = screen.getByRole('button', { name: 'Ajuda' });
+    await user.click(trigger);
+    expect(screen.getByRole('region', { name: 'Ajuda' })).toBeTruthy();
+    expect(screen.getByText('Como buscar uma pessoa ou família?')).toBeTruthy();
+    await user.click(screen.getByRole('heading', { name: 'Ajuda', level: 2 }));
+    expect(screen.getByRole('region', { name: 'Ajuda' })).toBeTruthy();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: 'Ajuda' })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(screen.getByLabelText('Localização atual').textContent).toBe('/');
+  });
+
+  it('opens the notification placeholder across routes and switches to help', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+    await user.click(screen.getByRole('button', { name: 'Notificações' }));
+    expect(screen.getByRole('region', { name: 'Notificações' })).toBeTruthy();
+    expect(
+      screen.getByText('As notificações ainda não estão disponíveis.'),
+    ).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Ajuda' }));
+    expect(screen.queryByRole('region', { name: 'Notificações' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Ajuda' })).toBeTruthy();
+    await user.click(
+      screen.getByRole('link', { name: 'Projetos e atividades' }),
+    );
+    expect(screen.queryByRole('region', { name: 'Ajuda' })).toBeNull();
+    await screen.findByRole('heading', {
+      name: 'Projetos e atividades',
+      level: 1,
+    });
+    const trigger = screen.getByRole('button', { name: 'Notificações' });
+    await user.click(trigger);
+    await user.click(
+      screen.getByRole('button', { name: 'Fechar notificações' }),
+    );
+    expect(screen.queryByRole('region', { name: 'Notificações' })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('supports keyboard help, notification toggling and dismissal outside the panels', async () => {
+    const user = userEvent.setup();
+    renderLayout('ADMINISTRATOR');
+    screen.getByRole('button', { name: 'Ajuda' }).focus();
+    await user.keyboard('{Enter}');
+    await user.tab();
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Fechar ajuda' }),
+    );
+    await user.click(screen.getByText('Como buscar uma pessoa ou família?'));
+    expect(
+      screen.getByText(/Use a busca no topo da tela/).closest('details')?.open,
+    ).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Notificações' }));
+    await user.click(screen.getByRole('button', { name: 'Notificações' }));
+    expect(screen.queryByRole('region', { name: 'Notificações' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Notificações' }));
+    await user.tab({ shift: true });
+    await user.tab({ shift: true });
+    expect(screen.queryByRole('region', { name: 'Notificações' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ajuda' }));
+    await user.click(screen.getByLabelText('Localização atual'));
+    expect(screen.queryByRole('region', { name: 'Ajuda' })).toBeNull();
+  });
+
   it('navigates to the project list through the authorized sidebar entry', async () => {
     const user = userEvent.setup();
     renderLayout();

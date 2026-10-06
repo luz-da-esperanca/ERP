@@ -24,6 +24,8 @@ Os contratos entregues, payloads e regras de integração estão no [guia do bac
 
 `apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
 
+O cabeçalho compartilhado das telas autenticadas inclui ajuda com dúvidas frequentes e um sino com painel padrão de notificações. Nesta etapa, o painel informa a indisponibilidade das notificações; eventos, armazenamento e integração de notificações ficam para uma etapa posterior. Os painéis fecham pelo botão, por Escape ou ao sair deles com o foco/clique, sem mudar a tela atual.
+
 Os comandos padrão `pnpm dev` e `pnpm build` operam a API nesta etapa. A aplicação web permanece em preparação; sua configuração e seus módulos entram na verificação de tipos e lint.
 
 ## Organização
