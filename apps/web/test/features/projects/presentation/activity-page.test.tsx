@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -71,6 +71,24 @@ function renderPage(
 afterEach(cleanup);
 
 describe('ActivityPage', () => {
+  it('groups responsible and schedule values in the activity summary with explicit accessible labels', async () => {
+    renderPage(async () => detail);
+    await screen.findByRole('heading', { name: detail.activity.name });
+    const summary = screen.getByRole('region', {
+      name: 'Informações da atividade',
+    });
+    const schedule = within(summary).getByRole('definition', {
+      name: 'Agenda planejada',
+    });
+    expect(schedule.textContent).toBe(detail.activity.plannedSchedule);
+    const responsible = within(summary).getByRole('definition', {
+      name: 'Responsável',
+    });
+    expect(
+      responsible.compareDocumentPosition(schedule) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
   it('identifies the unavailable responsible query without assuming an unassigned activity', async () => {
     renderPage(async () => detail);
     await screen.findByRole('heading', { name: detail.activity.name });

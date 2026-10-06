@@ -1,6 +1,14 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useParams } from 'react-router';
-import { Archive, CheckCircle } from 'lucide-react';
+import {
+  Archive,
+  CalendarCheck,
+  CheckCircle,
+  Clock,
+  Tag,
+  UserRound,
+} from 'lucide-react';
 import type { ActivityDetail } from '@erp/contracts/projects';
 import { useErp } from '../../../app/erp-provider';
 import { useQuery } from '../../../shared/use-query';
@@ -15,21 +23,41 @@ import {
   StatusBadge,
 } from '../../../shared/ui';
 
+function ActivityInfo({
+  label,
+  children,
+  icon,
+}: {
+  label: string;
+  children: ReactNode;
+  icon: ReactNode;
+}) {
+  const labelId = useId();
+  return (
+    <div className="activity-info">
+      <dt id={labelId}>
+        <span className="activity-info-icon" aria-hidden="true">
+          {icon}
+        </span>
+        {label}
+      </dt>
+      <dd aria-labelledby={labelId}>{children}</dd>
+    </div>
+  );
+}
+
 function ServiceTypeInfo({ id }: { id: string }) {
   const { client } = useErp();
   const state = useQuery(client.projects.overview);
   return (
-    <>
-      <dt className="mb-2 mt-6 text-sm font-semibold">Tipo de atendimento</dt>
-      <dd className="break-words">
-        <AsyncView state={state}>
-          {(overview) =>
-            overview.serviceTypes.find((type) => type.id === id)?.name ??
-            'Não disponível'
-          }
-        </AsyncView>
-      </dd>
-    </>
+    <ActivityInfo label="Tipo de atendimento" icon={<Tag size={20} />}>
+      <AsyncView state={state}>
+        {(overview) =>
+          overview.serviceTypes.find((type) => type.id === id)?.name ??
+          'Não disponível'
+        }
+      </AsyncView>
+    </ActivityInfo>
   );
 }
 
@@ -49,29 +77,36 @@ function ActivityProfile({ detail }: { detail: ActivityDetail }) {
           {activity.status === 'ACTIVE' ? 'Ativa' : 'Encerrada'}
         </StatusBadge>
       </div>
-      <Panel title="Informações da atividade">
-        <dl>
-          <dt className="mb-2 text-sm font-semibold">Responsável</dt>
-          <dd className="break-words">Consulta ainda não disponível</dd>
-          <dt className="mb-2 mt-6 text-sm font-semibold">Agenda planejada</dt>
-          <dd className="whitespace-pre-wrap break-words">
-            {activity.plannedSchedule ?? 'Não informada'}
-          </dd>
+      <section
+        className="panel activity-summary"
+        aria-label="Informações da atividade"
+      >
+        <dl className="activity-information">
+          <ActivityInfo label="Responsável" icon={<UserRound size={20} />}>
+            <span className="activity-info-unavailable">
+              Consulta ainda não disponível
+            </span>
+          </ActivityInfo>
+          <ActivityInfo label="Agenda planejada" icon={<Clock size={20} />}>
+            {activity.plannedSchedule ?? (
+              <span className="activity-info-unavailable">Não informada</span>
+            )}
+          </ActivityInfo>
           {activity.nature === 'ONE_OFF' && activity.serviceTypeId ? (
             <ServiceTypeInfo id={activity.serviceTypeId} />
           ) : null}
           {activity.closedAt ? (
-            <>
-              <dt className="mb-2 mt-6 text-sm font-semibold">Encerrada em</dt>
-              <dd>
-                <time dateTime={activity.closedAt}>
-                  {displayInstant(activity.closedAt)}
-                </time>
-              </dd>
-            </>
+            <ActivityInfo
+              label="Encerrada em"
+              icon={<CalendarCheck size={20} />}
+            >
+              <time dateTime={activity.closedAt}>
+                {displayInstant(activity.closedAt)}
+              </time>
+            </ActivityInfo>
           ) : null}
         </dl>
-      </Panel>
+      </section>
       <Panel title="Registros recentes">
         <Empty>
           {activity.nature === 'PERIODIC'
