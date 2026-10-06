@@ -256,3 +256,31 @@ describe('Connected application authentication', () => {
     ).toBeNull();
   });
 });
+
+it('opens the authenticated data quality route using the same session-aware API client', async () => {
+  const fetcher = vi.fn<typeof fetch>(async (input) =>
+    String(input).endsWith('/auth/session')
+      ? Response.json({ data: session })
+      : Response.json({
+          data: [],
+          pagination: { page: 1, pageSize: 20, total: 0 },
+        }),
+  );
+  const api = new ApiClient(fetcher);
+  render(
+    <MemoryRouter initialEntries={['/data-quality']}>
+      <ConnectedApp authentication={new HttpAuthentication(api)} api={api} />
+    </MemoryRouter>,
+  );
+  await screen.findByText('Nenhuma ocorrência encontrada.');
+  expect(
+    screen
+      .getByRole('link', { name: 'Duplicidades e qualidade' })
+      .getAttribute('href'),
+  ).toBe('/data-quality');
+  expect(
+    fetcher.mock.calls.some(([path]) =>
+      String(path).includes('/data-quality-issues?'),
+    ),
+  ).toBe(true);
+});

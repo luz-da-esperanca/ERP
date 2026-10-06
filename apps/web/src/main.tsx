@@ -6,7 +6,8 @@ import { HttpAuthentication } from './access';
 import { ApiClient } from './shared/api-client';
 import './index.css';
 
-const authentication = new HttpAuthentication(new ApiClient());
+const api = new ApiClient();
+const authentication = new HttpAuthentication(api);
 
 const root = document.getElementById('root');
 
@@ -15,7 +16,7 @@ if (!root) throw new Error('Application root was not found');
 createRoot(root).render(
   <StrictMode>
     <BrowserRouter>
-      <ConnectedApp authentication={authentication} />
+      <ConnectedApp authentication={authentication} api={api} />
     </BrowserRouter>
   </StrictMode>,
 );

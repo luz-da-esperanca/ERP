@@ -1,3 +1,7 @@
+import { ApiClient } from '../shared/api-client';
+import { HttpDataQuality } from '../features/registration/infra/http-data-quality';
+import type { DataQualityGateway } from '../features/registration/application/data-quality-gateway';
+import { DataQualityPage } from '../features/registration/presentation/data-quality-page';
 import { useState } from 'react';
 import { Link, Navigate, Outlet, Route, Routes } from 'react-router';
 import type { Capability } from '@erp/contracts/access';
@@ -14,17 +18,20 @@ import {
 
 export function ConnectedApp({
   authentication,
+  api,
 }: {
   authentication: AuthenticationGateway;
+  api?: ApiClient;
 }) {
+  const [quality] = useState(() => new HttpDataQuality(api ?? new ApiClient()));
   return (
     <AuthenticationProvider authentication={authentication}>
-      <ConnectedRoutes />
+      <ConnectedRoutes quality={quality} />
     </AuthenticationProvider>
   );
 }
 
-function ConnectedRoutes() {
+function ConnectedRoutes({ quality }: { quality: DataQualityGateway }) {
   const { authentication, state } = useAuthentication();
   if (state.status === 'loading')
     return (
@@ -69,6 +76,10 @@ function ConnectedRoutes() {
     <Routes>
       <Route path="/change-password" element={<ChangePasswordPage />} />
       <Route element={<ConnectedLayout />}>
+        <Route
+          path="data-quality"
+          element={<ConnectedQualityPage gateway={quality} />}
+        />
         <Route index element={<PendingPage title="Início" />} />
         <Route
           path="families/*"
@@ -135,6 +146,7 @@ function ConnectedLayout() {
       roles={state.session.roles}
       capabilities={state.session.capabilities}
       accountLabel="Acesso autenticado"
+      showDataQuality
       onLogout={() => {
         void logout();
       }}
@@ -172,5 +184,16 @@ function PendingPage({
         </Empty>
       </Panel>
     </Page>
+  );
+}
+
+function ConnectedQualityPage({ gateway }: { gateway: DataQualityGateway }) {
+  const { state } = useAuthentication();
+  if (state.status !== 'authenticated') return null;
+  return (
+    <DataQualityPage
+      gateway={gateway}
+      capabilities={state.session.capabilities}
+    />
   );
 }
