@@ -14,7 +14,10 @@ import {
   membershipDtoSchema,
   sizeProfileSchema,
 } from './registration-api';
-import { dataQualityIssueSchema } from './data-quality-api';
+import {
+  dataQualityIssueSchema,
+  missingDataSelectionSchema,
+} from './data-quality-api';
 import {
   instituteDtoSchema,
   serviceTypeDtoSchema,
@@ -219,6 +222,16 @@ export const socialFormsAuditEntrySchema = z.discriminatedUnion('entityType', [
   socialEntry('SocialFormOption', socialOptionDtoSchema, 'FEATURE_DECISIONS'),
   socialEntry('FeatureDecision', featureDecisionDtoSchema, 'FEATURE_DECISIONS'),
 ]);
+export const registrationConfigurationAuditEntrySchema = entryFields.extend({
+  entityType: z.literal('RegistrationFieldSelection'),
+  action: z.literal('CREATE'),
+  classification: z.literal('REGISTRATION_CONFIGURATION'),
+  before: z.null(),
+  after: missingDataSelectionSchema,
+});
+export const registrationConfigurationAuditQuerySchema = recordAuditQuerySchema
+  .extend({ entityType: z.literal('RegistrationFieldSelection') })
+  .refine(validAuditPeriod);
 export const auditEntrySchema = z.union([
   accountAuditEntrySchema,
   registrationAuditEntrySchema,
@@ -226,6 +239,7 @@ export const auditEntrySchema = z.union([
   attendanceAuditEntrySchema,
   eligibilityAuditEntrySchema,
   socialFormsAuditEntrySchema,
+  registrationConfigurationAuditEntrySchema,
 ]);
 export const authorizedAuditQuerySchema = z.union([
   auditQuerySchema,
@@ -234,6 +248,7 @@ export const authorizedAuditQuerySchema = z.union([
   attendanceAuditQuerySchema,
   eligibilityAuditQuerySchema,
   socialFormsAuditQuerySchema,
+  registrationConfigurationAuditQuerySchema,
 ]);
 export const auditPageSchema = z.object({
   data: z.array(auditEntrySchema),

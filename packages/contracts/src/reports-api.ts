@@ -326,7 +326,14 @@ export const qualityReportSchema = z
         byKind: z
           .object({ POSSIBLE_DUPLICATE: count, MISSING_DATA: count })
           .strict(),
-        byResolution: z.object({ DISTINCT: count, MERGED: count }).strict(),
+        byResolution: z
+          .object({
+            DISTINCT: count,
+            MERGED: count,
+            COMPLETED: count,
+            NOT_TRACKED: count,
+          })
+          .strict(),
       })
       .strict(),
     data: z.array(dataQualityIssueSchema),

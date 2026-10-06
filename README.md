@@ -15,6 +15,7 @@ O backend entrega **CORE, ACS, CAD, ATV, FRQ, FIC, APT, REL e auditoria dessas e
 - Consulta de auditoria de contas com autorização e snapshots sem credenciais.
 - Pessoas/famílias, códigos gerados, vínculos históricos, titularidade, transferência, correção e encerramento.
 - Busca de duplicidades com análise explícita, ocorrências de qualidade e tamanhos datados/versionados.
+- Seleção versionada de campos cadastrais e pendências automáticas de dados ausentes, com resolução e histórico.
 - Consultas por data, revisões e projeção mínima de participantes conforme o perfil.
 - Seis institutos, tipos pontuais, projetos e atividades com natureza, vigência, responsável e revisões.
 - Inscrições temporais, correção e saída; encerramento atômico de projetos/atividades preservando o histórico.
@@ -30,9 +31,11 @@ O backend entrega **CORE, ACS, CAD, ATV, FRQ, FIC, APT, REL e auditoria dessas e
 - Unificação de pessoas e famílias com prévia, resolução explícita de conflitos e histórico recuperável.
 - Históricos familiar e pessoal e relatórios de alcance, frequência, aptidão e qualidade, com detalhe coerente com cada total.
 
-Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md), [FIC](docs/api/social-forms.md), [APT](docs/api/eligibility.md), [unificação](docs/api/identity-merges.md), [REL](docs/api/reports.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md), [FRQ](docs/api/integrating-attendance.md) e [FIC](docs/api/integrating-social-forms.md) apresentam os fluxos HTTP. Todas as rotas previstas nas specs do MVP têm backend. Pendências automáticas de dados ausentes (`MISSING_DATA`) continuam pendentes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões FIC está implementada; o mecanismo de inicialização recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md), [FIC](docs/api/social-forms.md), [APT](docs/api/eligibility.md), [unificação](docs/api/identity-merges.md), [REL](docs/api/reports.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md), [FRQ](docs/api/integrating-attendance.md) e [FIC](docs/api/integrating-social-forms.md) apresentam os fluxos HTTP. Todas as rotas previstas nas specs do MVP têm backend. Pendências automáticas de dados ausentes (`MISSING_DATA`) estão implementadas e dependem de seleção explícita, sem campos padrão; sua auditoria está incluída. A administração de decisões FIC está implementada; o mecanismo de inicialização recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
 
 Em 05/10/2026 a suíte de integração completa foi executada com PostgreSQL/Redis de teste e passa, incluindo FIC, APT e unificação. A execução revelou e corrigiu uma falha de FIC: o bloqueio consultivo de configuração era chamado de forma que o Prisma não conseguia ler o retorno, e `POST /social-form-field-selections` respondia 500.
+
+Em 06/10/2026, a entrega de pendências cadastrais passou em 401 testes unitários/de contratos e 114 testes de integração com PostgreSQL e Redis reais, incluindo instalação em banco novo, concorrência nas duas ordens, unicidade, imutabilidade, rollback de auditoria e reconciliação após unificação. Verificação de tipos, lint e build da API também passaram. O [roteiro da demo](docs/demo-backend.md) descreve configuração e operação com dados sintéticos.
 
 `apps/web` iniciou a integração HTTP: a entrada principal usa login, restauração de sessão, logout confirmado e troca de senha pela API de ACS. As telas dos demais módulos mostram que aguardam integração; seus componentes do protótipo e testes foram preservados. Contas da demonstração não são contas PostgreSQL. O [inventário de telas e integrações](docs/frontend-status.md) distingue interfaces existentes e fluxos ainda ausentes. Os detalhes do protótipo descritos abaixo não representam telas conectadas à API.
 
@@ -235,9 +238,8 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. CAD: seleção de dados relevantes e geração de pendências `MISSING_DATA`.
-2. Telas de todos os módulos conforme os contratos entregues.
-3. Medição de desempenho com volume identificado e decisões institucionais pendentes antes do piloto.
-4. A frente de frontend integra esses contratos, incluindo autenticação real e troca obrigatória de senha; esta entrega está limitada ao backend e à documentação.
+1. Concluir as telas pela frente de frontend e integrar os módulos aos contratos HTTP entregues.
+2. Validar os fluxos da apresentação com o [roteiro de demonstração sintética](docs/demo-backend.md).
+3. Medir desempenho com volume identificado e resolver as decisões institucionais antes do piloto.
 
 Não foram introduzidos atendimentos, estoque, entregas, Bazar ou migração. A referência normativa continua no [AGENTS.md](AGENTS.md) e nas specs. Referências técnicas da base: [Prisma 7 e adapter PostgreSQL](https://docs.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Fastify: erros](https://fastify.dev/docs/latest/Reference/Errors/).

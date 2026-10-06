@@ -59,6 +59,12 @@ function fixture(roles: Role[] = ['SOCIAL_ASSISTANCE']) {
   const audits: MergeAuditEntry[] = [];
   const merges: IdentityMerge[] = [];
   const writes = {
+    missingData: {
+      selection: vi.fn().mockResolvedValue(null),
+      openIssues: vi.fn().mockResolvedValue([]),
+      createIssue: vi.fn(),
+      closeIssue: vi.fn(),
+    },
     actor: vi
       .fn<IdentityMergeTransaction['actor']>()
       .mockResolvedValue(principal),

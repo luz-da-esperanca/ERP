@@ -9,7 +9,10 @@ import type {
   RegisteredMembership,
   SizeProfile,
 } from '../../registration/domain/registration.js';
-import type { QualityIssue } from '../../registration/domain/data-quality.js';
+import type {
+  QualityIssue,
+  MissingDataSelection,
+} from '../../registration/domain/data-quality.js';
 import type { IdentityMerge } from '../../registration/domain/identity-merge.js';
 import type {
   ProjectsEntity,
@@ -31,6 +34,7 @@ export type RegistrationAuditEntity =
   | 'DataQualityIssue'
   | 'IdentityMerge';
 export type AuditEntity =
+  | 'RegistrationFieldSelection'
   | 'UserAccount'
   | RegistrationAuditEntity
   | ProjectsEntity
@@ -89,12 +93,23 @@ export type EligibilityAuditEntry = Omit<
   classification: 'ELIGIBILITY';
 };
 export type AuditEntry =
+  | RegistrationConfigurationAuditEntry
   | AccountAuditEntry
   | EligibilityAuditEntry
   | RegistrationAuditEntry
   | ProjectsAuditEntry
   | AttendanceAuditEntry
   | SocialFormsAuditEntry;
+export type RegistrationConfigurationAuditEntry = Omit<
+  AccountAuditEntry,
+  'entityType' | 'action' | 'before' | 'after' | 'classification'
+> & {
+  entityType: 'RegistrationFieldSelection';
+  action: 'CREATE';
+  before: null;
+  after: MissingDataSelection;
+  classification: 'REGISTRATION_CONFIGURATION';
+};
 export type SocialFormsAuditEntry = Omit<
   AccountAuditEntry,
   'entityType' | 'action' | 'before' | 'after' | 'classification'

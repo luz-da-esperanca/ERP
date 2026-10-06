@@ -209,13 +209,15 @@ describe('Eligibility and data quality totals', () => {
         issue('POSSIBLE_DUPLICATE', 'MERGED'),
         issue('POSSIBLE_DUPLICATE', 'DISTINCT'),
         issue('MISSING_DATA', null),
+        issue('MISSING_DATA', 'COMPLETED'),
+        issue('MISSING_DATA', 'NOT_TRACKED'),
       ]),
     ).toEqual({
-      total: 4,
+      total: 6,
       open: 2,
-      resolved: 2,
-      byKind: { POSSIBLE_DUPLICATE: 3, MISSING_DATA: 1 },
-      byResolution: { DISTINCT: 1, MERGED: 1 },
+      resolved: 4,
+      byKind: { POSSIBLE_DUPLICATE: 3, MISSING_DATA: 3 },
+      byResolution: { DISTINCT: 1, MERGED: 1, COMPLETED: 1, NOT_TRACKED: 1 },
     });
   });
 });

@@ -40,6 +40,7 @@ import {
   assertDuplicateReview,
 } from '../domain/duplicate-rules.js';
 import type { DuplicateQuery } from '../domain/duplicate-rules.js';
+import { reconcileMissingData } from './missing-data.js';
 import type {
   FamiliesQuery,
   MembershipClosure,
@@ -155,6 +156,14 @@ export class RegistrationService {
       const { duplicateReview, ...fields } = input;
       const family = await tx.createFamily(fields);
       await tx.appendFamilyAudit(operationId, actor.user.id, family);
+      await reconcileMissingData(
+        tx.missingData,
+        operationId,
+        actor.user.id,
+        'FAMILY',
+        family.id,
+        family,
+      );
       if (duplicateReview)
         await tx.recordDuplicateReview(
           operationId,
@@ -249,6 +258,14 @@ export class RegistrationService {
         );
         const family = await tx.reviseFamily(familyId);
         await tx.appendPersonAudit(operationId, actor.user.id, person);
+        await reconcileMissingData(
+          tx.missingData,
+          operationId,
+          actor.user.id,
+          'PERSON',
+          person.id,
+          person,
+        );
         if (duplicateReview)
           await tx.recordDuplicateReview(
             operationId,
@@ -333,6 +350,14 @@ export class RegistrationService {
       );
       const family = changed ? await tx.updateFamily(id, changes) : before;
       if (changed) {
+        await reconcileMissingData(
+          tx.missingData,
+          operationId,
+          actor.user.id,
+          'FAMILY',
+          id,
+          family,
+        );
         await tx.appendFamilyUpdateAudit(
           operationId,
           actor.user.id,
@@ -781,6 +806,14 @@ export class RegistrationService {
           ? await tx.updatePerson(personId, changes)
           : before;
         if (changed) {
+          await reconcileMissingData(
+            tx.missingData,
+            operationId,
+            actor.user.id,
+            'PERSON',
+            personId,
+            person,
+          );
           await tx.appendPersonUpdateAudit(
             operationId,
             actor.user.id,

@@ -76,7 +76,7 @@ Cada linha traz `family { id, code }`, `status`, `pendingReasons`, `policyId`, `
 
 `GET /reports/data-quality?from=&toExclusive=&dateBasis?=&kind?=&status?=&page?=&pageSize?=`
 
-`dateBasis` é `IDENTIFICATION` (padrão, filtra por `identifiedAt`) ou `RESOLUTION` (filtra por `resolvedAt`), e volta em `filters` para que o total diga qual data o selecionou. `totals` traz `total`, `open`, `resolved`, `byKind` e `byResolution` (`DISTINCT`, `MERGED`). As linhas são as ocorrências, com identificação, resolução, autor e motivo. Hoje só existem ocorrências `POSSIBLE_DUPLICATE`; `MISSING_DATA` aparecerá quando sua geração for implementada.
+`dateBasis` é `IDENTIFICATION` (padrão, filtra por `identifiedAt`) ou `RESOLUTION` (filtra por `resolvedAt`), e volta em `filters` para que o total diga qual data o selecionou. `totals` traz `total`, `open`, `resolved`, `byKind` e `byResolution` (`DISTINCT`, `MERGED`, `COMPLETED`, `NOT_TRACKED`). As linhas são as ocorrências, com identificação, resolução, autor e motivo. `MISSING_DATA` é gerado conforme a [seleção de CAD](registration.md#seleção-de-campos-e-dados-ausentes), sem campos padrão. `NOT_TRACKED` distingue retirada da seleção de complemento efetivo. Ocorrências resolvidas e de identidades unificadas continuam no histórico; `status=OPEN` consulta as pendências atuais.
 
 ## Históricos
 

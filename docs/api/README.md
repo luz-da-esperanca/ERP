@@ -4,9 +4,9 @@ Referência para quem integra a interface do MVP à API. A base normativa é [CO
 
 ## Disponibilidade
 
-Estão entregues autenticação, contas/perfis, a primeira etapa de [Cadastro](registration.md), [Projetos, atividades e inscrições](projects.md), [Encontros, frequência e cobertura](attendance.md), [Ficha social](social-forms.md), [Aptidão familiar](eligibility.md), [reconciliação composta CAD/FRQ](membership-reconciliation.md), [unificação de pessoas e famílias](identity-merges.md) e auditoria dessas entidades. Os guias de integração de [ATV](integrating-projects.md), [FRQ](integrating-attendance.md) e [FIC](integrating-social-forms.md) orientam os fluxos. A integração PostgreSQL/Redis de FIC ainda depende de execução com os serviços exclusivos de teste. [Históricos e relatórios](reports.md) também estão entregues. Todas as rotas previstas nas specs do MVP têm backend; veja o [índice das specs](../specs/README.md#4-sequência-de-implementação) para o que resta../specs/README.md#4-sequência-de-implementação).
+Estão entregues autenticação, contas/perfis, [Cadastro e qualidade dos dados](registration.md), [Projetos, atividades e inscrições](projects.md), [Encontros, frequência e cobertura](attendance.md), [Ficha social](social-forms.md), [Aptidão familiar](eligibility.md), [reconciliação composta CAD/FRQ](membership-reconciliation.md), [unificação de pessoas e famílias](identity-merges.md) e auditoria dessas entidades. Os guias de integração de [ATV](integrating-projects.md), [FRQ](integrating-attendance.md) e [FIC](integrating-social-forms.md) orientam os fluxos. [Históricos e relatórios](reports.md) também estão entregues. Todas as rotas previstas nas specs do MVP têm backend; veja o [índice das specs](../specs/README.md#4-sequência-de-implementação) para o que resta.
 
-A interface existente permanece em memória e não foi integrada nesta etapa. Os DTOs HTTP estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api`, `@erp/contracts/projects-api`, `@erp/contracts/attendance-api`, `@erp/contracts/social-forms-api`, `@erp/contracts/eligibility-api`, `@erp/contracts/identity-merge-api`, `@erp/contracts/reports-api`, `@erp/contracts/membership-reconciliation-api` e `@erp/contracts/audit-api`. Os contratos legados `registration`, `projects`, `attendance`, `social-forms` e `reports` atendem ao protótipo e não definem os payloads HTTP.
+A entrada da interface já usa autenticação HTTP; os demais módulos aguardam integração pela frente de frontend. Os DTOs HTTP estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api`, `@erp/contracts/projects-api`, `@erp/contracts/attendance-api`, `@erp/contracts/social-forms-api`, `@erp/contracts/eligibility-api`, `@erp/contracts/identity-merge-api`, `@erp/contracts/reports-api`, `@erp/contracts/membership-reconciliation-api` e `@erp/contracts/audit-api`. Os contratos legados `registration`, `projects`, `attendance`, `social-forms` e `reports` atendem ao protótipo e não definem os payloads HTTP.
 
 ## Preparar o ambiente e a conta
 
@@ -14,7 +14,7 @@ Siga os comandos de banco, Redis, variáveis e bootstrap no [README principal](.
 
 O bootstrap cria um Administrador. Para operar CAD, atribua explicitamente `SOCIAL_ASSISTANCE` ou `COORDINATION` a uma conta por `PATCH /api/v1/users/:userId`, com a revisão atual, `roleCodes` e os cabeçalhos abaixo. Ser Administrador, isoladamente, não concede cadastro assistencial. As operações e os schemas de contas estão em [access-api.ts](../../packages/contracts/src/access-api.ts) e [SPEC-ACS](../specs/01-access.md#5-api).
 
-No navegador, sirva a SPA e `/api` pela mesma origem. Em desenvolvimento, quem integra deve configurar um proxy de `/api` para a API; o Vite atual ainda não contém esse proxy. `APP_ORIGIN` deve corresponder exatamente à origem da SPA. O backend não oferece CORS para chamadas com credenciais entre origens distintas.
+No navegador, sirva a SPA e `/api` pela mesma origem. Em desenvolvimento, o Vite encaminha `/api` para `http://127.0.0.1:3001`. `APP_ORIGIN` deve corresponder exatamente à origem da SPA. O backend não oferece CORS para chamadas com credenciais entre origens distintas.
 
 ## Sessão e cabeçalhos
 
@@ -71,15 +71,16 @@ Traduza `code`, `details.rule` e os caminhos de `details.fields` para pt-BR; `me
 
 `GET /audit-entries` exige `entityType`. Aceita `entityId`, `actorId`, `from`, `to`, `action` e paginação. `from` inclui o instante inicial; `to` exclui o final, ambos sobre a data de lançamento `recordedAt`. Ordenação: `recordedAt desc`, `id desc`.
 
-| Entidade                                                                   | Permissões cumulativas                   |
-| -------------------------------------------------------------------------- | ---------------------------------------- |
-| `UserAccount`                                                              | `audit.read` e `accounts.manage`         |
-| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue`, `IdentityMerge` | `audit.read` e `registration.read` |
-| `Institute`, `ServiceType`, `Project`, `Activity`, `ParticipantEnrollment` | `audit.read` e `projects.read`           |
-| `ActivitySession`, `Attendance`, `AttendanceCoverage`                      | `audit.read` e `attendance.read`         |
-| `SocialForm`, `Acknowledgement`                                            | `audit.read` e `socialForms.read`        |
-| `EligibilityPolicy`, `EligibilityAssessment`                               | `audit.read` e `eligibility.read`        |
-| `FieldSelectionVersion`, `SocialFormOption`, `FeatureDecision`             | `audit.read` e `featureDecisions.manage` |
+| Entidade                                                                                   | Permissões cumulativas                   |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| `RegistrationFieldSelection`                                                               | `audit.read` e `featureDecisions.manage` |
+| `UserAccount`                                                                              | `audit.read` e `accounts.manage`         |
+| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue`, `IdentityMerge` | `audit.read` e `registration.read`       |
+| `Institute`, `ServiceType`, `Project`, `Activity`, `ParticipantEnrollment`                 | `audit.read` e `projects.read`           |
+| `ActivitySession`, `Attendance`, `AttendanceCoverage`                                      | `audit.read` e `attendance.read`         |
+| `SocialForm`, `Acknowledgement`                                                            | `audit.read` e `socialForms.read`        |
+| `EligibilityPolicy`, `EligibilityAssessment`                                               | `audit.read` e `eligibility.read`        |
+| `FieldSelectionVersion`, `SocialFormOption`, `FeatureDecision`                             | `audit.read` e `featureDecisions.manage` |
 
 `GET /audit-entries/:entryId` devolve `{ data: entry }`; um ID fora do universo autorizado retorna 404. Lista e detalhe contêm `operationId`, ação, revisão, autor, `recordedAt`, `occurredAt`, `before`, `after`, motivo e classificação. `occurredAt` pode ser `null`; não substitua por `recordedAt`. Vários eventos podem pertencer à mesma operação composta.
 

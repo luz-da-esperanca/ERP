@@ -28,38 +28,39 @@ enum AuditAction {
 }
 
 model UserAccount {
-  id                         String                  @id @default(uuid()) @db.Uuid
-  login                      String                  @unique @db.VarChar(100)
-  displayName                String                  @db.VarChar(200)
-  passwordHash               String
-  active                     Boolean                 @default(true)
-  mustChangePassword         Boolean                 @default(true)
-  authVersion                Int                     @default(1)
-  revision                   Int                     @default(1)
-  createdAt                  DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt                  DateTime                @updatedAt @db.Timestamptz(3)
-  roles                      RoleAssignment[]
-  operations                 OperationRecord[]
-  auditEntries               AuditEntry[]
-  decisions                  FeatureDecision[]
-  resolvedRegistrationIssues DataQualityIssue[]
-  createdProjects            Project[]               @relation("ProjectCreator")
-  updatedProjects            Project[]               @relation("ProjectUpdater")
-  createdActivities          Activity[]              @relation("ActivityCreator")
-  updatedActivities          Activity[]              @relation("ActivityUpdater")
-  responsibleActivities      Activity[]              @relation("ActivityResponsible")
-  createdEnrollments         ParticipantEnrollment[] @relation("EnrollmentCreator")
-  updatedEnrollments         ParticipantEnrollment[] @relation("EnrollmentUpdater")
-  recordedSessions           ActivitySession[]       @relation("SessionRecorder")
-  executedSessions           ActivitySession[]       @relation("SessionResponsible")
-  recordedAttendances        Attendance[]
-  coverageDeclarations       AttendanceCoverage[]
-  fieldSelections            FieldSelectionVersion[]
-  recordedSocialForms        SocialForm[]
-  recordedAcknowledgements   Acknowledgement[]
-  eligibilityPolicies        EligibilityPolicy[]
-  eligibilityAssessments     EligibilityAssessment[]
-  identityMerges             IdentityMerge[]
+  id                          String                       @id @default(uuid()) @db.Uuid
+  login                       String                       @unique @db.VarChar(100)
+  displayName                 String                       @db.VarChar(200)
+  passwordHash                String
+  active                      Boolean                      @default(true)
+  mustChangePassword          Boolean                      @default(true)
+  authVersion                 Int                          @default(1)
+  revision                    Int                          @default(1)
+  createdAt                   DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime                     @updatedAt @db.Timestamptz(3)
+  roles                       RoleAssignment[]
+  operations                  OperationRecord[]
+  auditEntries                AuditEntry[]
+  decisions                   FeatureDecision[]
+  resolvedRegistrationIssues  DataQualityIssue[]
+  createdProjects             Project[]                    @relation("ProjectCreator")
+  updatedProjects             Project[]                    @relation("ProjectUpdater")
+  createdActivities           Activity[]                   @relation("ActivityCreator")
+  updatedActivities           Activity[]                   @relation("ActivityUpdater")
+  responsibleActivities       Activity[]                   @relation("ActivityResponsible")
+  createdEnrollments          ParticipantEnrollment[]      @relation("EnrollmentCreator")
+  updatedEnrollments          ParticipantEnrollment[]      @relation("EnrollmentUpdater")
+  recordedSessions            ActivitySession[]            @relation("SessionRecorder")
+  executedSessions            ActivitySession[]            @relation("SessionResponsible")
+  recordedAttendances         Attendance[]
+  coverageDeclarations        AttendanceCoverage[]
+  fieldSelections             FieldSelectionVersion[]
+  recordedSocialForms         SocialForm[]
+  recordedAcknowledgements    Acknowledgement[]
+  eligibilityPolicies         EligibilityPolicy[]
+  eligibilityAssessments      EligibilityAssessment[]
+  identityMerges              IdentityMerge[]
+  registrationFieldSelections RegistrationFieldSelection[]
 }
 
 model Role {
@@ -204,6 +205,17 @@ model DataQualityIssue {
   revision     Int          @default(1)
 
   @@index([entityType, entityId, kind])
+}
+
+model RegistrationFieldSelection {
+  id                String      @id @default(uuid()) @db.Uuid
+  version           Int         @unique
+  personFields      String[]
+  familyFields      String[]
+  decisionReference String      @db.VarChar(1000)
+  recordedAt        DateTime    @db.Timestamptz(3)
+  recordedBy        String      @db.Uuid
+  actor             UserAccount @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
 }
 
 model FamilyMembership {

@@ -112,7 +112,59 @@ O backend repete a busca na transação e exige o mesmo conjunto de candidatos. 
 
 `GET /data-quality-issues` aceita `kind=MISSING_DATA|POSSIBLE_DUPLICATE`, `status=OPEN|RESOLVED`, `entityType=PERSON|FAMILY` e paginação. Ordem: identificação mais recente, depois ID decrescente. Cada ocorrência contém ID, entidade/ID, tipo, candidatos/campos, datas, revisão e dados da resolução.
 
-`POST /data-quality-issues/:issueId/resolution` recebe `{ expectedRevision, resolution: "DISTINCT", reason }`, preservando a ocorrência e sua revisão anterior. `MERGED` não é um comando disponível nesta etapa. Ocorrências de `MISSING_DATA` não são geradas automaticamente até existir a seleção de campos relevantes de DEC-01/LAC-02; não há obrigatoriedade presumida de CPF, nascimento ou sexo.
+`POST /data-quality-issues/:issueId/resolution` recebe `{ expectedRevision, resolution: "DISTINCT", reason }`, preservando a ocorrência e sua revisão anterior. Esse comando resolve somente possíveis duplicidades; `MERGED` vem da unificação. Pendências `MISSING_DATA` são geradas e encerradas automaticamente pela seleção e pelo complemento dos dados descritos abaixo.
+
+## Seleção de campos e dados ausentes
+
+Premissa técnica: a Coordenação configura o mecanismo com `featureDecisions.manage`, assim como as seleções de FIC. A lista relevante continua dependente de DEC-01/LAC-02 para uso institucional. A instalação não seleciona campos nem torna documentos obrigatórios; seleções de demonstração devem identificar expressamente sua finalidade sintética. Esta seleção se refere ao cadastro atual e é independente das versões e dos campos de FIC.
+
+`GET /registration-field-selections/current` exige `registration.read` e devolve `{ data: null }` antes da primeira seleção. Depois, devolve a versão mais recente, incluindo `id`, `version`, listas de campos, referência da decisão, `recordedAt` e `recordedBy`.
+
+`POST /registration-field-selections` exige `featureDecisions.manage`, os cabeçalhos de escrita e chave idempotente. Retorna 201:
+
+```json
+{
+  "expectedVersion": null,
+  "personFields": ["birthDate"],
+  "familyFields": ["contactPhone"],
+  "decisionReference": "Seleção sintética para demonstração; sem aprovação institucional"
+}
+```
+
+Na primeira publicação, `expectedVersion` é `null`; nas seguintes, use a versão corrente. Uma versão desatualizada retorna `409 REVISION_CONFLICT`, com `details.currentRevision` igual à versão vigente. A nova seleção substitui as duas listas integralmente, não aceita repetições e normaliza a ordem para comparação idempotente. `decisionReference` é obrigatória, com até 1000 caracteres. Autoria e datas são geradas pelo servidor.
+
+| Cadastro | Campos permitidos                                                                    |
+| -------- | ------------------------------------------------------------------------------------ |
+| Pessoa   | `birthDate`, `sex`, `cpf`, `rg`, `occupation`, `educationLevel`, `contactPhone`      |
+| Família  | `referenceName`, `address`, `neighborhood`, `postalCode`, `location`, `contactPhone` |
+
+Nome da pessoa, código gerado e campos de saúde/religião não fazem parte dessa configuração. Nenhuma lista é herdada de FIC. Ausência significa `null` ou texto vazio normalizado; não equivale a zero/falso.
+
+Publicar uma seleção cria uma versão imutável e reconcilia todas as pessoas e famílias canônicas na mesma transação. Criações e alterações de dados cadastrais seguem a seleção corrente. Existe no máximo uma ocorrência aberta por entidade e campo, com `candidateIds: []` e `fieldKeys: [campo]`. Uma repetição idempotente devolve a seleção original, mesmo após versões posteriores, sem repetir a reconciliação.
+
+| Situação                       | Resultado                                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Campo selecionado ausente      | Nova ocorrência aberta `MISSING_DATA`; cadastro mínimo permanece permitido                      |
+| Campo complementado            | Ocorrência encerrada com `COMPLETED`, data, autor e nova revisão                                |
+| Campo retirado da seleção      | Ocorrência encerrada com `NOT_TRACKED`; não afirma que o dado foi preenchido                    |
+| Dado removido novamente        | Nova ocorrência, preservando a anterior resolvida                                               |
+| Identidade de origem unificada | Pendências abertas encerradas com `MERGED` e motivo; destino reconciliado com seus dados finais |
+
+Para desativar o mecanismo, publique uma versão com as duas listas vazias. Pendências resolvidas e versões anteriores permanecem consultáveis. Alterações sem mudança efetiva e replays não criam eventos adicionais.
+
+Auditoria da seleção: `RegistrationFieldSelection`, classificação `REGISTRATION_CONFIGURATION`, ação `CREATE`, revisão 1, `before: null`; exige `audit.read` e `featureDecisions.manage`. A auditoria das ocorrências continua em `DataQualityIssue`, classificação `REGISTRATION`, com `registration.read` cumulativo a `audit.read`. Seleção, ocorrência, revisão, auditoria e conclusão da operação confirmam ou falham juntas. Falha de auditoria permite repetir a mesma intenção/chave após correção da dependência.
+
+A [referência de REL](reports.md#qualidade-cadastral) inclui `COMPLETED` e `NOT_TRACKED` nas resoluções dos totais, sem contar uma pendência como pessoa ou família.
+
+### Aplicação e retorno da migration
+
+A migration `202610060001_missing_registration_data` acrescenta a tabela de seleções, a restrição de um campo por ocorrência `MISSING_DATA` e a unicidade parcial das ocorrências abertas; não cria dados, seleções ou aprovações. Seu DDL é transacional.
+
+Interrompa as instâncias anteriores da API, execute `pnpm db:migrate` e inicie a versão atual em todas as instâncias. Atualize consumidores dos contratos públicos junto com esta entrega: as resoluções e `byResolution` possuem dois novos códigos. Evite sobrepor escritores antigos depois de habilitar uma seleção, pois eles não reconciliam dados ausentes.
+
+Se houver ocorrências `MISSING_DATA` inseridas manualmente antes desta entrega, verifique múltiplos campos e duplicatas abertas antes da migration. Ela falha nesses casos, preservando os registros para reconciliação explícita; não apague histórico para forçar a instalação.
+
+O retorno operacional publica listas vazias e mantém tabela e histórico. Voltar a um binário anterior após gerar ocorrências exige manter leitores compatíveis com `COMPLETED` e `NOT_TRACKED`; desativar a geração não remove os novos códigos históricos. Não há remoção automática de tabela ou dados.
 
 ## Vínculos, transferência, titular e correção
 
@@ -160,4 +212,4 @@ A [unificação de pessoas e famílias](identity-merges.md) está implementada: 
 
 Os testes ficam em [test/features/registration](../../test/features/registration): regras de domínio, revalidação do autor, limites civis, contratos HTTP, busca/projeções, correção e vigência, tamanhos, duplicidade, concorrência de titularidade/idempotência, restrições PostgreSQL e rollback por falha de auditoria. A suíte de integração usa PostgreSQL e Redis reais, conforme os [comandos oficiais](../../README.md#validar).
 
-Esta entrega valida a base cadastral e a reconciliação com FRQ usando dados sintéticos; não reivindica a geração de pendências `MISSING_DATA` de campos ainda não selecionados. Interface e integração ficam a cargo da frente de frontend.
+Esta entrega valida a base cadastral, a reconciliação com FRQ e as pendências configuráveis de dados ausentes usando dados sintéticos; campos não selecionados não geram pendências. Interface e integração ficam a cargo da frente de frontend.

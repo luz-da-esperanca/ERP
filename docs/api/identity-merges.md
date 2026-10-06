@@ -112,11 +112,13 @@ Tudo ocorre em uma transação serializável; qualquer falha, inclusive de audit
 | Cobertura de encontros                                             | Invalidada nos trechos em que um intervalo efetivo mudou                                     |
 | Fichas sociais e avaliações de aptidão                             | **Não são alteradas**; continuam com a identidade original                                   |
 
-Cada alteração gera `AuditEntry` com ação `MERGE`, motivo, autor e valores anterior e novo, na mesma operação. O mapeamento é auditado como `IdentityMerge` (`audit.read` e `registration.read`).
+As alterações de cadastros e fatos reconciliados geram `AuditEntry` com ação `MERGE`, motivo, autor e valores anterior e novo, na mesma operação. O ciclo automático de pendências `MISSING_DATA` usa `CREATE`/`UPDATE`, correlacionados com essa operação. O mapeamento é auditado como `IdentityMerge` (`audit.read` e `registration.read`).
 
 Decisão técnica desta implementação: os fatos mutáveis são reapontados para a identidade canônica em vez de permanecerem na origem. Assim as restrições do PostgreSQL continuam impedindo vínculos ou inscrições sobrepostos para a pessoa canônica depois da unificação, e frequência, aptidão e contagem de membros não contam duas vezes. A proveniência fica no mapeamento, nos registros substituídos e na auditoria.
 
 ## Depois da unificação
+
+Pendências `MISSING_DATA` abertas na origem são encerradas com `MERGED`, motivo e autoria da confirmação, mantendo seu histórico. O destino é reconciliado com os campos finais e a seleção cadastral vigente: campos adotados podem encerrar ocorrências com `COMPLETED`; campos ainda ausentes mantêm ou geram sua ocorrência canônica. `resolution.resolvedIssueIds` inclui também as pendências encerradas da origem; `issueIds` da prévia lista as possíveis duplicidades entre as identidades. Essa reconciliação participa da mesma transação e do replay da unificação. Veja a [seleção de CAD](registration.md#seleção-de-campos-e-dados-ausentes).
 
 - `GET /people/:id` e `GET /families/:id` com o ID da origem devolvem o cadastro canônico; compare o `id` da resposta com o solicitado para detectar o redirecionamento.
 - `GET /families?code=` com o código da origem devolve a família canônica. O código não é reciclado.

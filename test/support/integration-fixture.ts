@@ -117,7 +117,7 @@ export function setupIntegrationFixture() {
   });
   beforeEach(async () => {
     await runtime.database.$executeRawUnsafe(
-      'TRUNCATE "DataQualityIssue", "SizeProfile", "FamilyMembership", "Person", "Family", "AuditEntry", "OperationRecord", "RoleAssignment", "FeatureDecision", "UserAccount", "Role" CASCADE',
+      'TRUNCATE "RegistrationFieldSelection", "DataQualityIssue", "SizeProfile", "FamilyMembership", "Person", "Family", "AuditEntry", "OperationRecord", "RoleAssignment", "FeatureDecision", "UserAccount", "Role" CASCADE',
     );
     await runtime.database.serviceType.deleteMany();
     await runtime.database.socialFormOption.deleteMany();

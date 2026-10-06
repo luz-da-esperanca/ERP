@@ -194,6 +194,8 @@ export function summarizeQuality(
     byResolution: {
       DISTINCT: count((row) => row.resolution === 'DISTINCT'),
       MERGED: count((row) => row.resolution === 'MERGED'),
+      COMPLETED: count((row) => row.resolution === 'COMPLETED'),
+      NOT_TRACKED: count((row) => row.resolution === 'NOT_TRACKED'),
     },
   };
 }

@@ -1,4 +1,5 @@
 import type { Principal } from '../../access/application/ports.js';
+import type { MissingDataTransaction } from './missing-data-ports.js';
 import type { AttendanceTransaction } from '../../attendance/application/attendance-ports.js';
 import type {
   ActivitySession,
@@ -42,6 +43,7 @@ export interface IdentityMergeReaderPorts {
   sources(identities: MergeIdentities): Promise<MergeSources | null>;
 }
 export interface IdentityMergeTransaction extends IdentityMergeReaderPorts {
+  missingData: MissingDataTransaction;
   actor(id: string): Promise<Principal | null>;
   operation(
     type: string,

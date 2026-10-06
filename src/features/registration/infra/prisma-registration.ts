@@ -40,6 +40,10 @@ import type {
 } from '../domain/duplicate-rules.js';
 import type { QualityQuery, QualityIssue } from '../domain/data-quality.js';
 import { dataQualityIssueSchema } from '@erp/contracts/data-quality-api';
+import {
+  missingDataTransactionPorts,
+  missingDataSelectionLock,
+} from './prisma-missing-data.js';
 
 const familySelect = {
   id: true,
@@ -245,6 +249,7 @@ export function registrationTransactionPorts(
     return entry.after;
   }
   return {
+    missingData: missingDataTransactionPorts(tx),
     coverage: attendanceTransactionPorts(tx, false),
     async personCoverage(personId) {
       return (
@@ -1084,6 +1089,7 @@ export class PrismaRegistration
     personIds: readonly string[] = [],
   ) {
     return serializable(this.database, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(${missingDataSelectionLock}::bigint)`;
       await tx.$queryRaw`SELECT id FROM "UserAccount" WHERE id = ${actorId}::uuid FOR UPDATE`;
       if (personIds.length)
         await tx.$queryRaw`SELECT id FROM "Person" WHERE id IN (${Prisma.join([...new Set(personIds)].sort().map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR UPDATE`;

@@ -2,6 +2,7 @@ import { auditScopes, auditScope } from '../domain/audit-scopes.js';
 import {
   attendanceAuditEntrySchema,
   eligibilityAuditEntrySchema,
+  registrationConfigurationAuditEntrySchema,
 } from '@erp/contracts/audit-api';
 import { z } from 'zod';
 import { identityMergeDtoSchema } from '@erp/contracts/identity-merge-api';
@@ -112,6 +113,12 @@ function projectSnapshot(value: Prisma.JsonValue): AccountAuditSnapshot {
 }
 
 function projectEntry(entry: SelectedEntry): AuditEntry {
+  if (entry.classification === 'REGISTRATION_CONFIGURATION')
+    return registrationConfigurationAuditEntrySchema.parse({
+      ...entry,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+    });
   if (
     entry.classification === 'SOCIAL_FORMS' ||
     entry.classification === 'FEATURE_DECISIONS'

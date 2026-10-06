@@ -36,6 +36,8 @@ import { ProjectsService } from './features/projects/application/projects-servic
 import { SocialFormsService } from './features/social-forms/application/social-forms-service.js';
 import { PrismaSocialForms } from './features/social-forms/infra/prisma-social-forms.js';
 import { createSensitivePayloads } from './features/social-forms/infra/sensitive-payloads.js';
+import { MissingDataSelectionService } from './features/registration/application/missing-data-selection-service.js';
+import { PrismaMissingDataSelections } from './features/registration/infra/prisma-missing-data-selections.js';
 
 export function createAccounts(database: Database, config: ApiConfig) {
   const persistence = new PrismaAccounts(
@@ -89,6 +91,11 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       (actor, entry) => socialForms.projectAudit(actor, entry),
     );
     const registrationPersistence = new PrismaRegistration(database);
+    const missingDataSelections = new MissingDataSelectionService(
+      new PrismaMissingDataSelections(database),
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+    );
     const registration = new RegistrationService(
       registrationPersistence,
       registrationPersistence,
@@ -167,6 +174,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
         eligibility,
         identityMerges,
         reports,
+        missingDataSelections,
       },
       logging,
     );
@@ -189,6 +197,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       eligibility,
       identityMerges,
       reports,
+      missingDataSelections,
     };
   } catch {
     if (redis.isOpen) redis.destroy();

@@ -14,6 +14,7 @@ import {
   invalidateCoverage,
 } from '../../attendance/application/coverage-invalidation.js';
 import type { Attendance } from '../../attendance/domain/attendance.js';
+import { reconcileMissingData } from './missing-data.js';
 import {
   attendanceConflicts,
   fieldDifferences,
@@ -309,6 +310,27 @@ export class IdentityMergeService {
           resolvedIssueIds.push(after.id);
         }
         await tx.markMerged(identities);
+        for (const issue of await tx.missingData.openIssues(
+          identities.entityType,
+          identities.sourceId,
+        )) {
+          await tx.missingData.closeIssue(
+            operationId,
+            actor.user.id,
+            issue,
+            'MERGED',
+            command.reason,
+          );
+          resolvedIssueIds.push(issue.id);
+        }
+        await reconcileMissingData(
+          tx.missingData,
+          operationId,
+          actor.user.id,
+          identities.entityType,
+          target.id,
+          target,
+        );
         const merge = await tx.createMerge({
           ...identities,
           recordedBy: actor.user.id,

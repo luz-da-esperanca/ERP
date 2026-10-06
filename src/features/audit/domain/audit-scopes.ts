@@ -23,6 +23,11 @@ export const auditScopes: readonly {
     ],
   },
   {
+    classification: 'REGISTRATION_CONFIGURATION',
+    capability: 'featureDecisions.manage',
+    entities: ['RegistrationFieldSelection'],
+  },
+  {
     classification: 'PROJECTS',
     capability: 'projects.read',
     entities: [

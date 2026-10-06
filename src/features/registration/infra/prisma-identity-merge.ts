@@ -32,6 +32,7 @@ import type {
   MergeSources,
 } from '../domain/identity-merge.js';
 import { registrationTransactionPorts } from './prisma-registration.js';
+import { missingDataSelectionLock } from './prisma-missing-data.js';
 
 const revision = z
   .object({
@@ -177,6 +178,7 @@ function transactionPorts(tx: Transaction): IdentityMergeTransaction {
   const attendance = attendanceTransactionPorts(tx, false);
   return {
     ...readerPorts(tx),
+    missingData: registration.missingData,
     actor: registration.findActor,
     createOperation: registration.createOperation,
     coverage: registration.coverage,
@@ -339,6 +341,7 @@ export class PrismaIdentityMerge
     work: (ports: IdentityMergeTransaction) => Promise<T>,
   ) {
     return serializable(this.database, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(${missingDataSelectionLock}::bigint)`;
       await tx.$queryRaw`SELECT id FROM "UserAccount" WHERE id = ${actorId}::uuid FOR UPDATE`;
       const ids = Prisma.join(
         [sourceId, targetId].sort().map((id) => Prisma.sql`${id}::uuid`),

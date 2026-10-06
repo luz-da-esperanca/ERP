@@ -28,6 +28,8 @@ import type { ProjectsService } from './features/projects/application/projects-s
 import { registerProjectsRoutes } from './features/projects/presentation/projects-routes.js';
 import type { SocialFormsService } from './features/social-forms/application/social-forms-service.js';
 import { registerSocialFormsRoutes } from './features/social-forms/presentation/social-forms-routes.js';
+import type { MissingDataSelectionService } from './features/registration/application/missing-data-selection-service.js';
+import { registerMissingDataRoutes } from './features/registration/presentation/missing-data-routes.js';
 
 export interface AppServices {
   access: AccessService;
@@ -42,6 +44,7 @@ export interface AppServices {
   eligibility: EligibilityService;
   identityMerges: IdentityMergeService;
   reports: ReportsService;
+  missingDataSelections: MissingDataSelectionService;
 }
 
 export function createApp(
@@ -159,6 +162,7 @@ export function createApp(
   );
   registerAuditRoutes(app, services.audit, principal);
   registerRegistrationRoutes(app, services.registration, principal);
+  registerMissingDataRoutes(app, services.missingDataSelections, principal);
   registerProjectsRoutes(app, services.projects, principal);
   registerSocialFormsRoutes(app, services.socialForms, principal);
   registerAttendanceRoutes(app, services.attendance, principal);

@@ -114,6 +114,88 @@ describe('Person identity merge', () => {
   const coordinator = () =>
     fixture.operator('synthetic.coordinator', ['COORDINATION']);
 
+  it('completes adopted fields, retires source occurrences and keeps only canonical missing data after a merge', async () => {
+    const operator = await coordinator();
+    const http = api(fixture, operator.cookie);
+    expect(
+      (
+        await http.send('POST', '/registration-field-selections', {
+          expectedVersion: null,
+          personFields: ['cpf', 'contactPhone'],
+          familyFields: [],
+          decisionReference: 'Synthetic demo selection',
+        })
+      ).statusCode,
+    ).toBe(201);
+    const family = await http.family();
+    const source = await http.person('Synthetic Source', family.id, {
+      cpf: '11111111111',
+    });
+    const target = await http.person('Synthetic Target', family.id);
+    const view = await http.preview(
+      'PERSON',
+      source.person.id,
+      target.person.id,
+    );
+    const key = randomUUID();
+    const changes = {
+      membershipResolutions: [
+        {
+          id: source.membership.id,
+          action: 'SUPERSEDE',
+          supersededById: target.membership.id,
+        },
+      ],
+    };
+    const result = await http.merge(view, changes, key);
+    expect(result.statusCode, result.body).toBe(201);
+    const issues = (
+      await http.send('GET', '/data-quality-issues?kind=MISSING_DATA')
+    ).json().data;
+    expect(issues).toHaveLength(3);
+    expect(
+      issues.filter(
+        (row: { resolvedAt: string | null }) => row.resolvedAt === null,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        entityId: target.person.id,
+        fieldKeys: ['contactPhone'],
+      }),
+    ]);
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        entityId: source.person.id,
+        resolution: 'MERGED',
+        reason: 'Synthetic duplicate registration',
+      }),
+    );
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        entityId: target.person.id,
+        fieldKeys: ['cpf'],
+        resolution: 'COMPLETED',
+      }),
+    );
+    expect((await http.merge(view, changes, key)).json().data).toEqual(
+      result.json().data,
+    );
+    expect(
+      (
+        await http.send('POST', '/registration-field-selections', {
+          expectedVersion: 1,
+          personFields: ['cpf', 'contactPhone'],
+          familyFields: [],
+          decisionReference: 'Synthetic canonical reconciliation',
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (await http.send('GET', '/data-quality-issues?kind=MISSING_DATA')).json()
+        .pagination.total,
+    ).toBe(3);
+  });
+
   it('unites histories without conflicts, keeps the factual family and replays without duplicating', async () => {
     const operator = await coordinator();
     const http = api(fixture, operator.cookie);
