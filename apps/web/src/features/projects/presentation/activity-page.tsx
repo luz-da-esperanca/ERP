@@ -9,6 +9,7 @@ import {
   Alert,
   AsyncView,
   BackLink,
+  Empty,
   Page,
   Panel,
   StatusBadge,
@@ -50,7 +51,9 @@ function ActivityProfile({ detail }: { detail: ActivityDetail }) {
       </div>
       <Panel title="Informações da atividade">
         <dl>
-          <dt className="mb-2 text-sm font-semibold">Agenda planejada</dt>
+          <dt className="mb-2 text-sm font-semibold">Responsável</dt>
+          <dd className="break-words">Consulta ainda não disponível</dd>
+          <dt className="mb-2 mt-6 text-sm font-semibold">Agenda planejada</dt>
           <dd className="whitespace-pre-wrap break-words">
             {activity.plannedSchedule ?? 'Não informada'}
           </dd>
@@ -68,6 +71,13 @@ function ActivityProfile({ detail }: { detail: ActivityDetail }) {
             </>
           ) : null}
         </dl>
+      </Panel>
+      <Panel title="Registros recentes">
+        <Empty>
+          {activity.nature === 'PERIODIC'
+            ? 'A consulta de encontros ainda não está disponível.'
+            : 'O registro de atendimentos não está disponível nesta etapa.'}
+        </Empty>
       </Panel>
     </Page>
   );

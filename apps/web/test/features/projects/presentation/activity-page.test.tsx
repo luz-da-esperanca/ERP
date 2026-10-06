@@ -71,6 +71,35 @@ function renderPage(
 afterEach(cleanup);
 
 describe('ActivityPage', () => {
+  it('identifies the unavailable responsible query without assuming an unassigned activity', async () => {
+    renderPage(async () => detail);
+    await screen.findByRole('heading', { name: detail.activity.name });
+    const term = screen.getByText('Responsável', { selector: 'dt' });
+    expect(term.nextElementSibling?.textContent).toBe(
+      'Consulta ainda não disponível',
+    );
+  });
+  it.each([
+    ['PERIODIC', 'A consulta de encontros ainda não está disponível.'],
+    ['ONE_OFF', 'O registro de atendimentos não está disponível nesta etapa.'],
+  ] as const)(
+    'explains recent record unavailability for %s without claiming an empty history',
+    async (nature, message) => {
+      renderPage(async () => ({
+        ...detail,
+        activity: {
+          ...detail.activity,
+          nature,
+          serviceTypeId: nature === 'ONE_OFF' ? 'type-1' : null,
+        },
+      }));
+      expect(
+        await screen.findByRole('heading', { name: 'Registros recentes' }),
+      ).toBeTruthy();
+      expect(screen.getByText(message)).toBeTruthy();
+      expect(screen.queryByText('Nenhum registro encontrado.')).toBeNull();
+    },
+  );
   it('loads the activity and displays its project, nature, status and planned schedule', async () => {
     let resolveDetail!: (value: ActivityDetail) => void;
     renderPage(

@@ -28,8 +28,10 @@ A tela `/activities/:id`, acessível pela listagem de projetos e atividades,
 consulta o gateway existente e apresenta nome, projeto, natureza, situação,
 agenda planejada, tipo pontual e data de encerramento quando disponíveis.
 Atividades encerradas continuam consultáveis. O responsável ainda não faz parte
-do contrato consumido pela UI, embora exista no DTO HTTP. Chamada, registros
-recentes e histórico aguardam FRQ e integração HTTP; os adaptadores de frequência
+do contrato consumido pela UI, embora exista no DTO HTTP; seu campo informa que
+a consulta ainda não está disponível. A seção de registros recentes também
+informa a indisponibilidade da consulta, sem afirmar que o histórico está vazio.
+Chamada, registros recentes e histórico aguardam FRQ e integração HTTP; os adaptadores de frequência
 em memória não comprovam suporte real. Edição, encerramento e gestão de
 participantes aguardam seus fluxos na UI. Registro de atendimento realizado
 permanece fora do MVP. A tela não oferece ações provisórias para essas pendências.
