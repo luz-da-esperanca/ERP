@@ -4,7 +4,7 @@ Monorepo TypeScript do MVP. O recorte e suas decisões estão no [índice das sp
 
 ## Estado da implementação
 
-O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV, FRQ, FIC e auditoria dessas entidades**:
+O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV, FRQ, FIC, APT e auditoria dessas entidades**:
 
 - Fastify com contratos Zod, paginação, erros padronizados e validação da configuração.
 - PostgreSQL/Prisma com migration reproduzível, revisões, autoria e auditoria imutável.
@@ -25,10 +25,12 @@ O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV, FRQ, FIC e auditori
 - Reconciliação composta de vínculos e marcações; proteção de fatos concluídos em alterações de CAD/ATV.
 - Seleção de campos e decisões explícitas, catálogos versionados e fichas familiares imutáveis com composição histórica.
 - Ciência datada independente, publicação/replay autorizados e proteção dos blocos de saúde, medicamentos e religião.
+- Políticas de aptidão versionadas e imutáveis, sem valores padrão; sem política, a situação é Pendente.
+- Prévia e avaliação persistida em três situações, com evidências, limites inteiros e cobertura declarada.
 
-Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md), [FIC](docs/api/social-forms.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md), [FRQ](docs/api/integrating-attendance.md) e [FIC](docs/api/integrating-social-forms.md) apresentam os fluxos HTTP. **Ainda não há endpoints de APT ou REL.** Unificação transversal de CAD depende desses módulos; pendências automáticas de dados ausentes continuam pendentes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões FIC está implementada; o mecanismo de inicialização recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md), [FIC](docs/api/social-forms.md), [APT](docs/api/eligibility.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md), [FRQ](docs/api/integrating-attendance.md) e [FIC](docs/api/integrating-social-forms.md) apresentam os fluxos HTTP. **Ainda não há endpoints de REL.** Unificação transversal de CAD continua pendente; pendências automáticas de dados ausentes continuam pendentes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões FIC está implementada; o mecanismo de inicialização recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
 
-FIC foi validada localmente por regras, contratos, criptografia e checagens estáticas. A migration e os testes PostgreSQL/Redis de FIC estão escritos, mas sua execução nesta entrega ficou impedida pela indisponibilidade dos serviços de teste e do daemon Docker. A validação de integração permanece necessária antes de considerar essas garantias verificadas.
+FIC foi validada localmente por regras, contratos, criptografia e checagens estáticas. Em 05/10/2026 a suíte de integração foi executada com PostgreSQL/Redis de teste: **8 testes de FIC falham**, todos em `POST /social-form-field-selections`, que responde 500 na preparação do cenário. As garantias de integração de FIC não estão verificadas até essa falha ser corrigida. Os demais módulos, incluindo APT, passam.
 
 `apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
 
@@ -75,6 +77,11 @@ src/
     application/            # publicação, configuração, ciência e projeção autorizada
     presentation/           # rotas e contratos HTTP de FIC
     infra/                  # Prisma, snapshots e envelopes AES-256-GCM
+  features/eligibility/
+    domain/                 # política, períodos e avaliador puro em três situações
+    application/            # publicação, prévia e avaliação persistida
+    presentation/           # rotas e contratos HTTP de APT
+    infra/                  # snapshot consistente e versões imutáveis PostgreSQL
 prisma/                     # schema e migrations
 test/                       # espelha src/: core e features
   support/                  # doubles, fixtures e preparação da integração
@@ -155,6 +162,8 @@ FRQ acrescenta 11 rotas de encontros, marcações, frequência e cobertura, deta
 
 FIC acrescenta dez rotas de contexto, versões, ciência, seleção, opções e decisões, detalhadas em [Ficha social](docs/api/social-forms.md). Operar ficha exige acesso social; configurar campos/flags exige Coordenação. Auditoria aplica essas capacidades cumulativamente com `audit.read` e projeta conteúdo conforme seleção/flags atuais antes da paginação. Nenhum bloco é habilitado pela instalação.
 
+APT acrescenta seis rotas de políticas, prévia e avaliações, detalhadas em [Aptidão familiar](docs/api/eligibility.md). Publicar política exige Coordenação; ler e avaliar exigem acesso social. Responsável por Atividade e Administrador não recebem o resultado familiar nem sua auditoria. Nenhuma política é criada pela instalação.
+
 As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts) e [account-audit-api.ts](packages/contracts/src/account-audit-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
 
 ## Validar
@@ -188,8 +197,8 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. Validar FIC com PostgreSQL/Redis exclusivos de teste; integrar as telas conforme os contratos entregues.
-2. APT: políticas versionadas e evidências; sem política, estado Pendente.
+1. Corrigir a falha de integração de FIC em `POST /social-form-field-selections`; integrar as telas conforme os contratos entregues.
+2. APT está entregue no backend; faltam suas telas e a resolução de identidades unificadas.
 3. Fechar CAD transversal: unificação autorizada e reconciliação com FIC/APT, além da seleção de dados relevantes para pendências.
 4. REL: consultas e detalhamento de totais somente sobre os módulos acima.
 5. A frente de frontend integra esses contratos, incluindo autenticação real e troca obrigatória de senha; esta entrega está limitada ao backend e à documentação.

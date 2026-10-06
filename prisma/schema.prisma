@@ -56,6 +56,8 @@ model UserAccount {
   fieldSelections            FieldSelectionVersion[]
   recordedSocialForms        SocialForm[]
   recordedAcknowledgements   Acknowledgement[]
+  eligibilityPolicies        EligibilityPolicy[]
+  eligibilityAssessments     EligibilityAssessment[]
 }
 
 model Role {
@@ -142,32 +144,34 @@ model Family {
   nameSearch    String             @default("") @db.VarChar(200)
   socialForms   SocialForm[]
 
-  addressSearch String @default("") @db.VarChar(500)
+  addressSearch          String                  @default("") @db.VarChar(500)
+  eligibilityAssessments EligibilityAssessment[]
 }
 
 model Person {
-  id               String                  @id @default(uuid()) @db.Uuid
-  name             String                  @db.VarChar(200)
-  birthDate        DateTime?               @db.Date
-  sex              String?                 @db.VarChar(100)
-  cpf              String?                 @db.VarChar(11)
-  rg               String?                 @db.VarChar(30)
-  occupation       String?                 @db.VarChar(100)
-  educationLevel   String?                 @db.VarChar(100)
-  contactPhone     String?                 @db.VarChar(50)
-  revision         Int                     @default(1)
-  createdAt        DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime                @updatedAt @db.Timestamptz(3)
-  mergedIntoId     String?                 @db.Uuid
-  mergedInto       Person?                 @relation("PersonAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
-  aliases          Person[]                @relation("PersonAliases")
-  memberships      FamilyMembership[]
-  nameSearch       String                  @default("") @db.VarChar(200)
-  sizeProfile      SizeProfile?
-  enrollments      ParticipantEnrollment[]
-  attendances      Attendance[]
-  formMembers      FormMember[]
-  acknowledgements Acknowledgement[]
+  id                   String                  @id @default(uuid()) @db.Uuid
+  name                 String                  @db.VarChar(200)
+  birthDate            DateTime?               @db.Date
+  sex                  String?                 @db.VarChar(100)
+  cpf                  String?                 @db.VarChar(11)
+  rg                   String?                 @db.VarChar(30)
+  occupation           String?                 @db.VarChar(100)
+  educationLevel       String?                 @db.VarChar(100)
+  contactPhone         String?                 @db.VarChar(50)
+  revision             Int                     @default(1)
+  createdAt            DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                @updatedAt @db.Timestamptz(3)
+  mergedIntoId         String?                 @db.Uuid
+  mergedInto           Person?                 @relation("PersonAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
+  aliases              Person[]                @relation("PersonAliases")
+  memberships          FamilyMembership[]
+  nameSearch           String                  @default("") @db.VarChar(200)
+  sizeProfile          SizeProfile?
+  enrollments          ParticipantEnrollment[]
+  attendances          Attendance[]
+  formMembers          FormMember[]
+  acknowledgements     Acknowledgement[]
+  eligibilityEvidences EligibilityEvidence[]
 
   @@index([cpf])
 }
@@ -444,4 +448,60 @@ model AttendanceCoverage {
   revision           Int         @default(1)
 
   @@index([activityId, periodStart, periodEndExclusive])
+}
+
+model EligibilityPolicy {
+  id                String                  @id @default(uuid()) @db.Uuid
+  effectiveFrom     DateTime                @unique @db.Date
+  definition        Json
+  decisionReference String                  @db.VarChar(2000)
+  reason            String                  @db.VarChar(1000)
+  recordedAt        DateTime                @default(now()) @db.Timestamptz(3)
+  recordedBy        String                  @db.Uuid
+  recorder          UserAccount             @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  assessments       EligibilityAssessment[]
+}
+
+model EligibilityAssessment {
+  id                String                @id @default(uuid()) @db.Uuid
+  familyId          String                @db.Uuid
+  family            Family                @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  referenceDate     DateTime              @db.Date
+  evaluatedAt       DateTime              @db.Timestamptz(3)
+  policyId          String?               @db.Uuid
+  policy            EligibilityPolicy?    @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  status            String                @db.VarChar(10)
+  pendingReasons    String[]
+  explanation       Json
+  sourceFingerprint String                @db.VarChar(64)
+  requestedBy       String                @db.Uuid
+  requester         UserAccount           @relation(fields: [requestedBy], references: [id], onDelete: Restrict)
+  evidences         EligibilityEvidence[]
+
+  @@index([familyId, referenceDate])
+}
+
+model EligibilityEvidence {
+  id                   String                @id @default(uuid()) @db.Uuid
+  assessmentId         String                @db.Uuid
+  assessment           EligibilityAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  position             Int
+  personId             String                @db.Uuid
+  person               Person                @relation(fields: [personId], references: [id], onDelete: Restrict)
+  membershipIds        String[]              @db.Uuid
+  activityIds          String[]              @db.Uuid
+  periodStart          DateTime              @db.Date
+  periodEndExclusive   DateTime              @db.Date
+  sessionCount         Int
+  presenceCount        Int
+  absenceCount         Int
+  unrecordedCount      Int
+  rateLowerBasisPoints Int?
+  rateUpperBasisPoints Int?
+  coverageComplete     Boolean
+  status               String                @db.VarChar(10)
+  pendingReason        String?               @db.VarChar(40)
+  sourceVersions       Json
+
+  @@unique([assessmentId, position])
 }

@@ -38,6 +38,11 @@ export const auditScopes: readonly {
     entities: ['ActivitySession', 'Attendance', 'AttendanceCoverage'],
   },
   {
+    classification: 'ELIGIBILITY',
+    capability: 'eligibility.read',
+    entities: ['EligibilityPolicy', 'EligibilityAssessment'],
+  },
+  {
     classification: 'SOCIAL_FORMS',
     capability: 'socialForms.read',
     entities: ['SocialForm', 'Acknowledgement'],

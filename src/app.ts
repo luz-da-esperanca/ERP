@@ -2,6 +2,8 @@ import type { MembershipReconciliationService } from './features/registration/ap
 import { registerMembershipReconciliationRoutes } from './features/registration/presentation/membership-reconciliation-routes.js';
 import type { AttendanceService } from './features/attendance/application/attendance-service.js';
 import { registerAttendanceRoutes } from './features/attendance/presentation/attendance-routes.js';
+import type { EligibilityService } from './features/eligibility/application/eligibility-service.js';
+import { registerEligibilityRoutes } from './features/eligibility/presentation/eligibility-routes.js';
 import Fastify, { LogController, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import { randomUUID } from 'node:crypto';
@@ -33,6 +35,7 @@ export interface AppServices {
   attendance: AttendanceService;
   membershipReconciliation: MembershipReconciliationService;
   socialForms: SocialFormsService;
+  eligibility: EligibilityService;
 }
 
 export function createApp(
@@ -153,6 +156,7 @@ export function createApp(
   registerProjectsRoutes(app, services.projects, principal);
   registerSocialFormsRoutes(app, services.socialForms, principal);
   registerAttendanceRoutes(app, services.attendance, principal);
+  registerEligibilityRoutes(app, services.eligibility, principal);
   registerMembershipReconciliationRoutes(
     app,
     services.membershipReconciliation,

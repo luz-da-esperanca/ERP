@@ -3,6 +3,7 @@ import {
   attendanceDtoSchema,
   coverageDtoSchema,
 } from './attendance-api';
+import { assessmentDtoSchema, policyDtoSchema } from './eligibility-api';
 import { z } from 'zod';
 import { accountAuditEntrySchema, auditQuerySchema } from './account-audit-api';
 import { paginationSchema } from './access-api';
@@ -151,6 +152,32 @@ export const attendanceAuditQuerySchema = recordAuditQuerySchema
     action: attendanceAuditActionSchema.optional(),
   })
   .refine(validAuditPeriod);
+export const eligibilityAuditEntitySchema = z.enum([
+  'EligibilityPolicy',
+  'EligibilityAssessment',
+]);
+// Policies and assessments are immutable versions: their only event is the creation.
+const eligibilityEntry = <
+  T extends z.infer<typeof eligibilityAuditEntitySchema>,
+  S extends z.ZodType,
+>(
+  entityType: T,
+  snapshot: S,
+) =>
+  entryFields.extend({
+    entityType: z.literal(entityType),
+    action: z.literal('CREATE'),
+    classification: z.literal('ELIGIBILITY'),
+    before: z.null(),
+    after: snapshot,
+  });
+export const eligibilityAuditEntrySchema = z.discriminatedUnion('entityType', [
+  eligibilityEntry('EligibilityPolicy', policyDtoSchema),
+  eligibilityEntry('EligibilityAssessment', assessmentDtoSchema),
+]);
+export const eligibilityAuditQuerySchema = recordAuditQuerySchema
+  .extend({ entityType: eligibilityAuditEntitySchema })
+  .refine(validAuditPeriod);
 export const socialFormsAuditEntitySchema = z.enum([
   'SocialForm',
   'Acknowledgement',
@@ -192,6 +219,7 @@ export const auditEntrySchema = z.union([
   registrationAuditEntrySchema,
   projectsAuditEntrySchema,
   attendanceAuditEntrySchema,
+  eligibilityAuditEntrySchema,
   socialFormsAuditEntrySchema,
 ]);
 export const authorizedAuditQuerySchema = z.union([
@@ -199,6 +227,7 @@ export const authorizedAuditQuerySchema = z.union([
   registrationAuditQuerySchema,
   projectsAuditQuerySchema,
   attendanceAuditQuerySchema,
+  eligibilityAuditQuerySchema,
   socialFormsAuditQuerySchema,
 ]);
 export const auditPageSchema = z.object({

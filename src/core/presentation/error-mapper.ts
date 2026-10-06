@@ -19,6 +19,10 @@ import {
   IdempotencyConflictError,
   FeatureNotEnabledError,
 } from '../application/errors.js';
+import {
+  EligibilityConflictError,
+  EligibilityRuleError,
+} from '../../features/eligibility/domain/eligibility-errors.js';
 import { HttpError } from './http-error.js';
 import type { HttpFailure } from './http-error.js';
 import {
@@ -53,6 +57,20 @@ export function mapError(error: unknown): HttpFailure {
       details: { rule: error.rule },
     };
   if (error instanceof SocialFormRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
+  if (error instanceof EligibilityConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule, ids: error.ids },
+    };
+  if (error instanceof EligibilityRuleError)
     return {
       status: 422,
       code: 'BUSINESS_RULE_VIOLATION',

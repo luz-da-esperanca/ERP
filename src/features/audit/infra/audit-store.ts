@@ -1,5 +1,8 @@
 import { auditScopes, auditScope } from '../domain/audit-scopes.js';
-import { attendanceAuditEntrySchema } from '@erp/contracts/audit-api';
+import {
+  attendanceAuditEntrySchema,
+  eligibilityAuditEntrySchema,
+} from '@erp/contracts/audit-api';
 import { z } from 'zod';
 import { userDtoSchema } from '@erp/contracts/access-api';
 import { accountAuditActionSchema } from '@erp/contracts/account-audit-api';
@@ -138,6 +141,12 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
   }
   if (entry.classification === 'ATTENDANCE')
     return attendanceAuditEntrySchema.parse({
+      ...entry,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+    });
+  if (entry.classification === 'ELIGIBILITY')
+    return eligibilityAuditEntrySchema.parse({
       ...entry,
       recordedAt: entry.recordedAt.toISOString(),
       occurredAt: entry.occurredAt?.toISOString() ?? null,

@@ -18,6 +18,10 @@ import type {
   SocialEntity,
   SocialSnapshot,
 } from '../../social-forms/domain/social-forms.js';
+import type {
+  EligibilityEntity,
+  EligibilitySnapshot,
+} from '../../eligibility/domain/eligibility.js';
 export type RegistrationAuditEntity =
   'Family' | 'Person' | 'FamilyMembership' | 'SizeProfile' | 'DataQualityIssue';
 export type AuditEntity =
@@ -25,6 +29,7 @@ export type AuditEntity =
   | RegistrationAuditEntity
   | ProjectsEntity
   | AttendanceEntity
+  | EligibilityEntity
   | SocialEntity;
 export type RegistrationAuditAction = 'CREATE' | 'UPDATE' | 'CLOSE' | 'CORRECT';
 export type RegistrationSnapshot =
@@ -65,8 +70,19 @@ export type AttendanceAuditEntry = Omit<
   after: AttendanceSnapshot;
   classification: 'ATTENDANCE';
 };
+export type EligibilityAuditEntry = Omit<
+  AccountAuditEntry,
+  'entityType' | 'action' | 'before' | 'after' | 'classification'
+> & {
+  entityType: EligibilityEntity;
+  action: 'CREATE';
+  before: null;
+  after: EligibilitySnapshot;
+  classification: 'ELIGIBILITY';
+};
 export type AuditEntry =
   | AccountAuditEntry
+  | EligibilityAuditEntry
   | RegistrationAuditEntry
   | ProjectsAuditEntry
   | AttendanceAuditEntry

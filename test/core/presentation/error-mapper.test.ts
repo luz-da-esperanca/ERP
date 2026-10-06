@@ -17,8 +17,28 @@ import {
 import { z } from 'zod';
 import { mapError } from '../../../src/core/presentation/error-mapper.js';
 import { SocialFormRevisionConflictError } from '../../../src/features/social-forms/domain/social-form-errors.js';
+import {
+  EligibilityConflictError,
+  EligibilityRuleError,
+} from '../../../src/features/eligibility/domain/eligibility-errors.js';
 
 describe('HTTP error mapping', () => {
+  it('distinguishes an unsupported eligibility policy from a concurrent publication', () => {
+    expect(
+      mapError(new EligibilityRuleError('UNSUPPORTED_POLICY_MODALITY')),
+    ).toMatchObject({
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      details: { rule: 'UNSUPPORTED_POLICY_MODALITY' },
+    });
+    expect(
+      mapError(new EligibilityConflictError('POLICY_CHANGED', ['policy-id'])),
+    ).toMatchObject({
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      details: { rule: 'POLICY_CHANGED', ids: ['policy-id'] },
+    });
+  });
   it('reports the current social revision independently from publication identity conflicts', () => {
     expect(mapError(new SocialFormRevisionConflictError(3))).toEqual({
       status: 409,

@@ -2,6 +2,8 @@ import { MembershipReconciliationService } from './features/registration/applica
 import { PrismaMembershipReconciliation } from './features/registration/infra/prisma-membership-reconciliation.js';
 import { AttendanceService } from './features/attendance/application/attendance-service.js';
 import { PrismaAttendance } from './features/attendance/infra/prisma-attendance.js';
+import { EligibilityService } from './features/eligibility/application/eligibility-service.js';
+import { PrismaEligibility } from './features/eligibility/infra/prisma-eligibility.js';
 import type { ApiConfig } from './core/infra/config.js';
 import { randomUUID } from 'node:crypto';
 import { createDatabase, type Database } from './core/infra/database.js';
@@ -113,6 +115,14 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       () => new Date().toISOString(),
       config.APP_TIMEZONE,
     );
+    const eligibilityPersistence = new PrismaEligibility(database);
+    const eligibility = new EligibilityService(
+      eligibilityPersistence,
+      eligibilityPersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
     const reconciliationPersistence = new PrismaMembershipReconciliation(
       database,
     );
@@ -135,6 +145,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
         attendance,
         membershipReconciliation,
         socialForms,
+        eligibility,
       },
       logging,
     );
@@ -154,6 +165,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       attendance,
       membershipReconciliation,
       socialForms,
+      eligibility,
     };
   } catch {
     if (redis.isOpen) redis.destroy();

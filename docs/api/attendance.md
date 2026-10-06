@@ -141,7 +141,7 @@ Fonte alterada desde a consulta produz `409 COVERAGE_SOURCES_CHANGED` em `detail
 
 `src/runtime.ts` compõe `AttendanceService`, leitor e unidade de trabalho Prisma. Escritas usam isolamento serializable, bloqueio do autor e contexto projeto/atividade/pessoas/famílias; alterações, revisões, auditoria, invalidações e conclusão da operação confirmam juntas. Leituras usam snapshot consistente PostgreSQL. Redis mantém somente a infraestrutura de acesso; FRQ não tem cache de frequência ou aptidão.
 
-APT/REL podem consumir `AttendanceService.queryFrequency({ personId, activityId, from, toExclusive, familyId? })`, sem HTTP ou Prisma nas camadas internas. Esse método entrega a mesma projeção e flags da rota; a fronteira pública de cada consumidor deve autorizar o acesso. A API pública usa `frequency(actor, query)`, que exige `attendance.read`. APT/REL ainda não estão implementados.
+APT/REL podem consumir `AttendanceService.queryFrequency({ personId, activityId, from, toExclusive, familyId? })`, sem HTTP ou Prisma nas camadas internas. Esse método entrega a mesma projeção e flags da rota; a fronteira pública de cada consumidor deve autorizar o acesso. A API pública usa `frequency(actor, query)`, que exige `attendance.read`. [APT](eligibility.md) lê as mesmas fontes em seu próprio snapshot, para avaliar vários membros e atividades de forma consistente e aplicar a modalidade de oportunidades da política; REL ainda não está implementado.
 
 ## Validação e limites
 
@@ -162,4 +162,4 @@ Prepare os serviços exclusivos conforme o [README](../../README.md#validar). Te
 | AC12/14       | Família factual, reconciliação explícita e filtro anterior às contagens                                             |
 | AC16          | Fingerprint obsoleto, seleção de avulsos e revisão das fontes                                                       |
 
-Integrações adicionais verificam autorização, isolamento de auditoria, unicidade PostgreSQL, rollback e corridas entre autores/encerramento. UI, políticas de aptidão, relatórios e unificação de identidades continuam pendentes; FIC possui [API própria](social-forms.md), cuja integração PostgreSQL/Redis ainda precisa ser executada; os testes não comprovam essas entregas nem aprovação institucional para dados reais.
+Integrações adicionais verificam autorização, isolamento de auditoria, unicidade PostgreSQL, rollback e corridas entre autores/encerramento. UI, relatórios e unificação de identidades continuam pendentes; FIC possui [API própria](social-forms.md), cuja integração PostgreSQL/Redis ainda precisa ser executada; os testes não comprovam essas entregas nem aprovação institucional para dados reais.

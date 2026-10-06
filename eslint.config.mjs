@@ -34,6 +34,7 @@ export default ts.config(
               'attendance-api',
               'membership-reconciliation-api',
               'social-forms-api',
+              'eligibility-api',
             ].map((contract) => ({
               name: `@erp/contracts/${contract}`,
               message: 'Keep HTTP DTOs outside the domain.',
@@ -97,6 +98,7 @@ export default ts.config(
               'attendance-api',
               'membership-reconciliation-api',
               'social-forms-api',
+              'eligibility-api',
             ].map((contract) => ({
               name: `@erp/contracts/${contract}`,
               message: 'Map HTTP DTOs to application inputs in presentation.',
