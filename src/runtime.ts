@@ -4,6 +4,8 @@ import { AttendanceService } from './features/attendance/application/attendance-
 import { PrismaAttendance } from './features/attendance/infra/prisma-attendance.js';
 import { EligibilityService } from './features/eligibility/application/eligibility-service.js';
 import { PrismaEligibility } from './features/eligibility/infra/prisma-eligibility.js';
+import { IdentityMergeService } from './features/registration/application/identity-merge-service.js';
+import { PrismaIdentityMerge } from './features/registration/infra/prisma-identity-merge.js';
 import type { ApiConfig } from './core/infra/config.js';
 import { randomUUID } from 'node:crypto';
 import { createDatabase, type Database } from './core/infra/database.js';
@@ -123,6 +125,14 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       () => new Date().toISOString(),
       config.APP_TIMEZONE,
     );
+    const mergePersistence = new PrismaIdentityMerge(database);
+    const identityMerges = new IdentityMergeService(
+      mergePersistence,
+      mergePersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
     const reconciliationPersistence = new PrismaMembershipReconciliation(
       database,
     );
@@ -146,6 +156,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
         membershipReconciliation,
         socialForms,
         eligibility,
+        identityMerges,
       },
       logging,
     );
@@ -166,6 +177,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       membershipReconciliation,
       socialForms,
       eligibility,
+      identityMerges,
     };
   } catch {
     if (redis.isOpen) redis.destroy();

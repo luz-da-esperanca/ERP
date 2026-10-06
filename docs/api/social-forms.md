@@ -111,7 +111,7 @@ Correção publica outra versão completa com `correctionOfFormId` e `reason` ob
 
 A lista aceita `page`, `pageSize` e `orderBy=recordedAt|occurredAt`. Padrão: `recordedAt desc`, `familyId asc`, `version desc`, `id asc`. Com `orderBy=occurredAt`, a data do fato antecede os desempates de publicação. Lista retorna metadados sem blocos ou motivos; detalhe retorna a versão projetada.
 
-Origens preservam `familyId/version`; `originFamilyId/originalVersion` indicam proveniência na lista consolidada e no detalhe. A próxima publicação usa o namespace canônico. Essa compatibilidade não entrega o comando transversal de unificação CAD, que permanece pendente.
+Origens preservam `familyId/version`; `originFamilyId/originalVersion` indicam proveniência na lista consolidada e no detalhe. A próxima publicação usa o namespace canônico. A [unificação de CAD](identity-merges.md) marca a origem sem alterar nenhuma ficha publicada.
 
 Ciência ausente é `null`. `POST /social-forms/:id/acknowledgements` recebe `{ expectedRevision, referencePersonId, method: 'PAPER_SIGNATURE', acknowledgedOn, reason? }`. Pessoa pertence àquela versão, data civil é conhecida e não futura; autoria é a conta autenticada. Correção de ciência exige motivo e incrementa sua revisão. O conteúdo da ficha permanece imutável. O detalhe retorna a ciência atual; replay da publicação conserva a ciência que compunha seu resultado original.
 

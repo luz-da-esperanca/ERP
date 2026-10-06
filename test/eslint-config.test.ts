@@ -16,6 +16,7 @@ describe('Architecture dependency rules', () => {
         'membership-reconciliation-api',
         'social-forms-api',
         'eligibility-api',
+        'identity-merge-api',
       ]) {
         const [result] = await lint.lintText(
           `export type * from '@erp/contracts/${contract}';`,

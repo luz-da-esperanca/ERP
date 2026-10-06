@@ -24,6 +24,7 @@ enum AuditAction {
   CORRECT
   CANCEL
   INVALIDATE
+  MERGE
 }
 
 model UserAccount {
@@ -58,6 +59,7 @@ model UserAccount {
   recordedAcknowledgements   Acknowledgement[]
   eligibilityPolicies        EligibilityPolicy[]
   eligibilityAssessments     EligibilityAssessment[]
+  identityMerges             IdentityMerge[]
 }
 
 model Role {
@@ -76,17 +78,18 @@ model RoleAssignment {
 }
 
 model OperationRecord {
-  id                 String       @id @default(uuid()) @db.Uuid
-  type               String       @db.VarChar(100)
-  key                String       @db.Uuid
+  id                 String         @id @default(uuid()) @db.Uuid
+  type               String         @db.VarChar(100)
+  key                String         @db.Uuid
   actorType          ActorType
-  actorId            String?      @db.Uuid
-  actor              UserAccount? @relation(fields: [actorId], references: [id], onDelete: Restrict)
-  fingerprintKeyId   String?      @db.VarChar(100)
-  requestFingerprint String       @db.VarChar(64)
+  actorId            String?        @db.Uuid
+  actor              UserAccount?   @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  fingerprintKeyId   String?        @db.VarChar(100)
+  requestFingerprint String         @db.VarChar(64)
   resultReference    Json?
-  completedAt        DateTime?    @db.Timestamptz(3)
+  completedAt        DateTime?      @db.Timestamptz(3)
   entries            AuditEntry[]
+  identityMerge      IdentityMerge?
 
   @@unique([type, key])
 }
@@ -504,4 +507,20 @@ model EligibilityEvidence {
   sourceVersions       Json
 
   @@unique([assessmentId, position])
+}
+
+model IdentityMerge {
+  id          String          @id @default(uuid()) @db.Uuid
+  entityType  String          @db.VarChar(20)
+  sourceId    String          @unique @db.Uuid
+  targetId    String          @db.Uuid
+  recordedAt  DateTime        @default(now()) @db.Timestamptz(3)
+  recordedBy  String          @db.Uuid
+  recorder    UserAccount     @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  reason      String          @db.VarChar(1000)
+  operationId String          @unique @db.Uuid
+  operation   OperationRecord @relation(fields: [operationId], references: [id], onDelete: Restrict)
+  resolution  Json
+
+  @@index([targetId])
 }

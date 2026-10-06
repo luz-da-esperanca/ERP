@@ -30,7 +30,7 @@ Todas as escritas exigem `Idempotency-Key` UUID. O autor é revalidado sob bloqu
 | Marcação  | `id`, `sessionId`, `personId`, `familyId`, `membershipId`, `membershipRevision`, `status`, `recordedAt`, `recordedBy`, `revision`, `supersededById` |
 | Cobertura | `id`, `activityId`, `periodStart`, `periodEndExclusive`, `declaredBy`, `declaredAt`, `sourceVersions`, `revision`, `invalidatedPeriods`             |
 
-Encontro tem status `COMPLETED` ou `CANCELED`; marcação, `PRESENT` ou `ABSENT`. Linha inexistente é desconhecida. `supersededById=null` identifica uma marcação efetiva; a estrutura de supersessão prepara unificação futura, sem expor essa operação nesta entrega. A unicidade PostgreSQL impede duas marcações efetivas da mesma pessoa no mesmo encontro. Encontros diferentes no mesmo dia são permitidos e contados separadamente.
+Encontro tem status `COMPLETED` ou `CANCELED`; marcação, `PRESENT` ou `ABSENT`. Linha inexistente é desconhecida. `supersededById=null` identifica uma marcação efetiva; a [unificação de identidades](identity-merges.md) usa essa estrutura para preservar a marcação duplicada sem contá-la. A unicidade PostgreSQL impede duas marcações efetivas da mesma pessoa no mesmo encontro. Encontros diferentes no mesmo dia são permitidos e contados separadamente.
 
 `occurredAt` é o instante do fato; `recordedAt` é o lançamento pelo servidor. Instantes exigem offset e são normalizados para UTC com milissegundos. A marcação conserva família, vínculo e revisão do vínculo válidos na data do fato. Transferência posterior não muda essa atribuição; correção de status também a preserva.
 
@@ -162,4 +162,4 @@ Prepare os serviços exclusivos conforme o [README](../../README.md#validar). Te
 | AC12/14       | Família factual, reconciliação explícita e filtro anterior às contagens                                             |
 | AC16          | Fingerprint obsoleto, seleção de avulsos e revisão das fontes                                                       |
 
-Integrações adicionais verificam autorização, isolamento de auditoria, unicidade PostgreSQL, rollback e corridas entre autores/encerramento. UI, relatórios e unificação de identidades continuam pendentes; FIC possui [API própria](social-forms.md), cuja integração PostgreSQL/Redis ainda precisa ser executada; os testes não comprovam essas entregas nem aprovação institucional para dados reais.
+Integrações adicionais verificam autorização, isolamento de auditoria, unicidade PostgreSQL, rollback e corridas entre autores/encerramento. UI e relatórios continuam pendentes; os testes não comprovam essas entregas nem aprovação institucional para dados reais.

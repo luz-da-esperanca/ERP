@@ -4,6 +4,7 @@ import {
   coverageDtoSchema,
 } from './attendance-api';
 import { assessmentDtoSchema, policyDtoSchema } from './eligibility-api';
+import { identityMergeDtoSchema } from './identity-merge-api';
 import { z } from 'zod';
 import { accountAuditEntrySchema, auditQuerySchema } from './account-audit-api';
 import { paginationSchema } from './access-api';
@@ -35,6 +36,7 @@ export const registrationAuditActionSchema = z.enum([
   'UPDATE',
   'CLOSE',
   'CORRECT',
+  'MERGE',
 ]);
 export const registrationAuditEntitySchema = z.enum([
   'Family',
@@ -42,6 +44,7 @@ export const registrationAuditEntitySchema = z.enum([
   'FamilyMembership',
   'SizeProfile',
   'DataQualityIssue',
+  'IdentityMerge',
 ]);
 const recordAuditQuerySchema = paginationSchema
   .extend({
@@ -84,6 +87,7 @@ export const registrationAuditEntrySchema = z.discriminatedUnion('entityType', [
   registrationEntry('FamilyMembership', membershipDtoSchema),
   registrationEntry('SizeProfile', sizeProfileSchema),
   registrationEntry('DataQualityIssue', dataQualityIssueSchema),
+  registrationEntry('IdentityMerge', identityMergeDtoSchema),
 ]);
 export const projectsAuditEntitySchema = z.enum([
   'Institute',
@@ -126,6 +130,7 @@ export const attendanceAuditActionSchema = z.enum([
   'CORRECT',
   'CANCEL',
   'INVALIDATE',
+  'MERGE',
 ]);
 const attendanceEntry = <
   T extends z.infer<typeof attendanceAuditEntitySchema>,

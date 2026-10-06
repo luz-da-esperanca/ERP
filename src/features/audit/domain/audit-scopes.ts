@@ -19,6 +19,7 @@ export const auditScopes: readonly {
       'FamilyMembership',
       'SizeProfile',
       'DataQualityIssue',
+      'IdentityMerge',
     ],
   },
   {

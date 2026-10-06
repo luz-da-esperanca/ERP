@@ -10,6 +10,7 @@ import type {
   SizeProfile,
 } from '../../registration/domain/registration.js';
 import type { QualityIssue } from '../../registration/domain/data-quality.js';
+import type { IdentityMerge } from '../../registration/domain/identity-merge.js';
 import type {
   ProjectsEntity,
   ProjectsSnapshot,
@@ -23,7 +24,12 @@ import type {
   EligibilitySnapshot,
 } from '../../eligibility/domain/eligibility.js';
 export type RegistrationAuditEntity =
-  'Family' | 'Person' | 'FamilyMembership' | 'SizeProfile' | 'DataQualityIssue';
+  | 'Family'
+  | 'Person'
+  | 'FamilyMembership'
+  | 'SizeProfile'
+  | 'DataQualityIssue'
+  | 'IdentityMerge';
 export type AuditEntity =
   | 'UserAccount'
   | RegistrationAuditEntity
@@ -31,13 +37,15 @@ export type AuditEntity =
   | AttendanceEntity
   | EligibilityEntity
   | SocialEntity;
-export type RegistrationAuditAction = 'CREATE' | 'UPDATE' | 'CLOSE' | 'CORRECT';
+export type RegistrationAuditAction =
+  'CREATE' | 'UPDATE' | 'CLOSE' | 'CORRECT' | 'MERGE';
 export type RegistrationSnapshot =
   | RegisteredFamily
   | RegisteredPerson
   | RegisteredMembership
   | SizeProfile
-  | QualityIssue;
+  | QualityIssue
+  | IdentityMerge;
 export type RegistrationAuditEntry = Omit<
   AccountAuditEntry,
   'entityType' | 'action' | 'before' | 'after' | 'classification'
@@ -59,7 +67,7 @@ export type ProjectsAuditEntry = Omit<
   classification: 'PROJECTS';
 };
 export type AttendanceAuditAction =
-  'CREATE' | 'CORRECT' | 'CANCEL' | 'INVALIDATE';
+  'CREATE' | 'CORRECT' | 'CANCEL' | 'INVALIDATE' | 'MERGE';
 export type AttendanceAuditEntry = Omit<
   AccountAuditEntry,
   'entityType' | 'action' | 'before' | 'after' | 'classification'

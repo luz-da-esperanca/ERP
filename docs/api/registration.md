@@ -156,8 +156,8 @@ Retorno: `{ data: { personId, shoeSize, clothingSize, informedOn, revision } }`.
 
 ## Limites desta entrega e validação
 
-Ainda não existem endpoints de unificação de identidades. `mergedIntoId` e `supersededById` preparam a persistência, sem oferecer unificação incompleta. A reconciliação de vínculos/marcações de FRQ está implementada; reconciliação com versões de FIC e avaliações de APT depende desses módulos e deverá preservar suas referências imutáveis.
+A [unificação de pessoas e famílias](identity-merges.md) está implementada: `POST /identity-merges/preview` e `POST /identity-merges`, com `registration.merge`. Depois dela, `GET /people/:id`, `GET /families/:id` e `GET /families?code=` resolvem a identidade de origem para a canônica, e comandos endereçados à origem retornam 404. Fichas de FIC e avaliações de APT não são reescritas.
 
 Os testes ficam em [test/features/registration](../../test/features/registration): regras de domínio, revalidação do autor, limites civis, contratos HTTP, busca/projeções, correção e vigência, tamanhos, duplicidade, concorrência de titularidade/idempotência, restrições PostgreSQL e rollback por falha de auditoria. A suíte de integração usa PostgreSQL e Redis reais, conforme os [comandos oficiais](../../README.md#validar).
 
-Esta entrega valida a base cadastral e a reconciliação com FRQ usando dados sintéticos; não reivindica unificação transversal, reconciliação com FIC/APT nem a geração de pendências de campos ainda não selecionados. Interface e integração ficam a cargo da frente de frontend.
+Esta entrega valida a base cadastral e a reconciliação com FRQ usando dados sintéticos; não reivindica a geração de pendências `MISSING_DATA` de campos ainda não selecionados. Interface e integração ficam a cargo da frente de frontend.

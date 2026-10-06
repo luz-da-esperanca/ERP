@@ -471,7 +471,7 @@ export class PrismaSocialForms implements SocialFormsRepository {
       return await serializable(this.database, async (tx) => {
         await tx.$queryRaw`SELECT id FROM "UserAccount" WHERE id = ${actorId}::uuid FOR UPDATE`;
         // Configuration changes and publication share the same lock so a disabled block cannot race a write.
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('socialForms.configuration'))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('socialForms.configuration'))`;
         return work(ports(tx, true));
       });
     } catch (error) {

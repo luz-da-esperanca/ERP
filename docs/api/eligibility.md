@@ -145,7 +145,7 @@ Premissas desta implementação, derivadas do texto da spec:
 
 - **Sem oportunidades é pendência.** Em `ANY_ACTIVITY`, um membro sem encontros pertinentes em uma das atividades selecionadas mantém a família `PENDING`, ainda que falhe comprovadamente nas outras.
 - **Cobertura do período inteiro.** A cobertura precisa abranger todo o período avaliado em cada atividade. Como [FRQ](attendance.md) só aceita declarar dias encerrados, uma referência no dia atual não conclui `INELIGIBLE` nem percentual.
-- **Identidades unificadas.** Aliases de pessoa/família não são resolvidos, porque a unificação de CAD ainda não existe; APT-AC13 depende dela.
+- **Identidades unificadas.** A [unificação de CAD](identity-merges.md) reaponta vínculos, inscrições e marcações efetivos para a identidade canônica e marca as duplicatas como substituídas. O avaliador lê apenas registros efetivos, então cada presença conta uma vez; avaliações já salvas conservam as identidades originais.
 
 Não há cache: cada prévia ou avaliação lê as fontes atuais. `sourceFingerprint` é igual enquanto política, situação e evidências forem as mesmas.
 

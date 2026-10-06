@@ -4,9 +4,9 @@ Referência para quem integra a interface do MVP à API. A base normativa é [CO
 
 ## Disponibilidade
 
-Estão entregues autenticação, contas/perfis, a primeira etapa de [Cadastro](registration.md), [Projetos, atividades e inscrições](projects.md), [Encontros, frequência e cobertura](attendance.md), [Ficha social](social-forms.md), [Aptidão familiar](eligibility.md), [reconciliação composta CAD/FRQ](membership-reconciliation.md) e auditoria dessas entidades. Os guias de integração de [ATV](integrating-projects.md), [FRQ](integrating-attendance.md) e [FIC](integrating-social-forms.md) orientam os fluxos. A integração PostgreSQL/Redis de FIC ainda depende de execução com os serviços exclusivos de teste. Relatórios ainda não têm endpoints; unificação transversal continua pendente, conforme o [índice das specs](../specs/README.md#4-sequência-de-implementação).
+Estão entregues autenticação, contas/perfis, a primeira etapa de [Cadastro](registration.md), [Projetos, atividades e inscrições](projects.md), [Encontros, frequência e cobertura](attendance.md), [Ficha social](social-forms.md), [Aptidão familiar](eligibility.md), [reconciliação composta CAD/FRQ](membership-reconciliation.md), [unificação de pessoas e famílias](identity-merges.md) e auditoria dessas entidades. Os guias de integração de [ATV](integrating-projects.md), [FRQ](integrating-attendance.md) e [FIC](integrating-social-forms.md) orientam os fluxos. A integração PostgreSQL/Redis de FIC ainda depende de execução com os serviços exclusivos de teste. Relatórios ainda não têm endpoints; veja o [índice das specs](../specs/README.md#4-sequência-de-implementação)../specs/README.md#4-sequência-de-implementação).
 
-A interface existente permanece em memória e não foi integrada nesta etapa. Os DTOs HTTP estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api`, `@erp/contracts/projects-api`, `@erp/contracts/attendance-api`, `@erp/contracts/social-forms-api`, `@erp/contracts/eligibility-api`, `@erp/contracts/membership-reconciliation-api` e `@erp/contracts/audit-api`. Os contratos legados `registration`, `projects`, `attendance` e `social-forms` atendem ao protótipo e não definem os payloads HTTP.
+A interface existente permanece em memória e não foi integrada nesta etapa. Os DTOs HTTP estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api`, `@erp/contracts/projects-api`, `@erp/contracts/attendance-api`, `@erp/contracts/social-forms-api`, `@erp/contracts/eligibility-api`, `@erp/contracts/identity-merge-api`, `@erp/contracts/membership-reconciliation-api` e `@erp/contracts/audit-api`. Os contratos legados `registration`, `projects`, `attendance` e `social-forms` atendem ao protótipo e não definem os payloads HTTP.
 
 ## Preparar o ambiente e a conta
 
@@ -34,7 +34,7 @@ O navegador envia `Origin` automaticamente. Em produção, use a origem HTTPS co
 4. Se `user.mustChangePassword=true`, envie `PUT /auth/password` com `expectedRevision`, `currentPassword` e `newPassword`; a troca revoga a sessão e exige novo login.
 5. Para sair, envie `POST /auth/logout` com `{}`; sucesso retorna 204.
 
-Todas as escritas de CAD, ATV, FRQ, FIC e APT também exigem `Idempotency-Key` com UUID gerado pelo cliente. A prévia POST de reconciliação CAD/FRQ não escreve e dispensa chave. Login, logout e troca da própria senha seguem as exceções de ACS. `GET` não exige chave nem cria registros de negócio.
+Todas as escritas de CAD, ATV, FRQ, FIC e APT também exigem `Idempotency-Key` com UUID gerado pelo cliente. As prévias POST de reconciliação CAD/FRQ e de unificação não escrevem e dispensam chave. Login, logout e troca da própria senha seguem as exceções de ACS. `GET` não exige chave nem cria registros de negócio.
 
 ## Envelope, datas e revisões
 
@@ -74,7 +74,7 @@ Traduza `code`, `details.rule` e os caminhos de `details.fields` para pt-BR; `me
 | Entidade                                                                   | Permissões cumulativas                   |
 | -------------------------------------------------------------------------- | ---------------------------------------- |
 | `UserAccount`                                                              | `audit.read` e `accounts.manage`         |
-| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue`  | `audit.read` e `registration.read`       |
+| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue`, `IdentityMerge` | `audit.read` e `registration.read` |
 | `Institute`, `ServiceType`, `Project`, `Activity`, `ParticipantEnrollment` | `audit.read` e `projects.read`           |
 | `ActivitySession`, `Attendance`, `AttendanceCoverage`                      | `audit.read` e `attendance.read`         |
 | `SocialForm`, `Acknowledgement`                                            | `audit.read` e `socialForms.read`        |

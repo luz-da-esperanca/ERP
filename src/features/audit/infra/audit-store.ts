@@ -4,6 +4,7 @@ import {
   eligibilityAuditEntrySchema,
 } from '@erp/contracts/audit-api';
 import { z } from 'zod';
+import { identityMergeDtoSchema } from '@erp/contracts/identity-merge-api';
 import { userDtoSchema } from '@erp/contracts/access-api';
 import { accountAuditActionSchema } from '@erp/contracts/account-audit-api';
 import {
@@ -164,6 +165,7 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
       FamilyMembership: membershipDtoSchema,
       SizeProfile: sizeProfileSchema,
       DataQualityIssue: dataQualityIssueSchema,
+      IdentityMerge: identityMergeDtoSchema,
     };
     const entityType = z
       .enum([
@@ -172,6 +174,7 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
         'FamilyMembership',
         'SizeProfile',
         'DataQualityIssue',
+        'IdentityMerge',
       ])
       .parse(entry.entityType);
     return {
@@ -181,7 +184,7 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
       entityId: entry.entityId,
       revision: entry.revision,
       action: z
-        .enum(['CREATE', 'UPDATE', 'CLOSE', 'CORRECT'])
+        .enum(['CREATE', 'UPDATE', 'CLOSE', 'CORRECT', 'MERGE'])
         .parse(entry.action),
       actorType: entry.actorType,
       actorId: entry.actorId,
