@@ -10,12 +10,16 @@ export function ManagementForm({
   onCompleted,
   onCancel,
   submitLabel = 'Salvar',
+  refreshOnConflict = false,
+  ruleMessages,
 }: {
   children: ReactNode;
   save: (data: FormData, key: string) => Promise<unknown>;
   onCompleted: () => void;
   onCancel: () => void;
   submitLabel?: string;
+  refreshOnConflict?: boolean;
+  ruleMessages?: Record<string, string>;
 }) {
   const action = useAction();
   const inFlight = useRef(false);
@@ -47,7 +51,9 @@ export function ManagementForm({
           else setCommand(null);
           if (
             error.code === 'REVISION_CONFLICT' ||
-            error.code === 'IDEMPOTENCY_CONFLICT'
+            error.code === 'IDEMPOTENCY_CONFLICT' ||
+            (refreshOnConflict &&
+              (error.status === 409 || error.status === 403))
           )
             setStale(true);
           const details = error.details;
@@ -81,7 +87,9 @@ export function ManagementForm({
             'rule' in details &&
             typeof details.rule === 'string'
           )
-            setRuleMessage(messages[details.rule] ?? null);
+            setRuleMessage(
+              ruleMessages?.[details.rule] ?? messages[details.rule] ?? null,
+            );
           if (
             details &&
             typeof details === 'object' &&

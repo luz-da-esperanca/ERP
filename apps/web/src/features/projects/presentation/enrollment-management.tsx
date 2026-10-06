@@ -144,7 +144,7 @@ export function EnrollmentManagement({
     </>
   );
 }
-function PersonSelection({ gateway }: { gateway: HttpProjects }) {
+export function PersonSelection({ gateway }: { gateway: HttpProjects }) {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const load = useCallback(

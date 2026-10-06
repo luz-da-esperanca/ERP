@@ -1,4 +1,7 @@
 import { HttpProjects } from '../features/projects/infra/http-projects';
+import { HttpAttendance } from '../features/attendance/infra/http-attendance';
+import { AttendancePage } from '../features/attendance/presentation/attendance-page';
+import { SessionPage } from '../features/attendance/presentation/session-page';
 import { ManagedProjectsPage } from '../features/projects/presentation/projects-page';
 import { ManagedActivityPage } from '../features/projects/presentation/activity-page';
 import { ApiClient } from '../shared/api-client';
@@ -29,9 +32,14 @@ export function ConnectedApp({
   const [http] = useState(() => api ?? new ApiClient());
   const [quality] = useState(() => new HttpDataQuality(http));
   const [projects] = useState(() => new HttpProjects(http));
+  const [attendance] = useState(() => new HttpAttendance(http));
   return (
     <AuthenticationProvider authentication={authentication}>
-      <ConnectedRoutes quality={quality} projects={projects} />
+      <ConnectedRoutes
+        quality={quality}
+        projects={projects}
+        attendance={attendance}
+      />
     </AuthenticationProvider>
   );
 }
@@ -39,9 +47,11 @@ export function ConnectedApp({
 function ConnectedRoutes({
   quality,
   projects,
+  attendance,
 }: {
   quality: DataQualityGateway;
   projects: HttpProjects;
+  attendance: HttpAttendance;
 }) {
   const { authentication, state } = useAuthentication();
   if (state.status === 'loading')
@@ -124,6 +134,26 @@ function ConnectedRoutes({
           element={
             <ManagedActivityPage
               gateway={projects}
+              capabilities={state.session.capabilities}
+            />
+          }
+        />
+        <Route
+          path="activities/:id/attendance"
+          element={
+            <AttendancePage
+              gateway={attendance}
+              projects={projects}
+              capabilities={state.session.capabilities}
+            />
+          }
+        />
+        <Route
+          path="activities/:id/attendance/:sessionId"
+          element={
+            <SessionPage
+              gateway={attendance}
+              projects={projects}
               capabilities={state.session.capabilities}
             />
           }

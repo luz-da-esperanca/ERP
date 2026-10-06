@@ -7,7 +7,7 @@ import { ActivityForm, ClosureForm, instantValue } from './project-forms';
 import { EnrollmentManagement, localInstant } from './enrollment-management';
 import { useCallback, useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import {
   Archive,
   CalendarCheck,
@@ -77,6 +77,7 @@ function ActivityProfile({
   enrollments,
   serviceTypeName,
   responsibleName,
+  records,
 }: {
   detail: ActivityDetail;
   asOf: string;
@@ -85,6 +86,7 @@ function ActivityProfile({
   enrollments?: ReactNode;
   serviceTypeName?: ReactNode;
   responsibleName?: ReactNode;
+  records?: ReactNode;
 }) {
   const { activity, project } = detail;
   const StatusIcon = activity.status === 'ACTIVE' ? CheckCircle : Archive;
@@ -147,13 +149,15 @@ function ActivityProfile({
         (enrollments ?? (
           <EnrollmentList participants={detail.participants} asOf={asOf} />
         ))}
-      <Panel title="Registros recentes">
-        <Empty>
-          {activity.nature === 'PERIODIC'
-            ? 'A consulta de encontros ainda não está disponível.'
-            : 'O registro de atendimentos não está disponível nesta etapa.'}
-        </Empty>
-      </Panel>
+      {records ?? (
+        <Panel title="Registros recentes">
+          <Empty>
+            {activity.nature === 'PERIODIC'
+              ? 'A consulta de encontros ainda não está disponível.'
+              : 'O registro de atendimentos não está disponível nesta etapa.'}
+          </Empty>
+        </Panel>
+      )}
     </Page>
   );
 }
@@ -252,6 +256,16 @@ function ManagedActivityContent({
         <ActivityProfile
           detail={{ ...detail, participants: [] }}
           asOf={detail.asOf}
+          records={
+            detail.activity.nature === 'PERIODIC' &&
+            capabilities.includes('attendance.read') ? (
+              <Panel title="Encontros">
+                <Link className="text-link" to={`/activities/${id}/attendance`}>
+                  Encontros e frequência
+                </Link>
+              </Panel>
+            ) : undefined
+          }
           serviceTypeName={
             detail.activity.serviceTypeId ? (
               <ManagedServiceType
