@@ -13,7 +13,7 @@ import {
   FamilyMembersPage,
 } from './features/registration/presentation/family-page';
 import { PersonPage } from './features/registration/presentation/person-page';
-import { ProjectsPage } from './projects';
+import { ActivityPage, ProjectsPage } from './projects';
 import './index.css';
 
 const client = createDemoClient();
@@ -28,6 +28,7 @@ function App() {
             <Route index element={<DashboardPage />} />
             <Route path="families" element={<FamiliesPage />} />
             <Route path="projects" element={<ProjectsPage />} />
+            <Route path="activities/:id" element={<ActivityPage />} />
             <Route path="families/new" element={<NewFamilyPage />} />
             <Route path="families/:id" element={<FamilyPage />} />
             <Route

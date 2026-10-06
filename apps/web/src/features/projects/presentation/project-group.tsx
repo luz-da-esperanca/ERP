@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { Archive, CheckCircle, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router';
 import type {
   Activity,
   ActivityNature,
@@ -81,7 +82,14 @@ export function ProjectGroup({
                     activity.status === 'ACTIVE' ? CheckCircle : Archive;
                   return (
                     <tr key={activity.id}>
-                      <td>{activity.name}</td>
+                      <td>
+                        <Link
+                          className="text-link"
+                          to={`/activities/${activity.id}`}
+                        >
+                          {activity.name}
+                        </Link>
+                      </td>
                       <td>{natureLabels[activity.nature]}</td>
                       <td>
                         <StatusBadge
