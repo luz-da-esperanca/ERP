@@ -11,10 +11,13 @@ import {
   nullableValue,
 } from '../../../shared/ui';
 import { useAction } from '../../../shared/use-action';
+import { useRegistrationIntent } from './use-registration-intent';
+import { DuplicateReview } from './duplicate-review';
 export function FamilyForm({ family }: { family?: Family }) {
   const { client } = useErp();
   const navigate = useNavigate();
   const action = useAction();
+  const intent = useRegistrationIntent<FamilyInput>();
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -27,13 +30,20 @@ export function FamilyForm({ family }: { family?: Family }) {
         contactPhone: nullableValue(data, 'contactPhone'),
         location: nullableValue(data, 'location'),
       });
+      const prepared = await intent.prepare(
+        input,
+        data,
+        family ? undefined : client.registration.reviewFamilyDuplicates,
+      );
+      if (!prepared) return;
       const saved = family
         ? await client.registration.updateFamily(
             family.id,
             family.revision,
             input,
+            prepared.key,
           )
-        : await client.registration.createFamily(input);
+        : await client.registration.createFamily(prepared.body, prepared.key);
       navigate(`/families/${saved.id}`);
     });
   }
@@ -84,7 +94,19 @@ export function FamilyForm({ family }: { family?: Family }) {
           <option value="RURAL">Rural</option>
         </SelectField>
       </div>
+      {intent.review && (
+        <DuplicateReview candidates={intent.review.candidates} />
+      )}
       {action.error && <Alert error>{action.error}</Alert>}
+      {action.error && !family && (
+        <button
+          className="button secondary"
+          type="button"
+          onClick={intent.reset}
+        >
+          Consultar candidatos novamente
+        </button>
+      )}
       <Submit pending={action.pending}>
         {family ? 'Salvar cadastro' : 'Criar família'}
       </Submit>

@@ -37,7 +37,7 @@ Em 05/10/2026 a suíte de integração completa foi executada com PostgreSQL/Red
 
 Em 06/10/2026, a entrega de pendências cadastrais passou em 401 testes unitários/de contratos e 114 testes de integração com PostgreSQL e Redis reais, incluindo instalação em banco novo, concorrência nas duas ordens, unicidade, imutabilidade, rollback de auditoria e reconciliação após unificação. Verificação de tipos, lint e build da API também passaram. O [roteiro da demo](docs/demo-backend.md) descreve configuração e operação com dados sintéticos.
 
-`apps/web` iniciou a integração HTTP: a entrada principal usa login, restauração de sessão, logout confirmado e troca de senha pela API de ACS. As telas dos demais módulos mostram que aguardam integração; seus componentes do protótipo e testes foram preservados. Contas da demonstração não são contas PostgreSQL. O [inventário de telas e integrações](docs/frontend-status.md) distingue interfaces existentes e fluxos ainda ausentes. Os detalhes do protótipo descritos abaixo não representam telas conectadas à API.
+`apps/web` usa a API para autenticação, busca global, listagem paginada de famílias, composição por data, histórico cadastral familiar, perfis individuais e criação/edição de famílias e pessoas. Os formulários consultam possíveis duplicidades, exigem análise explícita quando há candidatos e preservam a solicitação após falha de rede. Projetos, atividades e inscrições vigentes também são consultados por HTTP; sua gestão continua pendente. As capacidades vêm do servidor, e a sessão usa o mesmo cliente HTTP das consultas. A lista não presume aptidão: exibe “Não consultada” até integrar APT. O [inventário de telas e integrações](docs/frontend-status.md) registra as próximas entregas. Os adaptadores em memória permanecem para o protótipo e seus testes; não alimentam a entrada conectada.
 
 A tela `/activities/:id`, acessível pela listagem de projetos e atividades,
 consulta o gateway existente e apresenta nome, projeto, natureza, situação,
@@ -51,7 +51,7 @@ em memória não comprovam suporte real. Edição, encerramento e gestão de
 participantes aguardam seus fluxos na UI. Registro de atendimento realizado
 permanece fora do MVP. A tela não oferece ações provisórias para essas pendências.
 
-O cabeçalho compartilhado das telas autenticadas inclui ajuda com dúvidas frequentes e um sino com painel padrão de notificações. Nesta etapa, o painel informa a indisponibilidade das notificações; eventos, armazenamento e integração de notificações ficam para uma etapa posterior. Os painéis fecham pelo botão, por Escape ou ao sair deles com o foco/clique, sem mudar a tela atual.
+A entrada conectada oferece busca global para contas com leitura cadastral. O diálogo fecha por Escape ou pelos botões e devolve o foco ao controle que o abriu. Ajuda e sino permanecem no protótipo; não representam serviços de notificações entregues.
 
 Os comandos padrão `pnpm dev` e `pnpm build` operam a API. `pnpm dev:web` inicia a UI; `pnpm --filter @erp/web build` gera seu build. Ambos os pacotes entram na verificação de tipos e lint.
 

@@ -1,0 +1,123 @@
+import { describe, expect, it, vi } from 'vitest';
+import { HttpProjects } from '../../../../src/projects';
+import { ApiClient } from '../../../../src/shared/api-client';
+
+const ids = [
+  '00000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000002',
+  '00000000-0000-4000-8000-000000000003',
+];
+const metadata = {
+  revision: 1,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  createdBy: ids[0],
+  updatedBy: ids[0],
+};
+const project = {
+  ...metadata,
+  id: ids[0],
+  name: 'Synthetic project',
+  instituteId: ids[1],
+  description: null,
+  startsOn: null,
+  endsOn: null,
+  status: 'ACTIVE',
+  closedAt: null,
+};
+const activity = {
+  ...metadata,
+  id: ids[1],
+  name: 'Synthetic activity',
+  projectId: ids[0],
+  nature: 'PERIODIC',
+  serviceTypeId: null,
+  plannedSchedule: null,
+  responsibleId: null,
+  status: 'ACTIVE',
+  closedAt: null,
+};
+
+describe('HTTP projects', () => {
+  it('loads projects, activities and catalogs from their public paginated endpoints', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      const data = url.pathname.endsWith('/projects')
+        ? [project]
+        : url.pathname.endsWith('/activities')
+          ? [activity]
+          : [
+              {
+                id: ids[1],
+                code: 'SYNTHETIC',
+                name: 'Synthetic catalog',
+                active: true,
+                revision: 1,
+              },
+            ];
+      return Response.json({
+        data,
+        pagination: { page: 1, pageSize: 100, total: 1 },
+      });
+    });
+    const overview = await new HttpProjects(new ApiClient(fetcher)).overview();
+    expect(overview.projects[0]?.name).toBe('Synthetic project');
+    expect(overview.activities[0]?.name).toBe('Synthetic activity');
+    expect(overview.institutes[0]?.code).toBe('SYNTHETIC');
+    expect(overview.serviceTypes[0]?.active).toBe(true);
+  });
+
+  it('loads every page of enrollment identities at the same reference without requesting personal registration data', async () => {
+    const at = '2026-10-05T12:00:00.000Z';
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {
+      const url = new URL(String(value), 'http://localhost');
+      if (!url.pathname.endsWith('/enrollments'))
+        return Response.json({
+          data: { project, activity, asOf: at, participantCount: 2 },
+        });
+      const page = Number(url.searchParams.get('page'));
+      const personId = page === 1 ? ids[1] : ids[2];
+      return Response.json({
+        data: [
+          {
+            enrollment: {
+              ...metadata,
+              id: personId,
+              personId,
+              activityId: ids[1],
+              validFrom: metadata.createdAt,
+              validUntil: null,
+              supersededById: null,
+            },
+            person: {
+              id: personId,
+              name: `Synthetic participant ${page}`,
+              family: { id: ids[0], code: '1' },
+            },
+          },
+        ],
+        pagination: { page, pageSize: 1, total: 2 },
+      });
+    });
+    const detail = await new HttpProjects(new ApiClient(fetcher)).getActivity(
+      ids[1]!,
+      at,
+    );
+    expect(detail.participants.map((person) => person.name)).toEqual([
+      'Synthetic participant 1',
+      'Synthetic participant 2',
+    ]);
+    expect(detail.participants[0]).toMatchObject({
+      familyCode: '1',
+      enrolled: true,
+    });
+    expect(
+      fetcher.mock.calls.every(([url]) =>
+        String(url).includes(encodeURIComponent(at)),
+      ),
+    ).toBe(true);
+    expect(
+      fetcher.mock.calls.some(([url]) => String(url).includes('/people')),
+    ).toBe(false);
+  });
+});

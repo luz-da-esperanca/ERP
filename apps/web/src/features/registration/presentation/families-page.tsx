@@ -22,7 +22,13 @@ function matchesFamilyQuery(family: FamilySummary, query: string) {
   ).includes(normalizeSearch(query));
 }
 
-export function FamilyTable({ families }: { families: FamilySummary[] }) {
+export function FamilyTable({
+  families,
+  eligibilityLabel,
+}: {
+  families: FamilySummary[];
+  eligibilityLabel?: string;
+}) {
   if (!families.length) return <Empty>Nenhuma família encontrada.</Empty>;
   return (
     <div className="table-wrap">
@@ -52,9 +58,7 @@ export function FamilyTable({ families }: { families: FamilySummary[] }) {
               <td>{family.neighborhood ?? 'Não informado'}</td>
               <td>{family.memberCount}</td>
               <td>{family.referencePersonName ?? 'Não informado'}</td>
-              <td>
-                <PendingBadge />
-              </td>
+              <td>{eligibilityLabel ?? <PendingBadge />}</td>
               <td>{displayInstant(family.updatedAt)}</td>
             </tr>
           ))}

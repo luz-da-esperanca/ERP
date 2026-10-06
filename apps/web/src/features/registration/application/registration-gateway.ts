@@ -7,6 +7,9 @@ import type {
   Person,
   PersonDetail,
 } from '@erp/contracts/registration';
+import type { z } from 'zod';
+import type { duplicateCandidateSchema } from '@erp/contracts/registration-api';
+export type DuplicateCandidate = z.infer<typeof duplicateCandidateSchema>;
 export interface TransferInput {
   personId: string;
   membershipId: string;
@@ -18,7 +21,7 @@ export interface TransferInput {
   reason: string;
 }
 export interface RegistrationGateway {
-  listFamilies(): Promise<FamilySummary[]>;
+  listFamilies(query?: string): Promise<FamilySummary[]>;
   getFamily(id: string, asOf: string): Promise<FamilyDetail>;
   createFamily(input: FamilyInput): Promise<Family>;
   updateFamily(
@@ -26,7 +29,7 @@ export interface RegistrationGateway {
     revision: number,
     input: FamilyInput,
   ): Promise<Family>;
-  listPeople(): Promise<Person[]>;
+  listPeople(query?: string): Promise<Person[]>;
   getPerson(id: string): Promise<PersonDetail>;
   createPerson(input: CreatePersonInput): Promise<Person>;
   transfer(input: TransferInput): Promise<void>;

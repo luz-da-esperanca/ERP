@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConnectedApp } from '../../src/app/connected-app';
 import { HttpAuthentication } from '../../src/access';
 import { ApiClient } from '../../src/shared/api-client';
+import { HttpErpClient } from '../../src/app/http-erp-client';
 
 const session = {
   user: {
@@ -29,7 +30,10 @@ function renderApp(fetcher: typeof fetch, path = '/') {
   render(
     <StrictMode>
       <MemoryRouter initialEntries={[path]}>
-        <ConnectedApp authentication={new HttpAuthentication(api)} />
+        <ConnectedApp
+          authentication={new HttpAuthentication(api)}
+          client={new HttpErpClient(api)}
+        />
       </MemoryRouter>
     </StrictMode>,
   );
@@ -199,17 +203,24 @@ describe('Connected application authentication', () => {
     );
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.queryByLabelText(/^Login/)).toBeNull();
-    fetcher.mockResolvedValue(Response.json({ data: session }));
+    fetcher.mockImplementation(async (url) =>
+      String(url).includes('/auth/session')
+        ? Response.json({ data: session })
+        : Response.json({
+            data: [],
+            pagination: { page: 1, pageSize: 20, total: 0 },
+          }),
+    );
     await userEvent
       .setup()
       .click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(
       await screen.findByRole('heading', {
-        name: 'Pessoas e famílias',
+        name: 'Famílias',
         level: 1,
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/Esta tela aguarda integração/)).toBeTruthy();
+    expect(await screen.findByText('Nenhuma família encontrada.')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
   });
 

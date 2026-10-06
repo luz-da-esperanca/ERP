@@ -4,6 +4,7 @@ export type AuditAction =
   | 'CREATE'
   | 'UPDATE'
   | 'CORRECT'
+  | 'MERGE'
   | 'CLOSE'
   | 'CANCEL'
   | 'PUBLISH'

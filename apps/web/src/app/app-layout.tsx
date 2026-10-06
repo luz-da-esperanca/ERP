@@ -41,13 +41,15 @@ export function AppLayout() {
   const { session, client } = useErp();
   const [searchOpen, setSearchOpen] = useState(false);
   if (!session) return <Navigate to="/login" replace />;
+  const access = client.access;
+  if (!access) throw new Error('Demo access is required by the demo layout');
   return (
     <>
       <AppShell
         displayName={session.user.displayName}
         roles={session.user.roles}
         capabilities={session.capabilities}
-        onLogout={() => client.access.logout()}
+        onLogout={() => access.logout()}
         logoutLabel="Sair da demonstração"
         accountLabel="Dados sintéticos"
         onSearch={() => setSearchOpen(true)}

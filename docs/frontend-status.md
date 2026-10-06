@@ -1,6 +1,6 @@
 # Telas e integrações do frontend
 
-Revisão em 05/10/2026, limitada ao [MVP vigente](specs/README.md).
+Revisão em 06/10/2026, limitada ao [MVP vigente](specs/README.md).
 O inventário considera rotas, componentes de apresentação e adaptadores; a
 existência de um gateway em memória não comprova uma tela nem integração HTTP.
 
@@ -12,23 +12,29 @@ primeiro acesso. As capacidades são recebidas do servidor. Erros de dependênci
 não são tratados como sessão anônima, e uma resposta atrasada não restaura o
 acesso após logout ou resposta 401.
 
-Durante a transição, as demais rotas mostram a indisponibilidade da integração.
-Os componentes do protótipo e seus testes permanecem no código, sem alimentar
-a sessão HTTP com dados em memória. Essa é a premissa adotada para esta entrega;
-não foi adicionada uma segunda entrada de demonstração.
+CAD está conectado para consulta, busca global, cadastro/edição familiar e
+individual, composição por data e histórico cadastral da família. ATV está
+conectado para consulta de projetos, atividades e inscrições vigentes. Os
+formulários preservam revisões e a mesma chave/corpo após perda de resposta;
+novos cadastros consultam candidatos e exigem motivo e confirmação de distinção.
+O backend repete a análise na transação. Busca global usa consultas autorizadas
+após dois caracteres e diálogo nativo com retorno de foco. A lista familiar
+usa paginação e totais do servidor. A aptidão aparece como “Não consultada”,
+sem presumir ausência de política. O início oferece acesso pelo menu, sem totais.
+Adaptadores em memória continuam restritos ao protótipo e seus testes.
 
-## Interfaces já existentes no protótipo
+## Interfaces existentes e estado da integração
 
 | Tela ou fluxo                              | Evidência                                       | Trabalho restante                                                                                                                                            |
 | ------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Início                                     | `features/home/presentation/dashboard-page.tsx` | Consultas autorizadas, totais com fonte e atividade recente pela API.                                                                                        |
-| Lista e busca de famílias                  | `families-page.tsx`, `search-page.tsx`          | Busca/paginação HTTP e estados de erro; a aptidão exibida ainda é fixa como Pendente.                                                                        |
-| Criação, edição e perfil familiar          | `family-page.tsx`, `family-form.tsx`            | Adaptar os DTOs HTTP, revisões, conflitos e idempotência; conectar composição por data e histórico autorizado.                                               |
-| Membros da família                         | `FamilyMembersPage` em `family-page.tsx`        | Consultar a API e implementar as ações de composição. O link “Adicionar pessoa” aponta para `/people/new`, mas falta a página correspondente.                |
-| Perfil individual                          | `person-page.tsx`                               | Integrar os dados atuais e vínculos históricos; não existe formulário de criação/edição individual.                                                          |
-| Lista de projetos e atividades             | `projects-page.tsx`, `project-group.tsx`        | Consultar a API. “Novo projeto” e “Nova atividade” estão desabilitados.                                                                                      |
-| Detalhe de atividade e inscrições vigentes | `activity-page.tsx`, `enrollment-list.tsx`      | Integrar o detalhe e participantes; responsável (via `GET /responsible-candidates`) e encontros recentes ainda não estão ligados; faltam ações de inscrição. |
-| Histórico familiar                         | `family-audit-timeline.tsx`                     | Integrar a consulta de auditoria com filtros e projeção autorizada.                                                                                          |
+| Lista e busca de famílias                  | `connected-families-page.tsx`, `search-page.tsx` | HTTP entregue; falta integrar a avaliação de aptidão. |
+| Criação, edição e perfil familiar          | `family-page.tsx`, `family-form.tsx`             | HTTP entregue com revisões, análise de duplicidades e idempotência. |
+| Membros da família                         | `FamilyMembersPage` em `family-page.tsx`         | Consulta HTTP e inclusão de nova pessoa entregues; faltam ações sobre vínculos existentes. |
+| Perfil e cadastro individual               | `person-page.tsx`, `person-form-page.tsx`        | Dados, vínculos históricos e criação/edição HTTP entregues; falta edição do perfil de tamanhos. |
+| Lista de projetos e atividades             | `projects-page.tsx`, `project-group.tsx`         | Consulta HTTP entregue; criação/edição/encerramento pendentes. |
+| Detalhe de atividade e inscrições vigentes  | `activity-page.tsx`, `enrollment-list.tsx`        | Consulta HTTP entregue com projeção mínima de participantes; responsável, encontros e ações de inscrição pendentes. |
+| Histórico cadastral familiar               | `family-audit-timeline.tsx`                      | Auditoria HTTP filtrada por `Family` e ID entregue; consulta transversal e histórico consolidado pendentes. |
 
 Os arquivos de cadastro ficam em
 `apps/web/src/features/registration/presentation/`; os de projetos, em
@@ -41,8 +47,8 @@ cada linha não exige uma nova rota isolada.
 
 | Área                           | Fluxos que faltam                                                                                                                                         | Situação do backend                                                |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| CAD — Pessoas e composição     | Criar/editar pessoa; vincular existente; titularidade; transferência, correção e encerramento de vínculo, com data e motivo.                              | API entregue.                                                      |
-| CAD — Duplicidades e qualidade | Analisar candidatos antes do cadastro; consultar/tratar ocorrências; prévia e confirmação da unificação de pessoas/famílias com conflitos e motivo.       | API entregue; geração automática de `MISSING_DATA` ainda pendente. |
+| CAD — Pessoas e composição     | Vincular existente; titularidade; transferência, correção e encerramento de vínculo, com data e motivo; perfil de tamanhos. | API entregue. |
+| CAD — Duplicidades e qualidade | Consultar/tratar ocorrências; prévia e confirmação da unificação de pessoas/famílias com conflitos e motivo. | API entregue, incluindo geração automática de `MISSING_DATA`. |
 | ATV — Gestão                   | Criar, editar e encerrar projetos/atividades; cadastrar, corrigir e encerrar inscrições, preservando o histórico.                                         | API entregue.                                                      |
 | FRQ — Encontros e frequência   | Lista/detalhe/criação de encontros; chamada parcial e avulsa; correção/cancelamento com motivo; consulta de frequência e declaração de cobertura.         | API entregue.                                                      |
 | FIC — Ficha social             | Consultar/publicar versões e dados por membro; comparar a composição da versão; registrar ciência; selecionar campos e configurar as decisões permitidas. | API entregue; campos sensíveis dependem das decisões aplicáveis.   |
@@ -53,13 +59,10 @@ cada linha não exige uma nova rota isolada.
 
 ## Ordem sugerida de integração
 
-1. Concluir a base ACS e validar a execução local.
-2. Conectar lista/busca de famílias, perfil familiar, membros e perfil individual.
-3. Conectar criação/edição familiar e completar cadastro individual/composição.
-4. Conectar projetos, detalhe de atividade e inscrições; completar sua gestão.
-5. Entregar encontros/chamada/frequência, ficha social e aptidão.
-6. Completar administração, duplicidades/unificação e consulta de auditoria.
-7. Integrar REL, cujos contratos de backend já estão entregues.
+1. Completar gestão de projetos, atividades e inscrições.
+2. Entregar encontros/chamada/frequência, ficha social e aptidão.
+3. Completar ações de composição, tamanhos, administração, qualidade/unificação e auditoria transversal.
+4. Integrar REL e os totais/atividade recente do início.
 
 Atendimentos realizados, estoque, entregas, Bazar e migração não são telas
 pendentes deste MVP. CSV/PDF e notificações não entram nesta lista de entregas

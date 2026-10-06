@@ -2,11 +2,12 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AppLayout } from '../../src/app/app-layout';
 import { ErpProvider } from '../../src/app/erp-provider';
 import { createDemoClient } from '../../src/demo/create-demo-client';
 import { ProjectsPage } from '../../src/projects';
+import { installNativeDialogDouble } from '../support/native-dialog';
 
 function LocationProbe() {
   const location = useLocation();
@@ -40,7 +41,9 @@ function renderLayout(role = 'COORDINATION') {
 }
 
 describe('AppLayout', () => {
-  afterEach(cleanup);
+  let dialog: ReturnType<typeof installNativeDialogDouble>;
+  beforeEach(() => { dialog = installNativeDialogDouble(); });
+  afterEach(() => { cleanup(); dialog.restore(); });
 
   it('opens global help and restores focus when dismissed with Escape', async () => {
     const user = userEvent.setup();
