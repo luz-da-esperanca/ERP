@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router';
-import { Users, LayoutDashboard, Menu, X, LogOut, Search } from 'lucide-react';
+import {
+  Users,
+  LayoutDashboard,
+  Menu,
+  X,
+  LogOut,
+  Search,
+  FolderOpen,
+} from 'lucide-react';
 import type { Capability } from '@erp/contracts/access';
 import { useErp } from './erp-provider';
 import { roleLabels } from '../features/access/presentation/role-labels';
@@ -18,6 +26,12 @@ const navigation: Array<{
     label: 'Pessoas e famílias',
     icon: Users,
     capability: 'registration.read',
+  },
+  {
+    to: '/projects',
+    label: 'Projetos e atividades',
+    icon: FolderOpen,
+    capability: 'projects.read',
   },
 ];
 
