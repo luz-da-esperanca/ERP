@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useId, useState } from 'react';
 import { Archive, CheckCircle, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router';
@@ -17,10 +18,14 @@ export function ProjectGroup({
   project,
   activities,
   initiallyExpanded,
+  actions,
+  metadata,
 }: {
   project: Project;
   activities: Activity[];
   initiallyExpanded: boolean;
+  actions?: ReactNode;
+  metadata?: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const contentId = useId();
@@ -63,6 +68,8 @@ export function ProjectGroup({
         aria-labelledby={headingId}
         hidden={!expanded}
       >
+        {metadata}
+        {actions}
         {activities.length ? (
           <div className="table-wrap">
             <table className="project-activities-table">

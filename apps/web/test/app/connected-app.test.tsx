@@ -284,3 +284,45 @@ it('opens the authenticated data quality route using the same session-aware API 
     ),
   ).toBe(true);
 });
+
+it('opens authenticated projects through the API and returns to login on expired access', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (path) => {
+    if (String(path).endsWith('/auth/session'))
+      return Response.json({
+        data: { ...session, capabilities: ['projects.read', 'projects.write'] },
+      });
+    return Response.json({
+      data: [],
+      pagination: { page: 1, pageSize: 100, total: 0 },
+    });
+  });
+  const api = new ApiClient(fetcher);
+  render(
+    <MemoryRouter initialEntries={['/projects']}>
+      <ConnectedApp authentication={new HttpAuthentication(api)} api={api} />
+    </MemoryRouter>,
+  );
+  await screen.findByText('Nenhum projeto cadastrado.');
+  expect(screen.getByRole('button', { name: 'Novo projeto' })).toHaveProperty(
+    'disabled',
+    false,
+  );
+  expect(
+    fetcher.mock.calls.some((call) =>
+      String(call[0]).startsWith('/api/v1/projects?'),
+    ),
+  ).toBe(true);
+  fetcher.mockResolvedValue(
+    Response.json(
+      { error: { code: 'UNAUTHENTICATED', requestId: 'test' } },
+      { status: 401 },
+    ),
+  );
+  await act(async () => {
+    await expect(
+      api.requestEmpty('/projects', { method: 'POST', body: {} }),
+    ).rejects.toMatchObject({ status: 401 });
+  });
+  await screen.findByLabelText(/^Login/);
+  cleanup();
+});

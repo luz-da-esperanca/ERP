@@ -1,3 +1,6 @@
+import { HttpProjects } from '../features/projects/infra/http-projects';
+import { ManagedProjectsPage } from '../features/projects/presentation/projects-page';
+import { ManagedActivityPage } from '../features/projects/presentation/activity-page';
 import { ApiClient } from '../shared/api-client';
 import { HttpDataQuality } from '../features/registration/infra/http-data-quality';
 import type { DataQualityGateway } from '../features/registration/application/data-quality-gateway';
@@ -23,15 +26,23 @@ export function ConnectedApp({
   authentication: AuthenticationGateway;
   api?: ApiClient;
 }) {
-  const [quality] = useState(() => new HttpDataQuality(api ?? new ApiClient()));
+  const [http] = useState(() => api ?? new ApiClient());
+  const [quality] = useState(() => new HttpDataQuality(http));
+  const [projects] = useState(() => new HttpProjects(http));
   return (
     <AuthenticationProvider authentication={authentication}>
-      <ConnectedRoutes quality={quality} />
+      <ConnectedRoutes quality={quality} projects={projects} />
     </AuthenticationProvider>
   );
 }
 
-function ConnectedRoutes({ quality }: { quality: DataQualityGateway }) {
+function ConnectedRoutes({
+  quality,
+  projects,
+}: {
+  quality: DataQualityGateway;
+  projects: HttpProjects;
+}) {
   const { authentication, state } = useAuthentication();
   if (state.status === 'loading')
     return (
@@ -102,18 +113,18 @@ function ConnectedRoutes({ quality }: { quality: DataQualityGateway }) {
         <Route
           path="projects"
           element={
-            <PendingPage
-              title="Projetos e atividades"
-              capability="projects.read"
+            <ManagedProjectsPage
+              gateway={projects}
+              capabilities={state.session.capabilities}
             />
           }
         />
         <Route
-          path="activities/*"
+          path="activities/:id"
           element={
-            <PendingPage
-              title="Projetos e atividades"
-              capability="projects.read"
+            <ManagedActivityPage
+              gateway={projects}
+              capabilities={state.session.capabilities}
             />
           }
         />
