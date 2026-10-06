@@ -3,8 +3,36 @@ import {
   passwordSchema,
   createUserSchema,
   usersPageSchema,
+  sessionDtoSchema,
 } from '../src/access-api';
 describe('Access contracts', () => {
+  it('validates authenticated session data without inventing capabilities from roles', () => {
+    const session = {
+      user: {
+        id: '00000000-0000-4000-8000-000000000001',
+        login: 'synthetic.operator',
+        displayName: 'Synthetic Operator',
+        active: true,
+        mustChangePassword: true,
+        revision: 2,
+        roleCodes: ['ADMINISTRATOR'],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      roles: ['ADMINISTRATOR'],
+      capabilities: ['accounts.manage', 'audit.read'],
+    };
+    expect(sessionDtoSchema.parse(session)).toEqual(session);
+    expect(
+      sessionDtoSchema.safeParse({
+        ...session,
+        capabilities: ['unknown.manage'],
+      }).success,
+    ).toBe(false);
+    expect(
+      sessionDtoSchema.safeParse({ ...session, token: 'private' }).success,
+    ).toBe(false);
+  });
   it('projects paginated public accounts without credentials', () => {
     const account = {
       id: '00000000-0000-4000-8000-000000000001',

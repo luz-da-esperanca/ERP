@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { roleSchema } from './access';
+import { roleSchema, capabilitySchema } from './access';
 import { idSchema, nameSchema, reasonSchema, revisionSchema } from './common';
 
 export const loginSchema = z
@@ -33,9 +33,18 @@ export const userDtoSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 export type UserDto = z.infer<typeof userDtoSchema>;
+export const sessionDtoSchema = z
+  .object({
+    user: userDtoSchema,
+    roles: roleCodesSchema,
+    capabilities: z.array(capabilitySchema),
+  })
+  .strict();
+export type SessionDto = z.infer<typeof sessionDtoSchema>;
 export const loginInputSchema = z
   .object({ login: loginSchema, password: passwordSchema })
   .strict();
+export type LoginInput = z.infer<typeof loginInputSchema>;
 export const createUserSchema = z
   .object({
     login: loginSchema,

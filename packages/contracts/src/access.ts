@@ -8,24 +8,26 @@ export const roleSchema = z.enum([
   'ADMINISTRATOR',
 ]);
 export type Role = z.infer<typeof roleSchema>;
-export type Capability =
-  | 'registration.read'
-  | 'registration.write'
-  | 'registration.merge'
-  | 'participants.lookup'
-  | 'socialForms.read'
-  | 'socialForms.write'
-  | 'projects.read'
-  | 'projects.write'
-  | 'attendance.read'
-  | 'attendance.write'
-  | 'eligibility.read'
-  | 'eligibility.evaluate'
-  | 'eligibility.policy.write'
-  | 'reports.read'
-  | 'accounts.manage'
-  | 'featureDecisions.manage'
-  | 'audit.read';
+export const capabilitySchema = z.enum([
+  'registration.read',
+  'registration.write',
+  'registration.merge',
+  'participants.lookup',
+  'socialForms.read',
+  'socialForms.write',
+  'projects.read',
+  'projects.write',
+  'attendance.read',
+  'attendance.write',
+  'eligibility.read',
+  'eligibility.evaluate',
+  'eligibility.policy.write',
+  'reports.read',
+  'accounts.manage',
+  'featureDecisions.manage',
+  'audit.read',
+]);
+export type Capability = z.infer<typeof capabilitySchema>;
 export const accountInputSchema = z
   .object({
     login: z
