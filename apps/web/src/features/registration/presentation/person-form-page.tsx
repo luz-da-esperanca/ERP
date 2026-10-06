@@ -22,7 +22,7 @@ import {
 } from '../../../shared/ui';
 import { civilToday } from '../../../shared/time';
 import { useRegistrationIntent } from './use-registration-intent';
-import { DuplicateReview } from './duplicate-review';
+import { DuplicateCreationReview as DuplicateReview } from './duplicate-review';
 
 function PersonForm({
   registration,

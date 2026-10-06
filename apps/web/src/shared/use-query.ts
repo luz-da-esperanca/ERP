@@ -7,6 +7,13 @@ export type QueryState<T> =
   | { status: 'success'; data: T };
 export function useQuery<T>(load: () => Promise<T>): QueryState<T> {
   const { revision } = useErp();
+  return useApiQuery(load, revision);
+}
+
+export function useApiQuery<T>(
+  load: () => Promise<T>,
+  revision = 0,
+): QueryState<T> {
   const [result, setResult] = useState<{
     load: typeof load;
     revision: number;

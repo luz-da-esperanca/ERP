@@ -9,6 +9,7 @@ import {
   LogOut,
   Search,
   FolderOpen,
+  CopyCheck,
 } from 'lucide-react';
 import type { Capability, Role } from '@erp/contracts/access';
 import { useErp } from './erp-provider';
@@ -27,6 +28,12 @@ const navigation: Array<{
     to: '/families',
     label: 'Pessoas e famílias',
     icon: Users,
+    capability: 'registration.read',
+  },
+  {
+    to: '/data-quality',
+    label: 'Duplicidades e qualidade',
+    icon: CopyCheck,
     capability: 'registration.read',
   },
   {
@@ -65,6 +72,7 @@ export function AppLayout() {
 
 export function AppShell({
   displayName,
+  showDataQuality = false,
   roles,
   capabilities,
   onLogout,
@@ -77,6 +85,7 @@ export function AppShell({
   children,
 }: {
   displayName: string;
+  showDataQuality?: boolean;
   roles: Role[];
   capabilities: Capability[];
   onLogout: () => void;
@@ -89,9 +98,11 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const items = navigation.filter(
-    (item) => !item.capability || capabilities.includes(item.capability),
-  );
+  const items = navigation
+    .filter((item) => item.to !== '/data-quality' || showDataQuality)
+    .filter(
+      (item) => !item.capability || capabilities.includes(item.capability),
+    );
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">

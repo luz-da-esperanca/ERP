@@ -12,7 +12,7 @@ import {
 } from '../../../shared/ui';
 import { useAction } from '../../../shared/use-action';
 import { useRegistrationIntent } from './use-registration-intent';
-import { DuplicateReview } from './duplicate-review';
+import { DuplicateCreationReview as DuplicateReview } from './duplicate-review';
 export function FamilyForm({ family }: { family?: Family }) {
   const { client } = useErp();
   const navigate = useNavigate();

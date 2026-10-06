@@ -1,6 +1,13 @@
+import type { ActivityDto } from '@erp/contracts/projects-api';
+import type { Capability } from '@erp/contracts/access';
+import type { HttpProjects } from '../infra/http-projects';
+import { useApiQuery } from '../../../shared/use-query';
+import { Field, textValue } from '../../../shared/ui';
+import { ActivityForm, ClosureForm, instantValue } from './project-forms';
+import { EnrollmentManagement, localInstant } from './enrollment-management';
 import { useCallback, useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import {
   Archive,
   CalendarCheck,
@@ -65,15 +72,28 @@ function ServiceTypeInfo({ id }: { id: string }) {
 function ActivityProfile({
   detail,
   asOf,
+  actions,
+  children,
+  enrollments,
+  serviceTypeName,
+  responsibleName,
+  records,
 }: {
   detail: ActivityDetail;
   asOf: string;
+  actions?: ReactNode;
+  children?: ReactNode;
+  enrollments?: ReactNode;
+  serviceTypeName?: ReactNode;
+  responsibleName?: ReactNode;
+  records?: ReactNode;
 }) {
   const { activity, project } = detail;
   const StatusIcon = activity.status === 'ACTIVE' ? CheckCircle : Archive;
 
   return (
-    <Page title={activity.name} description={project.name}>
+    <Page title={activity.name} description={project.name} actions={actions}>
+      {children}
       <div className="mb-6 flex flex-wrap gap-2">
         <StatusBadge>
           {activity.nature === 'PERIODIC'
@@ -90,9 +110,11 @@ function ActivityProfile({
       >
         <dl className="activity-information">
           <ActivityInfo label="Responsável" icon={<UserRound size={20} />}>
-            <span className="activity-info-unavailable">
-              Consulta ainda não disponível
-            </span>
+            {responsibleName ?? (
+              <span className="activity-info-unavailable">
+                Consulta ainda não disponível
+              </span>
+            )}
           </ActivityInfo>
           <ActivityInfo label="Agenda planejada" icon={<Clock size={20} />}>
             {activity.plannedSchedule ?? (
@@ -100,7 +122,16 @@ function ActivityProfile({
             )}
           </ActivityInfo>
           {activity.nature === 'ONE_OFF' && activity.serviceTypeId ? (
-            <ServiceTypeInfo id={activity.serviceTypeId} />
+            serviceTypeName ? (
+              <ActivityInfo
+                label="Tipo de atendimento"
+                icon={<Tag size={20} />}
+              >
+                {serviceTypeName}
+              </ActivityInfo>
+            ) : (
+              <ServiceTypeInfo id={activity.serviceTypeId} />
+            )
           ) : null}
           {activity.closedAt ? (
             <ActivityInfo
@@ -114,16 +145,19 @@ function ActivityProfile({
           ) : null}
         </dl>
       </section>
-      {activity.nature === 'PERIODIC' && (
-        <EnrollmentList participants={detail.participants} asOf={asOf} />
+      {activity.nature === 'PERIODIC' &&
+        (enrollments ?? (
+          <EnrollmentList participants={detail.participants} asOf={asOf} />
+        ))}
+      {records ?? (
+        <Panel title="Registros recentes">
+          <Empty>
+            {activity.nature === 'PERIODIC'
+              ? 'A consulta de encontros ainda não está disponível.'
+              : 'O registro de atendimentos não está disponível nesta etapa.'}
+          </Empty>
+        </Panel>
       )}
-      <Panel title="Registros recentes">
-        <Empty>
-          {activity.nature === 'PERIODIC'
-            ? 'A consulta de encontros ainda não está disponível.'
-            : 'O registro de atendimentos não está disponível nesta etapa.'}
-        </Empty>
-      </Panel>
     </Page>
   );
 }
@@ -157,5 +191,264 @@ export function ActivityPage() {
         <Alert error>Seu perfil não permite esta operação.</Alert>
       )}
     </>
+  );
+}
+
+export function ManagedActivityPage({
+  gateway,
+  capabilities,
+  id,
+}: {
+  gateway: HttpProjects;
+  capabilities: Capability[];
+  id?: string;
+}) {
+  const params = useParams();
+  const activityId = id ?? params.id ?? '';
+  return (
+    <>
+      <BackLink to="/projects">Projetos e atividades</BackLink>
+      {capabilities.includes('projects.read') ? (
+        <ManagedActivityContent
+          key={activityId}
+          gateway={gateway}
+          capabilities={capabilities}
+          id={activityId}
+        />
+      ) : (
+        <Alert error>Seu perfil não permite esta operação.</Alert>
+      )}
+    </>
+  );
+}
+function ManagedActivityContent({
+  gateway,
+  capabilities,
+  id,
+}: {
+  gateway: HttpProjects;
+  capabilities: Capability[];
+  id: string;
+}) {
+  const [asOf, setAsOf] = useState(() => new Date().toISOString());
+  const [revision, setRevision] = useState(0);
+  const [mode, setMode] = useState<'edit' | 'closure' | null>(null);
+  const [enrollmentEditing, setEnrollmentEditing] = useState(false);
+  const [message, setMessage] = useState('');
+  const load = useCallback(
+    () => gateway.activity(id, asOf),
+    [gateway, id, asOf],
+  );
+  const state = useApiQuery(load, revision);
+  const canWrite = capabilities.includes('projects.write');
+  const canEnroll = canWrite || capabilities.includes('attendance.write');
+  function refresh() {
+    setMode(null);
+    setRevision((value) => value + 1);
+  }
+  function completed() {
+    setMessage('Alteração salva.');
+    refresh();
+  }
+  return (
+    <AsyncView state={state}>
+      {(detail) => (
+        <ActivityProfile
+          detail={{ ...detail, participants: [] }}
+          asOf={detail.asOf}
+          records={
+            detail.activity.nature === 'PERIODIC' &&
+            capabilities.includes('attendance.read') ? (
+              <Panel title="Encontros">
+                <Link className="text-link" to={`/activities/${id}/attendance`}>
+                  Encontros e frequência
+                </Link>
+              </Panel>
+            ) : undefined
+          }
+          serviceTypeName={
+            detail.activity.serviceTypeId ? (
+              <ManagedServiceType
+                gateway={gateway}
+                id={detail.activity.serviceTypeId}
+              />
+            ) : undefined
+          }
+          responsibleName={
+            detail.activity.responsibleId ? (
+              canWrite ? (
+                <ManagedResponsible
+                  gateway={gateway}
+                  id={detail.activity.responsibleId}
+                />
+              ) : (
+                'Nome do responsável indisponível para este perfil'
+              )
+            ) : (
+              'Não informado'
+            )
+          }
+          actions={
+            canWrite &&
+            !mode &&
+            !enrollmentEditing && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="button secondary"
+                  onClick={() => {
+                    setMessage('');
+                    setMode('edit');
+                  }}
+                >
+                  Editar atividade
+                </button>
+                {detail.activity.status === 'ACTIVE' && (
+                  <button
+                    className="button secondary"
+                    onClick={() => {
+                      setMessage('');
+                      setMode('closure');
+                    }}
+                  >
+                    Encerrar atividade
+                  </button>
+                )}
+              </div>
+            )
+          }
+          enrollments={
+            <>
+              <form
+                className="mb-4 flex flex-wrap items-end gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const data = new FormData(event.currentTarget);
+                  setAsOf(instantValue(data, 'asOf'));
+                }}
+              >
+                <Field
+                  disabled={enrollmentEditing}
+                  label="Referência das inscrições"
+                  name="asOf"
+                  type="datetime-local"
+                  step="0.001"
+                  required
+                  defaultValue={localInstant(asOf)}
+                />
+                <button
+                  disabled={enrollmentEditing}
+                  className="button secondary"
+                  type="submit"
+                >
+                  Consultar
+                </button>
+              </form>
+              <EnrollmentManagement
+                gateway={gateway}
+                activity={detail.activity}
+                asOf={detail.asOf}
+                revision={revision}
+                canWrite={canEnroll && !mode}
+                onCompleted={completed}
+                onRefresh={refresh}
+                onEditing={setEnrollmentEditing}
+              />
+            </>
+          }
+        >
+          {message && <Alert>{message}</Alert>}
+          {mode === 'closure' && (
+            <Panel title="Encerrar atividade">
+              <ClosureForm
+                onCompleted={completed}
+                onCancel={refresh}
+                save={(data, key) =>
+                  gateway.closeActivity(
+                    id,
+                    {
+                      expectedRevision: detail.activity.revision,
+                      effectiveAt: instantValue(data, 'effectiveAt'),
+                      reason: textValue(data, 'reason'),
+                    },
+                    key,
+                  )
+                }
+              />
+            </Panel>
+          )}
+          {mode === 'edit' && (
+            <ManagedActivityForm
+              gateway={gateway}
+              activity={detail.activity}
+              onCompleted={completed}
+              onCancel={refresh}
+            />
+          )}
+        </ActivityProfile>
+      )}
+    </AsyncView>
+  );
+}
+function ManagedActivityForm({
+  gateway,
+  activity,
+  onCompleted,
+  onCancel,
+}: {
+  gateway: HttpProjects;
+  activity: ActivityDto;
+  onCompleted: () => void;
+  onCancel: () => void;
+}) {
+  const state = useApiQuery(gateway.overview);
+  return (
+    <Panel title="Editar atividade">
+      <AsyncView state={state}>
+        {(overview) => (
+          <ActivityForm
+            gateway={gateway}
+            overview={overview}
+            activity={activity}
+            onCompleted={onCompleted}
+            onCancel={onCancel}
+          />
+        )}
+      </AsyncView>
+    </Panel>
+  );
+}
+function ManagedServiceType({
+  gateway,
+  id,
+}: {
+  gateway: HttpProjects;
+  id: string;
+}) {
+  const state = useApiQuery(gateway.overview);
+  return (
+    <AsyncView state={state}>
+      {(overview) =>
+        overview.serviceTypes.find((type) => type.id === id)?.name ??
+        'Não disponível'
+      }
+    </AsyncView>
+  );
+}
+function ManagedResponsible({
+  gateway,
+  id,
+}: {
+  gateway: HttpProjects;
+  id: string;
+}) {
+  const load = useCallback(() => gateway.responsibleById(id), [gateway, id]);
+  const state = useApiQuery(load);
+  return (
+    <AsyncView state={state}>
+      {(people) =>
+        people.find((person) => person.id === id)?.displayName ??
+        'Não disponível'
+      }
+    </AsyncView>
   );
 }

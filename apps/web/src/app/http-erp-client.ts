@@ -10,7 +10,7 @@ export class HttpErpClient implements ErpViewClient {
   readonly registration: HttpRegistration;
   readonly projects: HttpProjects;
   readonly audit: HttpAudit;
-  constructor(api: ApiClient) {
+  constructor(readonly api: ApiClient) {
     this.registration = new HttpRegistration(api, this.invalidate);
     this.projects = new HttpProjects(api);
     this.audit = new HttpAudit(api);
