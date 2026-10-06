@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { passwordSchema } from '@erp/contracts/access-api';
@@ -43,5 +43,52 @@ describe('Showcase environment', () => {
     expect(await readFile(path, 'utf8')).toContain(
       `DEMO_SEED_PASSWORD=${password}`,
     );
+  });
+
+  it('reads the configured Dario credential independently of the other demo accounts', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'erp-seed-'));
+    directories.push(directory);
+    const path = join(directory, '.env.demo');
+    await writeFile(
+      path,
+      'DEMO_SEED_PASSWORD=synthetic-showcase-password\nDARIO_SEED_PASSWORD=admin123demo\n',
+      { mode: 0o600 },
+    );
+    expect(await readSeedPassword(path, 'DARIO_SEED_PASSWORD')).toBe(
+      'admin123demo',
+    );
+    expect(await readSeedPassword(path)).toBe('synthetic-showcase-password');
+  });
+
+  it('adds a missing Dario credential without replacing the existing demo credential', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'erp-seed-'));
+    directories.push(directory);
+    const path = join(directory, '.env.demo');
+    await writeFile(path, 'DEMO_SEED_PASSWORD=synthetic-showcase-password', {
+      mode: 0o600,
+    });
+    const darioPassword = await readSeedPassword(path, 'DARIO_SEED_PASSWORD');
+    expect(passwordSchema.safeParse(darioPassword).success).toBe(true);
+    expect(darioPassword).not.toBe('synthetic-showcase-password');
+    expect(await readSeedPassword(path, 'DARIO_SEED_PASSWORD')).toBe(
+      darioPassword,
+    );
+    expect(await readSeedPassword(path)).toBe('synthetic-showcase-password');
+    expect((await stat(path)).mode & 0o777).toBe(0o600);
+  });
+
+  it('rejects a configured Dario password below the existing minimum', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'erp-seed-'));
+    directories.push(directory);
+    const path = join(directory, '.env.demo');
+    await writeFile(
+      path,
+      'DEMO_SEED_PASSWORD=synthetic-showcase-password\nDARIO_SEED_PASSWORD=admin123\n',
+      { mode: 0o600 },
+    );
+    await expect(readSeedPassword(path, 'DARIO_SEED_PASSWORD')).rejects.toThrow(
+      'Invalid DARIO_SEED_PASSWORD in the showcase credential file',
+    );
+    expect(await readSeedPassword(path)).toBe('synthetic-showcase-password');
   });
 });

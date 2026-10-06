@@ -43,11 +43,15 @@ export async function seedShowcase(
   runtime: Runtime,
   config: ApiConfig,
   password: string,
+  darioPassword: string = password,
 ) {
   assertShowcaseEnvironment(config);
   passwordSchema.parse(password);
+  passwordSchema.parse(darioPassword);
+  const accountPassword = (login: string) =>
+    login === 'dario.brito' ? darioPassword : password;
   const initialPassword = (login: string) =>
-    `Initial-${createHmac('sha256', password).update(login).digest('base64url')}`;
+    `Initial-${createHmac('sha256', accountPassword(login)).update(login).digest('base64url')}`;
   const request = async (
     method: 'POST' | 'PUT',
     url: string,
@@ -136,12 +140,12 @@ export async function seedShowcase(
           {
             expectedRevision: first.user.revision,
             currentPassword: initialPassword(account.login),
-            newPassword: password,
+            newPassword: accountPassword(account.login),
           },
           first.cookie,
         );
       }
-      const signedIn = await login(password);
+      const signedIn = await login(accountPassword(account.login));
       sessions.set(account.login, {
         cookie: signedIn.cookie,
         userId: signedIn.user.id,
