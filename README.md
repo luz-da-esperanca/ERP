@@ -33,7 +33,7 @@ Os contratos entregues estão no [guia do backend](docs/api/README.md), nas refe
 
 Em 05/10/2026 a suíte de integração completa foi executada com PostgreSQL/Redis de teste e passa, incluindo FIC, APT e unificação. A execução revelou e corrigiu uma falha de FIC: o bloqueio consultivo de configuração era chamado de forma que o Prisma não conseguia ler o retorno, e `POST /social-form-field-selections` respondia 500.
 
-`apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
+`apps/web` iniciou a integração HTTP: a entrada principal usa login, restauração de sessão, logout confirmado e troca de senha pela API de ACS. As telas dos demais módulos mostram que aguardam integração; seus componentes do protótipo e testes foram preservados. Contas da demonstração não são contas PostgreSQL. O [inventário de telas e integrações](docs/frontend-status.md) distingue interfaces existentes e fluxos ainda ausentes. Os detalhes do protótipo descritos abaixo não representam telas conectadas à API.
 
 A tela `/activities/:id`, acessível pela listagem de projetos e atividades,
 consulta o gateway existente e apresenta nome, projeto, natureza, situação,
@@ -49,7 +49,7 @@ permanece fora do MVP. A tela não oferece ações provisórias para essas pend�
 
 O cabeçalho compartilhado das telas autenticadas inclui ajuda com dúvidas frequentes e um sino com painel padrão de notificações. Nesta etapa, o painel informa a indisponibilidade das notificações; eventos, armazenamento e integração de notificações ficam para uma etapa posterior. Os painéis fecham pelo botão, por Escape ou ao sair deles com o foco/clique, sem mudar a tela atual.
 
-Os comandos padrão `pnpm dev` e `pnpm build` operam a API nesta etapa. A aplicação web permanece em preparação; sua configuração e seus módulos entram na verificação de tipos e lint.
+Os comandos padrão `pnpm dev` e `pnpm build` operam a API. `pnpm dev:web` inicia a UI; `pnpm --filter @erp/web build` gera seu build. Ambos os pacotes entram na verificação de tipos e lint.
 
 ## Organização
 
@@ -139,6 +139,18 @@ pnpm dev
 O bootstrap local pede login, nome e senha com entrada oculta; funciona apenas se não existir nenhuma conta. Cria um administrador que precisa trocar a senha no primeiro acesso. Não há usuário/senha padrão nem seed de pessoas ou aprovações. O catálogo fixo de perfis é criado nessa mesma transação.
 
 Disponibilidade: `GET http://127.0.0.1:3001/api/v1/health`. Essa rota verifica o processo HTTP; não é diagnóstico completo das dependências.
+
+### Executar o frontend conectado
+
+Com a API iniciada, execute em outro terminal:
+
+```bash
+pnpm dev:web
+```
+
+Abra `http://localhost:5173` e mantenha `APP_ORIGIN=http://localhost:5173` na API, conforme `.env.example`. O Vite recusa outra porta e encaminha `/api` para `http://127.0.0.1:3001`, preservando a origem do navegador. Se mudar a porta da API, ajuste o destino em `apps/web/vite.config.ts`. A sessão usa o cookie HttpOnly; a UI não armazena tokens. Use a conta criada pelo bootstrap e troque a senha quando solicitado. Não há credenciais padrão.
+
+Login, logout e troca de senha tratam falhas sem repetição automática. Após trocar a senha, é necessário entrar novamente. Uma resposta 401 remove a sessão local. Produção deve servir o build web e `/api` na mesma origem; `vite preview` isolado não substitui essa configuração.
 
 ### Configuração operacional
 
