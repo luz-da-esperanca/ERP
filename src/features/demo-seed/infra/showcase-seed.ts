@@ -32,6 +32,11 @@ const demoAccounts = [
     displayName: 'Demonstração — Responsável por Atividade',
     roleCodes: ['ACTIVITY_MANAGER'],
   },
+  {
+    login: 'dario.brito',
+    displayName: 'Dario Brito',
+    roleCodes: ['ADMINISTRATOR', 'COORDINATION'],
+  },
 ] as const;
 
 export async function seedShowcase(

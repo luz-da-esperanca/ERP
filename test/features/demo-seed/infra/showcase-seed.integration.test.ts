@@ -12,6 +12,74 @@ describe('Synthetic showcase seed', () => {
     );
   });
 
+  it('creates Dario Brito with every capability through the combined administrator and coordination roles', async () => {
+    await seedShowcase(fixture.runtime, fixture.config, password);
+    const { cookie, response } = await fixture.login('dario.brito', password);
+    const session = response.json().data;
+    expect(session.user).toMatchObject({
+      login: 'dario.brito',
+      displayName: 'Dario Brito',
+      active: true,
+      mustChangePassword: false,
+      roleCodes: ['ADMINISTRATOR', 'COORDINATION'],
+    });
+    expect(session.capabilities).toEqual([
+      'accounts.manage',
+      'attendance.read',
+      'attendance.write',
+      'audit.read',
+      'eligibility.evaluate',
+      'eligibility.policy.write',
+      'eligibility.read',
+      'featureDecisions.manage',
+      'participants.lookup',
+      'projects.read',
+      'projects.write',
+      'registration.merge',
+      'registration.read',
+      'registration.write',
+      'reports.read',
+      'socialForms.read',
+      'socialForms.write',
+    ]);
+    const user = await fixture.runtime.app.inject({
+      method: 'POST',
+      url: '/api/v1/users',
+      headers: fixture.headers(cookie),
+      payload: {
+        login: 'synthetic.dario-created',
+        displayName: 'Synthetic operator',
+        initialPassword: fixture.initialPassword,
+        roleCodes: ['ACTIVITY_MANAGER'],
+      },
+    });
+    expect(user.statusCode, user.body).toBe(201);
+    const family = await fixture.runtime.app.inject({
+      method: 'POST',
+      url: '/api/v1/families',
+      headers: fixture.headers(cookie),
+      payload: { referenceName: 'Família fictícia de teste' },
+    });
+    expect(family.statusCode, family.body).toBe(201);
+    const audit = await fixture.runtime.app.inject({
+      method: 'GET',
+      url: `/api/v1/audit-entries?entityType=Family&entityId=${family.json().data.id}`,
+      headers: fixture.headers(cookie),
+    });
+    expect(audit.statusCode, audit.body).toBe(200);
+    expect(audit.json().data[0].actorId).toBe(session.user.id);
+    await seedShowcase(fixture.runtime, fixture.config, password);
+    const repeated = await fixture.login('dario.brito', password);
+    expect(repeated.response.json().data.user).toEqual(session.user);
+    const users = await fixture.runtime.app.inject({
+      method: 'GET',
+      url: '/api/v1/users',
+      headers: fixture.headers(repeated.cookie),
+    });
+    expect(users.statusCode, users.body).toBe(200);
+    expect(users.json().pagination.total).toBe(6);
+  });
+
   it('creates usable individual accounts with the four separate roles', async () => {
     await seedShowcase(fixture.runtime, fixture.config, password);
     const roles = {
@@ -37,7 +105,7 @@ describe('Synthetic showcase seed', () => {
       url: '/api/v1/users',
       headers: fixture.headers(admin.cookie),
     });
-    expect(users.json().pagination.total).toBe(4);
+    expect(users.json().pagination.total).toBe(5);
     const denied = await fixture.runtime.app.inject({
       method: 'GET',
       url: '/api/v1/families',

@@ -23,14 +23,15 @@ O seed rejeita `NODE_ENV=production` e `DATA_MODE=REAL`. Para preparar um ambien
 
 A senha é gerada aleatoriamente na primeira execução e salva em `.env.demo`, com permissão `600`. Esse arquivo é ignorado pelo Git e reutilizado nas próximas execuções. Abra-o localmente para consultar `DEMO_SEED_PASSWORD`; as quatro contas de demonstração usam esse valor. O comando não imprime a senha. Preserve o arquivo enquanto utilizar esse banco; alterar ou apagar o arquivo não muda a senha das contas existentes.
 
-| Login               | Perfil                    | Fluxo sugerido                                            |
-| ------------------- | ------------------------- | --------------------------------------------------------- |
-| `demo.coordination` | Coordenação               | Navegar pelos módulos sociais, relatórios e configurações |
-| `demo.social`       | Assistência Social        | Cadastro, ficha social e avaliação familiar               |
-| `demo.activity`     | Responsável por Atividade | Projetos, inscrições, encontros e frequência              |
-| `demo.admin`        | Administrador             | Contas e perfis; sem acesso automático aos dados sociais  |
+| Login               | Perfil                      | Fluxo sugerido                                            |
+| ------------------- | --------------------------- | --------------------------------------------------------- |
+| `demo.coordination` | Coordenação                 | Navegar pelos módulos sociais, relatórios e configurações |
+| `demo.social`       | Assistência Social          | Cadastro, ficha social e avaliação familiar               |
+| `demo.activity`     | Responsável por Atividade   | Projetos, inscrições, encontros e frequência              |
+| `demo.admin`        | Administrador               | Contas e perfis; sem acesso automático aos dados sociais  |
+| `dario.brito`       | Administrador + Coordenação | Conta Dario Brito, com todas as permissões do MVP         |
 
-As contas são individuais, com os perfis separados. A troca inicial de senha é concluída pelo seed para que estejam prontas para login. Nenhuma credencial fixa é distribuída pelo repositório.
+As quatro contas `demo.*` são individuais, com os perfis separados. A conta Dario Brito combina `ADMINISTRATOR` e `COORDINATION`, cobrindo todas as permissões atuais sem criar outro perfil no catálogo. A troca inicial de senha é concluída pelo seed para que as contas estejam prontas para login. Nenhuma credencial fixa é distribuída pelo repositório.
 
 ## Cenários disponíveis
 
