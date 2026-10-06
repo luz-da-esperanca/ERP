@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,300..900;1,6..12,300..900&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,400..800;1,8..60,400..800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"tertiary":"#5d5c58","on-background":"#1b1c1c","background":"#fbf9f8","on-error":"#ffffff","surface-container-lowest":"#ffffff","surface-bright":"#fbf9f8","on-surface-variant":"#42493c","inverse-primary":"#a0d57e","secondary-fixed":"#ffddb6","primary-container":"#508134","surface-dim":"#dbd9d9","on-tertiary-fixed":"#1c1c19","on-tertiary":"#ffffff","tertiary-fixed-dim":"#c8c6c2","on-tertiary-container":"#fbffe4","outline":"#72796b","secondary-fixed-dim":"#e6c093","surface-container-high":"#eae8e7","on-tertiary-fixed-variant":"#474743","on-secondary-fixed":"#2a1800","on-primary-fixed-variant":"#245107","error-container":"#ffdad6","secondary-container":"#fed6a7","surface-variant":"#e4e2e2","error":"#ba1a1a","on-surface":"#1b1c1c","inverse-surface":"#303030","surface":"#fbf9f8","tertiary-fixed":"#e5e2dd","tertiary-container":"#767471","surface-container":"#efeded","surface-container-low":"#f5f3f3","on-primary-container":"#f8ffed","surface-container-highest":"#e4e2e2","primary-fixed":"#bbf297","on-secondary-fixed-variant":"#5c421f","surface-tint":"#3b6a20","on-primary":"#ffffff","primary":"#39671d","inverse-on-surface":"#f2f0f0","secondary":"#765934","on-secondary":"#ffffff","on-primary-fixed":"#092100","on-secondary-container":"#795b36","outline-variant":"#c2c9b8","primary-fixed-dim":"#a0d57e","on-error-container":"#93000a"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xxs":"0.125rem","space-md":"1rem","margin-lg":"3rem","space-3xl":"4rem","space-2xl":"3rem","gutter":"1rem","margin":"1rem","gutter-md":"1.5rem","space-xl":"2rem","gutter-lg":"2rem","margin-md":"2rem","space-sm":"0.5rem","space-lg":"1.5rem","space-xs":"0.25rem"},fontFamily:{"body-sm":["Nunito Sans"],"headline-sm":["\"Source Serif 4\""],"data-mono":["JetBrains Mono"],"body-md":["Nunito Sans"],"headline-lg":["\"Source Serif 4\""],"display-lg-mobile":["\"Source Serif 4\""],"title-sm":["Nunito Sans"],"display-lg":["\"Source Serif 4\""],"label-lg":["Nunito Sans"],"headline-lg-mobile":["\"Source Serif 4\""],"headline-md":["\"Source Serif 4\""],"title-md":["Nunito Sans"],"body-lg":["Nunito Sans"],"label-sm":["Nunito Sans"],"label-md":["Nunito Sans"]},fontSize:{"body-sm":["12px",{"lineHeight":"16px","letterSpacing":"0.01em","fontWeight":"400"}],"headline-sm":["18px",{"lineHeight":"26px","letterSpacing":"0em","fontWeight":"600"}],"data-mono":["13px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"500"}],"body-md":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"36px","letterSpacing":"-0.01em","fontWeight":"600"}],"display-lg-mobile":["28px",{"lineHeight":"36px","letterSpacing":"-0.01em","fontWeight":"600"}],"title-sm":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"700"}],"display-lg":["36px",{"lineHeight":"44px","letterSpacing":"-0.02em","fontWeight":"600"}],"label-lg":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"headline-lg-mobile":["22px",{"lineHeight":"30px","letterSpacing":"0em","fontWeight":"600"}],"headline-md":["22px",{"lineHeight":"30px","letterSpacing":"0em","fontWeight":"600"}],"title-md":["16px",{"lineHeight":"24px","letterSpacing":"0em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","letterSpacing":"0em","fontWeight":"400"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"700"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"600"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between overflow-y-auto"><div class="p-space-lg"><div class="flex items-center gap-space-sm mb-space-xl px-space-xs"><div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm"><span class="material-symbols-outlined text-[20px]">volunteer_activism</span></div><div><span class="block font-headline-sm text-headline-sm text-primary leading-tight">Luz da Esperança</span><span class="block font-label-sm text-label-sm text-secondary uppercase tracking-wider">Assistência Social</span></div></div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-title-sm"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="inicio" href="#"><span class="material-symbols-outlined text-[20px]">home</span><span class="font-body-md text-body-md">Início</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="pessoas-e-familias" href="#"><span class="material-symbols-outlined text-[20px]">group</span><span class="font-body-md text-body-md">Pessoas e famílias</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="projetos-e-atividades" href="#"><span class="material-symbols-outlined text-[20px]">assignment</span><span class="font-body-md text-body-md">Projetos e atividades</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="frequencia-e-aptidao" href="#"><span class="material-symbols-outlined text-[20px]">fact_check</span><span class="font-body-md text-body-md">Frequência e aptidão</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="atendimentos-e-entregas" href="#"><span class="material-symbols-outlined text-[20px]">inventory_2</span><span class="font-body-md text-body-md">Atendimentos e entregas</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="estoque" href="#"><span class="material-symbols-outlined text-[20px]">warehouse</span><span class="font-body-md text-body-md">Estoque</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="relatorios" href="#"><span class="material-symbols-outlined text-[20px]">analytics</span><span class="font-body-md text-body-md">Relatórios</span></a><a class="flex items-center justify-between px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="administracao" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[20px]">admin_panel_settings</span><span class="font-body-md text-body-md">Administração</span></div><span class="material-symbols-outlined text-[16px] text-tertiary">lock</span></a></nav></div><div class="p-space-lg"><div class="p-space-sm rounded-xl bg-surface-container flex items-center gap-space-sm"><span class="material-symbols-outlined text-secondary text-[20px]">location_city</span><div class="overflow-hidden"><span class="block font-label-sm text-label-sm text-on-surface truncate">Polo Parnaíba - PI</span><span class="block font-body-sm text-body-sm text-tertiary truncate">Unidade São Vicente</span></div></div></div></aside><div class="pl-64 flex flex-col min-h-screen"><header class="fixed top-0 left-64 right-0 h-16 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md flex-1 max-w-xl"><div class="relative w-full max-w-md"><span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-[20px]">search</span><input class="w-full h-10 pl-10 pr-space-md rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary shadow-none transition-all" placeholder="Buscar por família, pessoa ou código..." type="text"/></div><div class="inline-flex items-center gap-space-xs px-space-sm py-space-xxs rounded-full bg-primary-fixed text-on-primary-fixed"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-sm text-label-sm font-bold tracking-wide">PARNAÍBA — OPERAÇÃO ATIVA</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><button class="w-9 h-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" title="Ajuda e Manuais" type="button"><span class="material-symbols-outlined text-[20px]">help_outline</span></button><button class="w-9 h-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface relative transition-colors" title="Notificações" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span></button></div><div class="h-6 w-px bg-outline-variant"></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<!-- Top Navigation & Breadcrumbs -->
+<div class="px-space-xl pt-space-lg pb-space-sm">
+<div class="flex items-center gap-space-sm text-tertiary">
+<a class="inline-flex items-center gap-space-xs font-label-md text-label-md text-secondary hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+        Voltar para Detalhes da atividade
+      </a>
+<span class="text-tertiary-fixed-dim">/</span>
+<span class="font-body-sm text-body-sm text-tertiary">Projeto Aprender Mais</span>
+<span class="text-tertiary-fixed-dim">/</span>
+<span class="font-body-sm text-body-sm text-on-surface font-semibold">Reforço Escolar Fundamental I</span>
+</div>
+<!-- Page Header -->
+<div class="mt-space-md flex flex-col md:flex-row md:items-end justify-between gap-space-md pb-space-md">
+<div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Inscrições da atividade</h1>
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm font-bold tracking-wide">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+            Periódica • Ativa
+          </span>
+</div>
+<p class="font-body-md text-body-md text-secondary mt-space-xxs flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-tertiary">domain</span>
+          Polo Parnaíba — Unidade São Vicente
+        </p>
+</div>
+<!-- Quick Metrics Pill -->
+<div class="flex items-center gap-space-md self-start md:self-auto">
+<div class="px-space-md py-space-xs rounded-xl bg-surface-container flex items-center gap-space-sm shadow-sm">
+<div class="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">school</span>
+</div>
+<div>
+<span class="block font-label-sm text-label-sm text-tertiary uppercase">Turma Matutina</span>
+<span class="block font-title-sm text-title-sm text-on-surface">Terça e Quinta • 08h30</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Canvas -->
+<div class="px-space-xl pb-space-3xl flex flex-col gap-space-lg">
+<!-- Action Bar -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col sm:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md w-full sm:w-auto flex-1 max-w-lg">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-[20px]">search</span>
+<input class="w-full h-11 pl-10 pr-space-md rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest shadow-inner transition-all" id="searchInput" placeholder="Buscar participante por nome ou NIS..." type="text"/>
+</div>
+<span class="hidden md:inline-flex items-center whitespace-nowrap font-label-md text-label-md text-tertiary px-space-sm py-space-xs rounded-lg bg-surface-container">
+<span class="w-2 h-2 rounded-full bg-primary mr-1.5"></span>
+          5 participantes ativos
+        </span>
+</div>
+<div class="flex items-center gap-space-sm w-full sm:w-auto justify-end">
+<button class="inline-flex items-center justify-center gap-space-xs h-11 px-space-lg rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-sm hover:shadow transition-all w-full sm:w-auto" onclick="openEnrollDrawer()" type="button">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+          + Inscrever participante
+        </button>
+</div>
+</div>
+<!-- Active Table Card -->
+<div class="rounded-xl bg-surface-container-lowest shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low text-secondary font-title-sm text-title-sm">
+<th class="py-space-md px-space-lg" scope="col">Participante</th>
+<th class="py-space-md px-space-lg" scope="col">Família na inscrição</th>
+<th class="py-space-md px-space-lg" scope="col">Data de início</th>
+<th class="py-space-md px-space-lg" scope="col">Situação</th>
+<th class="py-space-md px-space-lg text-right" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y-0" id="participantsTableBody">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-title-sm text-title-sm shrink-0">
+                    ER
+                  </div>
+<div>
+<span class="block font-title-sm text-title-sm text-on-surface">Emanuelly Rocha dos Santos</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 162.83940.12-8</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="block font-body-md text-body-md text-on-surface">Família Rocha dos Santos</span>
+<span class="block font-body-sm text-body-sm text-tertiary">Resp: Marcélia Maria da Rocha</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="font-data-mono text-data-mono text-on-surface">06/02/2025</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-primary-fixed/60 text-on-primary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                  Ativa
+                </span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="w-8 h-8 rounded-lg inline-flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-surface-container-lowest">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-title-sm text-title-sm shrink-0">
+                    GB
+                  </div>
+<div>
+<span class="block font-title-sm text-title-sm text-on-surface">Gabriel Barbosa de Lima</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 204.19572.84-1</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="block font-body-md text-body-md text-on-surface">Família Lima Silva</span>
+<span class="block font-body-sm text-body-sm text-tertiary">Resp: Antônia Barbosa de Lima</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="font-data-mono text-data-mono text-on-surface">06/02/2025</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-primary-fixed/60 text-on-primary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                  Ativa
+                </span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="w-8 h-8 rounded-lg inline-flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-tertiaria bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center font-title-sm text-title-sm shrink-0">
+                    LS
+                  </div>
+<div>
+<span class="block font-title-sm text-title-sm text-on-surface">Lucas Silveira Nascimento</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 189.44210.03-5</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="block font-body-md text-body-md text-on-surface">Família Silveira</span>
+<span class="block font-body-sm text-body-sm text-tertiary">Resp: Cleide Maria Silveira</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="font-data-mono text-data-mono text-on-surface">11/02/2025</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-primary-fixed/60 text-on-primary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                  Ativa
+                </span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="w-8 h-8 rounded-lg inline-flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-surface-container-lowest">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed-dim text-on-secondary-fixed flex items-center justify-center font-title-sm text-title-sm shrink-0">
+                    MS
+                  </div>
+<div>
+<span class="block font-title-sm text-title-sm text-on-surface">Maria Clara Silva Prado</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 231.50619.75-9</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="block font-body-md text-body-md text-on-surface">Família Prado Evangelista</span>
+<span class="block font-body-sm text-body-sm text-tertiary">Resp: Janete Ribeiro Silva</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="font-data-mono text-data-mono text-on-surface">13/02/2025</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-primary-fixed/60 text-on-primary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                  Ativa
+                </span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="w-8 h-8 rounded-lg inline-flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-space-md px-space-lg">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-full bg-primary-fixed-dim text-on-primary-fixed flex items-center justify-center font-title-sm text-title-sm shrink-0">
+                    YC
+                  </div>
+<div>
+<span class="block font-title-sm text-title-sm text-on-surface">Yago Cavalcante de Morais</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 198.77312.44-0</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="block font-body-md text-body-md text-on-surface">Família Morais da Penha</span>
+<span class="block font-body-sm text-body-sm text-tertiary">Resp: Tânia Francisca Morais</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="font-data-mono text-data-mono text-on-surface">18/02/2025</span>
+</td>
+<td class="py-space-md px-space-lg">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-primary-fixed/60 text-on-primary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                  Ativa
+                </span>
+</td>
+<td class="py-space-md px-space-lg text-right">
+<button class="w-8 h-8 rounded-lg inline-flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors" title="Opções" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Count -->
+<div class="p-space-md bg-surface-container-low flex items-center justify-between text-body-sm font-body-sm text-tertiary">
+<span>Mostrando 5 de 5 inscritos regulares</span>
+<span class="font-data-mono text-data-mono text-secondary">Última atualização: hoje às 11:42</span>
+</div>
+</div>
+<!-- Collapsible History Card -->
+<div class="rounded-xl bg-surface-container-lowest shadow-sm overflow-hidden">
+<button aria-expanded="false" class="w-full p-space-lg flex items-center justify-between hover:bg-surface-container-low transition-colors text-left" id="historyToggleBtn" onclick="toggleHistory()" type="button">
+<div class="flex items-center gap-space-md">
+<div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">history</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md text-on-surface leading-snug">Histórico de inscrições</h2>
+<p class="font-body-sm text-body-sm text-tertiary">3 registros de desligamentos ou transferências preservados nesta turma</p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-tertiary hidden sm:inline-block">Expandir / Recolher</span>
+<span class="material-symbols-outlined text-[22px] text-tertiary transition-transform duration-200" id="historyArrow">keyboard_arrow_down</span>
+</div>
+</button>
+<!-- History Content Panel (Collapsible) -->
+<div class="hidden overflow-x-auto bg-surface-container-low/40" id="historyPanel">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container text-secondary font-label-md text-label-md">
+<th class="py-space-sm px-space-lg" scope="col">Participante anterior</th>
+<th class="py-space-sm px-space-lg" scope="col">Período de vínculo</th>
+<th class="py-space-sm px-space-lg" scope="col">Motivo do desligamento</th>
+<th class="py-space-sm px-space-lg" scope="col">Registro Social</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-space-sm px-space-lg">
+<span class="block font-title-sm text-title-sm text-on-surface">Kaua Victor de Santana</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 167.33209.11-2</span>
+</td>
+<td class="py-space-sm px-space-lg font-data-mono text-data-mono text-tertiary">
+                02/08/2024 a 15/12/2024
+              </td>
+<td class="py-space-sm px-space-lg">
+<span class="inline-flex items-center gap-1 text-tertiary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">school</span>
+                  Conclusão do ciclo Fundamental I
+                </span>
+</td>
+<td class="py-space-sm px-space-lg font-body-sm text-body-sm text-tertiary">
+                Arquivado por Assist. Social Helena P.
+              </td>
+</tr>
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-space-sm px-space-lg">
+<span class="block font-title-sm text-title-sm text-on-surface">Lívia Maria Fontenele</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 202.99184.56-4</span>
+</td>
+<td class="py-space-sm px-space-lg font-data-mono text-data-mono text-tertiary">
+                05/03/2024 a 20/11/2024
+              </td>
+<td class="py-space-sm px-space-lg">
+<span class="inline-flex items-center gap-1 text-tertiary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+                  Mudança de bairro (Transferência p/ Ilha Grande)
+                </span>
+</td>
+<td class="py-space-sm px-space-lg font-body-sm text-body-sm text-tertiary">
+                Auditoria regular Polo 01
+              </td>
+</tr>
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-space-sm px-space-lg">
+<span class="block font-title-sm text-title-sm text-on-surface">Rafael Costa Medeiros</span>
+<span class="block font-data-mono text-data-mono text-tertiary">NIS: 191.04285.63-7</span>
+</td>
+<td class="py-space-sm px-space-lg font-data-mono text-data-mono text-tertiary">
+                10/04/2024 a 08/10/2024
+              </td>
+<td class="py-space-sm px-space-lg">
+<span class="inline-flex items-center gap-1 text-tertiary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                  Incompatibilidade de horário escolar (turno tarde)
+                </span>
+</td>
+<td class="py-space-sm px-space-lg font-body-sm text-body-sm text-tertiary">
+                Validado por Assist. Social Helena P.
+              </td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- DRAWER OVERLAY & PANEL -->
+<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none" id="enrollDrawerBackdrop" onclick="closeEnrollDrawer()"></div>
+<div class="fixed top-0 right-0 h-full w-full max-w-[430px] bg-surface-container-lowest shadow-2xl z-50 flex flex-col justify-between transform translate-x-full transition-transform duration-300 ease-in-out" id="enrollDrawerPanel">
+<!-- Drawer Header -->
+<div class="p-space-lg bg-surface-container-low flex items-start justify-between">
+<div>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary uppercase font-bold tracking-wider mb-space-xxs">
+<span class="material-symbols-outlined text-[15px]">badge</span>
+          Inscrição Rápida
+        </span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Nova inscrição</h3>
+<p class="font-body-sm text-body-sm text-secondary">Reforço Escolar Fundamental I</p>
+</div>
+<button class="w-9 h-9 rounded-lg flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors" onclick="closeEnrollDrawer()" title="Fechar painel" type="button">
+<span class="material-symbols-outlined text-[22px]">close</span>
+</button>
+</div>
+<!-- Drawer Form Body -->
+<div class="p-space-lg flex-1 overflow-y-auto flex flex-col gap-space-lg">
+<!-- Field 1: Participante com Autocomplete -->
+<div class="relative flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface flex items-center justify-between" for="participantSearch">
+<span>Participante <span class="text-error">*</span></span>
+<span class="font-label-sm text-label-sm text-tertiary font-normal">Crianças elegíveis</span>
+</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-[20px]">person_search</span>
+<input autocomplete="off" class="w-full h-11 pl-10 pr-10 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all" id="participantSearch" oninput="handleParticipantAutocomplete(this.value)" placeholder="Digite nome ou NIS do participante..." type="text"/>
+<button class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-tertiary hover:text-on-surface" id="clearParticipantBtn" onclick="clearSelectedParticipant()" type="button">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+</button>
+</div>
+<!-- Autocomplete Suggestions Dropdown -->
+<div class="hidden absolute top-full left-0 right-0 mt-1 bg-surface-container-lowest rounded-xl shadow-xl z-20 overflow-hidden" id="autocompleteList">
+<div class="p-space-sm hover:bg-surface-container-low cursor-pointer flex flex-col transition-colors" onclick="selectParticipant('Beatriz Menezes de Sousa', '178.50291.64-3', 'Família Menezes Prado', 'Cláudia Regina de Menezes')">
+<span class="font-title-sm text-title-sm text-on-surface">Beatriz Menezes de Sousa</span>
+<span class="font-data-mono text-data-mono text-tertiary">NIS: 178.50291.64-3 • Família Menezes Prado</span>
+</div>
+<div class="p-space-sm hover:bg-surface-container-low cursor-pointer flex flex-col transition-colors bg-surface-container-lowest" onclick="selectParticipant('Pedro Henrique Alves Ribeiro', '210.38475.92-0', 'Família Alves Ribeiro', 'Sônia Maria Alves')">
+<span class="font-title-sm text-title-sm text-on-surface">Pedro Henrique Alves Ribeiro</span>
+<span class="font-data-mono text-data-mono text-tertiary">NIS: 210.38475.92-0 • Família Alves Ribeiro</span>
+</div>
+</div>
+</div>
+<!-- Field 2: Família Vinculada (Readonly/Protegido) -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface flex items-center justify-between" for="linkedFamily">
+<span>Família vinculada</span>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-tertiary">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+            Automático
+          </span>
+</label>
+<div class="relative">
+<input class="w-full h-11 px-space-md rounded-lg bg-surface-container text-tertiary font-body-md text-body-md cursor-not-allowed select-none focus:outline-none" id="linkedFamily" placeholder="Aguardando seleção do participante..." readonly="" type="text"/>
+</div>
+<p class="font-body-sm text-body-sm text-tertiary" id="responsibleSubtext">
+          O núcleo familiar é extraído diretamente da ficha cadastral social.
+        </p>
+</div>
+<!-- Field 3: Data de Início -->
+<div class="flex flex-col gap-space-xs">
+<label class="font-label-md text-label-md text-on-surface" for="startDateInput">
+          Data de início <span class="text-error">*</span>
+</label>
+<div class="relative">
+<input class="w-full h-11 px-space-md rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all" id="startDateInput" type="date"/>
+</div>
+</div>
+<!-- Informative Notice (Succinct) -->
+<div class="mt-space-md p-space-md rounded-xl bg-surface-container-low flex items-start gap-space-sm text-secondary">
+<span class="material-symbols-outlined text-[20px] text-tertiary shrink-0 mt-0.5">info</span>
+<p class="font-body-sm text-body-sm leading-relaxed">
+          A inscrição organiza a participação e não registra presença.
+        </p>
+</div>
+</div>
+<!-- Drawer Footer Actions -->
+<div class="p-space-lg bg-surface-container-low flex items-center justify-end gap-space-sm">
+<button class="h-11 px-space-lg rounded-lg bg-surface-container hover:bg-surface-container-high text-secondary font-label-lg text-label-lg transition-colors" onclick="closeEnrollDrawer()" type="button">
+        Cancelar
+      </button>
+<button class="h-11 px-space-lg rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-sm hover:shadow transition-all inline-flex items-center gap-space-xs" id="confirmEnrollBtn" onclick="confirmNewEnrollment()" type="button">
+<span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+        Confirmar inscrição
+      </button>
+</div>
+</div>
+<!-- Inline Micro-interactions Script -->
+<script>
+    function toggleHistory() {
+      const panel = document.getElementById('historyPanel');
+      const arrow = document.getElementById('historyArrow');
+      const btn = document.getElementById('historyToggleBtn');
+      
+      const isHidden = panel.classList.contains('hidden');
+      if (isHidden) {
+        panel.classList.remove('hidden');
+        arrow.classList.add('rotate-180');
+        btn.setAttribute('aria-expanded', 'true');
+      } else {
+        panel.classList.add('hidden');
+        arrow.classList.remove('rotate-180');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function openEnrollDrawer() {
+      const backdrop = document.getElementById('enrollDrawerBackdrop');
+      const panel = document.getElementById('enrollDrawerPanel');
+      
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+      backdrop.classList.add('opacity-100', 'pointer-events-auto');
+      panel.classList.remove('translate-x-full');
+      panel.classList.add('translate-x-0');
+
+      // Pre-set today date if empty
+      const dateInput = document.getElementById('startDateInput');
+      if (!dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+      }
+      setTimeout(() => {
+        document.getElementById('participantSearch').focus();
+      }, 300);
+    }
+
+    function closeEnrollDrawer() {
+      const backdrop = document.getElementById('enrollDrawerBackdrop');
+      const panel = document.getElementById('enrollDrawerPanel');
+      const autocomplete = document.getElementById('autocompleteList');
+      
+      backdrop.classList.remove('opacity-100', 'pointer-events-auto');
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+      panel.classList.remove('translate-x-0');
+      panel.classList.add('translate-x-full');
+      autocomplete.classList.add('hidden');
+    }
+
+    function handleParticipantAutocomplete(query) {
+      const dropdown = document.getElementById('autocompleteList');
+      const clearBtn = document.getElementById('clearParticipantBtn');
+      if (query.trim().length >= 2) {
+        dropdown.classList.remove('hidden');
+        clearBtn.classList.remove('hidden');
+      } else {
+        dropdown.classList.add('hidden');
+        if (query.length === 0) clearBtn.classList.add('hidden');
+      }
+    }
+
+    function selectParticipant(name, nis, family, responsible) {
+      document.getElementById('participantSearch').value = name;
+      document.getElementById('linkedFamily').value = family;
+      document.getElementById('responsibleSubtext').innerHTML = `Responsável legal: <strong class="text-on-surface">${responsible}</strong>`;
+      document.getElementById('autocompleteList').classList.add('hidden');
+      document.getElementById('clearParticipantBtn').classList.remove('hidden');
+    }
+
+    function clearSelectedParticipant() {
+      document.getElementById('participantSearch').value = '';
+      document.getElementById('linkedFamily').value = '';
+      document.getElementById('responsibleSubtext').innerText = 'O núcleo familiar é extraído diretamente da ficha cadastral social.';
+      document.getElementById('autocompleteList').classList.add('hidden');
+      document.getElementById('clearParticipantBtn').classList.add('hidden');
+      document.getElementById('participantSearch').focus();
+    }
+
+    function confirmNewEnrollment() {
+      const pName = document.getElementById('participantSearch').value;
+      const fName = document.getElementById('linkedFamily').value;
+      const sDate = document.getElementById('startDateInput').value;
+
+      if (!pName || !fName) {
+        alert('Por favor, selecione um participante válido da busca.');
+        return;
+      }
+
+      // Format date for visual display
+      let formattedDate = 'Hoje';
+      if (sDate) {
+        const parts = sDate.split('-');
+        if (parts.length === 3) formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+
+      // Add to table
+      const tbody = document.getElementById('participantsTableBody');
+      const initials = pName.split(' ').map(n => n[0]).slice(0, 2).join('');
+      
+      const newRow = document.createElement('tr');
+      newRow.className = 'hover:bg-surface-container-low/60 transition-colors bg-primary-fixed/20';
+      newRow.innerHTML = `
+        <td class="py-space-md px-space-lg">
+          <div class="flex items-center gap-space-md">
+            <div class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-title-sm text-title-sm shrink-0">
+              ${initials}
+            </div>
+            <div>
+              <span class="block font-title-sm text-title-sm text-on-surface">${pName}</span>
+              <span class="block font-data-mono text-data-mono text-primary font-bold">Inscrição recém-confirmada</span>
+            </div>
+          </div>
+        </td>
+        <td class="py-space-md px-space-lg">
+          <span class="block font-body-md text-body-md text-on-surface">${fName}</span>
+          <span class="block font-body-sm text-body-sm text-tertiary">Polo Parnaíba</span>
+        </td>
+        <td class="py-space-md px-space-lg">
+          <span class="font-data-mono text-data-mono text-on-surface">${formattedDate}</span>
+        </td>
+        <td class="py-space-md px-space-lg">
+          <span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-primary-fixed/60 text-on-primary-fixed-variant font-label-sm text-label-sm font-bold">
+            <span class="material-symbols-outlined text-[14px]">check_circle</span>
+            Ativa
+          </span>
+        </td>
+        <td class="py-space-md px-space-lg text-right">
+          <button type="button" class="w-8 h-8 rounded-lg inline-flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors" title="Opções">
+            <span class="material-symbols-outlined text-[20px]">more_vert</span>
+          </button>
+        </td>
+      `;
+
+      tbody.insertBefore(newRow, tbody.firstChild);
+      closeEnrollDrawer();
+      clearSelectedParticipant();
+    }
+
+    // Filter table in real-time
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+      const term = e.target.value.toLowerCase();
+      const rows = document.querySelectorAll('#participantsTableBody tr');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(term) ? '' : 'none';
+      });
+    });
+  </script>
+</div></main></div>
+</body></html>

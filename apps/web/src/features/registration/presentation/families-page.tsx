@@ -13,6 +13,15 @@ import {
 } from '../../../shared/ui';
 import { normalizeSearch } from '../domain/memberships';
 import { displayInstant } from '../../../shared/time';
+
+const pageSize = 20;
+
+function matchesFamilyQuery(family: FamilySummary, query: string) {
+  return normalizeSearch(
+    `${family.code} ${family.referenceName ?? ''} ${family.neighborhood ?? ''}`,
+  ).includes(normalizeSearch(query));
+}
+
 export function FamilyTable({ families }: { families: FamilySummary[] }) {
   if (!families.length) return <Empty>Nenhuma família encontrada.</Empty>;
   return (
@@ -83,10 +92,8 @@ export function FamiliesPage() {
       />
       <AsyncView state={state}>
         {(families) => {
-          const filtered = families.filter((f) =>
-            normalizeSearch(
-              `${f.code} ${f.referenceName ?? ''} ${f.neighborhood ?? ''}`,
-            ).includes(normalizeSearch(query)),
+          const filtered = families.filter((family) =>
+            matchesFamilyQuery(family, query),
           );
           return (
             <Panel>
@@ -95,25 +102,30 @@ export function FamiliesPage() {
                 configurado.
               </p>
               <FamilyTable
-                families={filtered.slice((page - 1) * 20, page * 20)}
+                families={filtered.slice(
+                  (page - 1) * pageSize,
+                  page * pageSize,
+                )}
               />
-              <div className="pagination">
-                <button
-                  className="button secondary"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Anterior
-                </button>
-                <span>Página {page}</span>
-                <button
-                  className="button secondary"
-                  disabled={page * 20 >= filtered.length}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Próxima
-                </button>
-              </div>
+              {filtered.length > pageSize ? (
+                <div className="pagination">
+                  <button
+                    className="button secondary"
+                    disabled={page === 1}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    Anterior
+                  </button>
+                  <span>Página {page}</span>
+                  <button
+                    className="button secondary"
+                    disabled={page * pageSize >= filtered.length}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    Próxima
+                  </button>
+                </div>
+              ) : null}
             </Panel>
           );
         }}
