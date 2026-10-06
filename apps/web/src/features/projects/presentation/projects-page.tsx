@@ -1,3 +1,5 @@
+import { useId } from 'react';
+import { Plus } from 'lucide-react';
 import type { Activity, ProjectsOverview } from '@erp/contracts/projects';
 import { useErp } from '../../../app/erp-provider';
 import { useQuery } from '../../../shared/use-query';
@@ -46,9 +48,43 @@ function ProjectsContent() {
 
 export function ProjectsPage() {
   const { session } = useErp();
+  const creationHintId = useId();
+  const canRead = session?.capabilities.includes('projects.read');
+  const canWrite = canRead && session?.capabilities.includes('projects.write');
   return (
-    <Page title="Projetos e atividades">
-      {session?.capabilities.includes('projects.read') ? (
+    <Page
+      title="Projetos e atividades"
+      actions={
+        canWrite && (
+          <div className="project-creation-actions">
+            <div className="project-creation-buttons">
+              <button
+                type="button"
+                className="button secondary"
+                disabled
+                aria-describedby={creationHintId}
+              >
+                <Plus aria-hidden="true" size={18} />
+                Nova atividade
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                disabled
+                aria-describedby={creationHintId}
+              >
+                <Plus aria-hidden="true" size={18} />
+                Novo projeto
+              </button>
+            </div>
+            <p id={creationHintId}>
+              Cadastros de projetos e atividades em breve.
+            </p>
+          </div>
+        )
+      }
+    >
+      {canRead ? (
         <ProjectsContent />
       ) : (
         <Alert error>Seu perfil não permite esta operação.</Alert>

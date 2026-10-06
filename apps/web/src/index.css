@@ -407,6 +407,18 @@ h2 {
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
+.project-creation-actions {
+  max-width: 100%;
+}
+.project-creation-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.project-creation-actions p {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+}
 .panel > .project-heading {
   margin: 0;
 }

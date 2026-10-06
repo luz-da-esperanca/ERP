@@ -65,6 +65,29 @@ function renderPage(
 describe('ProjectsPage', () => {
   afterEach(cleanup);
 
+  it('shows planned creation actions with an accessible explanation even without projects', async () => {
+    renderPage(async () => ({ ...overview, projects: [], activities: [] }));
+    await screen.findByText('Nenhum projeto cadastrado.');
+    const explanation = screen.getByText(
+      'Cadastros de projetos e atividades em breve.',
+    );
+    for (const name of ['Novo projeto', 'Nova atividade']) {
+      const button = screen.getByRole('button', { name });
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+      expect(button.getAttribute('aria-describedby')).toBe(explanation.id);
+    }
+  });
+
+  it('hides creation actions from profiles without project write permission', async () => {
+    renderPage(async () => overview, 'ACTIVITY_MANAGER');
+    await screen.findByText('Community project');
+    expect(screen.queryByRole('button', { name: 'Novo projeto' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Nova atividade' })).toBeNull();
+    expect(
+      screen.queryByText('Cadastros de projetos e atividades em breve.'),
+    ).toBeNull();
+  });
+
   it('loads projects and displays their activities using the existing contracts', async () => {
     let resolveOverview!: (data: ProjectsOverview) => void;
     renderPage(
@@ -194,5 +217,7 @@ describe('ProjectsPage', () => {
     );
     expect(load).not.toHaveBeenCalled();
     expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Novo projeto' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Nova atividade' })).toBeNull();
   });
 });
