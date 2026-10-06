@@ -15,6 +15,7 @@ import {
   activityId,
   evidenceBuilder,
   familyId,
+  otherFamilyId,
   personId,
   policyDraft,
   publishedPolicy,
@@ -39,6 +40,10 @@ function fixture(roles: Role[] = ['COORDINATION']) {
     assessment: async (id) =>
       stored.assessments.find((row) => row.id === id) ?? null,
     familyExists: async (id) => id === familyId,
+    families: async () => [
+      { id: familyId, code: '7' },
+      { id: otherFamilyId, code: '8' },
+    ],
     activities: async (ids) =>
       ids.flatMap((id) => {
         const nature = stored.natures.get(id);
@@ -332,6 +337,28 @@ describe('Eligibility evaluation', () => {
       entityType: 'EligibilityAssessment',
       entityId: assessment.id,
     });
+  });
+  it('classifies every family with the same evaluator for reports, optionally narrowed to one family', async () => {
+    const { service, sources, stored, run } = fixture();
+    stored.policies.push(publishedPolicy());
+    sources.member(1);
+    sources
+      .enroll(1)
+      .session('2026-03-10', { 1: 'PRESENT' })
+      .session('2026-03-17', { 1: 'PRESENT' });
+    const rows = await service.evaluateAll('2026-03-31');
+    expect(rows.map((row) => [row.family.code, row.preview.status])).toEqual([
+      ['7', 'ELIGIBLE'],
+      ['8', 'PENDING'],
+    ]);
+    expect(rows[1]!.preview.pendingReasons).toEqual(['MEMBERSHIP_UNRESOLVED']);
+    expect(
+      (await service.evaluateAll('2026-03-31', otherFamilyId)).map(
+        (row) => row.family.id,
+      ),
+    ).toEqual([otherFamilyId]);
+    expect(run).not.toHaveBeenCalled();
+    expect(stored.assessments).toEqual([]);
   });
   it('keeps a saved assessment unchanged after its sources are corrected', async () => {
     const { service, context, principal, sources, stored } = fixture();

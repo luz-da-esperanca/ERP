@@ -4,7 +4,7 @@ Monorepo TypeScript do MVP. O recorte e suas decisões estão no [índice das sp
 
 ## Estado da implementação
 
-O backend entrega **CORE, ACS, CAD, ATV, FRQ, FIC, APT e auditoria dessas entidades**:
+O backend entrega **CORE, ACS, CAD, ATV, FRQ, FIC, APT, REL e auditoria dessas entidades**:
 
 - Fastify com contratos Zod, paginação, erros padronizados e validação da configuração.
 - PostgreSQL/Prisma com migration reproduzível, revisões, autoria e auditoria imutável.
@@ -28,8 +28,9 @@ O backend entrega **CORE, ACS, CAD, ATV, FRQ, FIC, APT e auditoria dessas entida
 - Políticas de aptidão versionadas e imutáveis, sem valores padrão; sem política, a situação é Pendente.
 - Prévia e avaliação persistida em três situações, com evidências, limites inteiros e cobertura declarada.
 - Unificação de pessoas e famílias com prévia, resolução explícita de conflitos e histórico recuperável.
+- Históricos familiar e pessoal e relatórios de alcance, frequência, aptidão e qualidade, com detalhe coerente com cada total.
 
-Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md), [FIC](docs/api/social-forms.md), [APT](docs/api/eligibility.md), [unificação](docs/api/identity-merges.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md), [FRQ](docs/api/integrating-attendance.md) e [FIC](docs/api/integrating-social-forms.md) apresentam os fluxos HTTP. **Ainda não há endpoints de REL.** Pendências automáticas de dados ausentes (`MISSING_DATA`) continuam pendentes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões FIC está implementada; o mecanismo de inicialização recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md), [FIC](docs/api/social-forms.md), [APT](docs/api/eligibility.md), [unificação](docs/api/identity-merges.md), [REL](docs/api/reports.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md), [FRQ](docs/api/integrating-attendance.md) e [FIC](docs/api/integrating-social-forms.md) apresentam os fluxos HTTP. Todas as rotas previstas nas specs do MVP têm backend. Pendências automáticas de dados ausentes (`MISSING_DATA`) continuam pendentes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões FIC está implementada; o mecanismo de inicialização recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
 
 Em 05/10/2026 a suíte de integração completa foi executada com PostgreSQL/Redis de teste e passa, incluindo FIC, APT e unificação. A execução revelou e corrigiu uma falha de FIC: o bloqueio consultivo de configuração era chamado de forma que o Prisma não conseguia ler o retorno, e `POST /social-form-field-selections` respondia 500.
 
@@ -97,6 +98,11 @@ src/
     application/            # publicação, prévia e avaliação persistida
     presentation/           # rotas e contratos HTTP de APT
     infra/                  # snapshot consistente e versões imutáveis PostgreSQL
+  features/reports/
+    domain/                 # escopo de filtros, contagens, taxa e ordenação de históricos
+    application/            # consultas autorizadas e coerência entre total e detalhe
+    presentation/           # rotas e contratos HTTP de REL
+    infra/                  # leitura em snapshot único; sem tabelas próprias
 prisma/                     # schema e migrations
 test/                       # espelha src/: core e features
   support/                  # doubles, fixtures e preparação da integração
@@ -193,6 +199,8 @@ APT acrescenta seis rotas de políticas, prévia e avaliações, detalhadas em [
 
 CAD acrescenta ainda duas rotas de [unificação de pessoas e famílias](docs/api/identity-merges.md), com `registration.merge`. A prévia não grava; a confirmação é idempotente, atômica e auditada com a ação `MERGE`.
 
+REL acrescenta dez rotas somente de leitura: históricos familiar e pessoal e relatórios de alcance, frequência, aptidão e qualidade cadastral, detalhadas em [Históricos e relatórios](docs/api/reports.md). Cada uma exige `reports.read` somada à permissão do domínio; o detalhe de um total exige o fingerprint consultado e responde `409 REPORT_CHANGED` se as fontes mudaram.
+
 As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts) e [account-audit-api.ts](packages/contracts/src/account-audit-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
 
 ## Validar
@@ -226,9 +234,9 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. REL: consultas e detalhamento de totais somente sobre os módulos acima.
-2. CAD: seleção de dados relevantes e geração de pendências `MISSING_DATA`.
-3. Telas de FIC, APT e unificação conforme os contratos entregues.
+1. CAD: seleção de dados relevantes e geração de pendências `MISSING_DATA`.
+2. Telas de todos os módulos conforme os contratos entregues.
+3. Medição de desempenho com volume identificado e decisões institucionais pendentes antes do piloto.
 4. A frente de frontend integra esses contratos, incluindo autenticação real e troca obrigatória de senha; esta entrega está limitada ao backend e à documentação.
 
 Não foram introduzidos atendimentos, estoque, entregas, Bazar ou migração. A referência normativa continua no [AGENTS.md](AGENTS.md) e nas specs. Referências técnicas da base: [Prisma 7 e adapter PostgreSQL](https://docs.prisma.io/docs/guides/upgrade-prisma-orm/v7), [Fastify: erros](https://fastify.dev/docs/latest/Reference/Errors/).

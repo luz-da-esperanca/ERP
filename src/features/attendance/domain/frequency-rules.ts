@@ -1,7 +1,9 @@
 import { civilDateAt } from '../../projects/domain/activity-rules.js';
 import { AttendanceRuleError } from './attendance-errors.js';
+import { isMembershipCurrent } from '../../registration/domain/membership-rules.js';
 import type {
   AttendanceCoverage,
+  AttendanceSources,
   CivilPeriod,
   FrequencyOpportunity,
 } from './attendance.js';
@@ -170,4 +172,66 @@ export function summarizeFrequency(
     opportunities,
     unresolvedOpportunities,
   };
+}
+
+/**
+ * Opportunities of one person in an activity under ENROLLMENT_OR_RECORDED:
+ * completed sessions with a valid enrollment or an explicit marking.
+ */
+export function frequencyOpportunities(
+  sources: Pick<
+    AttendanceSources,
+    'sessions' | 'enrollments' | 'attendances' | 'people'
+  >,
+  personId: string,
+  from: string,
+  toExclusive: string,
+): FrequencyOpportunity[] {
+  const person = sources.people.find((row) => row.id === personId);
+  const opportunities: FrequencyOpportunity[] = [];
+  for (const session of sources.sessions) {
+    if (
+      session.status !== 'COMPLETED' ||
+      session.occurredAt < from ||
+      session.occurredAt >= toExclusive
+    )
+      continue;
+    const enrolled = sources.enrollments.filter(
+      (row) =>
+        row.personId === personId &&
+        isMembershipCurrent(row, session.occurredAt),
+    );
+    const attendance =
+      sources.attendances.find(
+        (row) => row.sessionId === session.id && row.personId === personId,
+      ) ?? null;
+    if (!enrolled.length && !attendance) continue;
+    const membership = person?.memberships.find((row) =>
+      isMembershipCurrent(row, session.occurredAt),
+    );
+    opportunities.push({
+      personId,
+      sessionId: session.id,
+      occurredAt: session.occurredAt,
+      // A marking keeps the family recorded at the session; unmarked rows resolve it at that instant.
+      familyId: attendance?.familyId ?? membership?.familyId ?? null,
+      membershipId: attendance?.membershipId ?? membership?.id ?? null,
+      membershipRevision:
+        attendance?.membershipRevision ?? membership?.revision ?? null,
+      relevance: attendance
+        ? enrolled.length
+          ? 'BOTH'
+          : 'RECORDED'
+        : 'ENROLLMENT',
+      attendance,
+      sessionRevision: session.revision,
+      enrollmentRevisions: enrolled.map((row) => ({
+        entityType: 'ParticipantEnrollment',
+        entityId: row.id,
+        revision: row.revision,
+      })),
+      contextResolved: attendance !== null || membership !== undefined,
+    });
+  }
+  return opportunities;
 }

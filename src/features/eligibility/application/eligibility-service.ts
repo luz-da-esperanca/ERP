@@ -24,6 +24,7 @@ import {
 import type {
   EligibilityAssessment,
   EligibilityEntity,
+  EligibilityPolicy,
   EligibilityPreview,
   EligibilitySnapshot,
   PolicyPublication,
@@ -195,7 +196,20 @@ export class EligibilityService {
   ): Promise<EligibilityPreview> {
     if (!(await ports.familyExists(familyId)))
       throw new ResourceNotFoundError();
-    const policy = policyInEffect(await ports.policies(), referenceDate);
+    return this.classify(
+      ports,
+      familyId,
+      referenceDate,
+      await ports.policies(),
+    );
+  }
+  private async classify(
+    ports: EligibilityReaderPorts,
+    familyId: string,
+    referenceDate: string,
+    policies: readonly EligibilityPolicy[],
+  ): Promise<EligibilityPreview> {
+    const policy = policyInEffect(policies, referenceDate);
     const result = evaluateEligibility(
       {
         familyId,
@@ -231,6 +245,28 @@ export class EligibilityService {
     return this.reader.read((ports) =>
       this.compute(ports, familyId, referenceDate),
     );
+  }
+  /**
+   * Internal contract for reports: every canonical family classified by the
+   * same evaluator over one snapshot, so totals never depend on a page.
+   */
+  evaluateAll(referenceDate: string, familyId?: string) {
+    return this.reader.read(async (ports) => {
+      const policies = await ports.policies();
+      const rows = [];
+      for (const family of await ports.families())
+        if (!familyId || family.id === familyId)
+          rows.push({
+            family,
+            preview: await this.classify(
+              ports,
+              family.id,
+              referenceDate,
+              policies,
+            ),
+          });
+      return rows;
+    });
   }
   preview(actor: Principal, familyId: string, referenceDate: string) {
     return this.read(actor, (ports) =>

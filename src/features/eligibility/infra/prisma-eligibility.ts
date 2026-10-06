@@ -125,6 +125,14 @@ function readerPorts(tx: Transaction): EligibilityReaderPorts {
     async familyExists(id) {
       return (await tx.family.count({ where: { id, mergedIntoId: null } })) > 0;
     },
+    async families() {
+      const rows = await tx.family.findMany({
+        where: { mergedIntoId: null },
+        select: { id: true, code: true },
+        orderBy: [{ code: 'asc' }, { id: 'asc' }],
+      });
+      return rows.map((row) => ({ id: row.id, code: String(row.code) }));
+    },
     async activities(ids) {
       const rows = await tx.activity.findMany({
         where: { id: { in: [...ids] } },

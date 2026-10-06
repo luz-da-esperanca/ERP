@@ -24,6 +24,7 @@ describe('Application data mode and dependency errors', () => {
       socialForms: runtime.socialForms,
       eligibility: runtime.eligibility,
       identityMerges: runtime.identityMerges,
+      reports: runtime.reports,
       audit: new AuditService(new PrismaAuditReader(database)),
       dataMode: new DataModeGuard(
         config.DATA_MODE,
@@ -99,6 +100,7 @@ describe('Application data mode and dependency errors', () => {
       socialForms: runtime.socialForms,
       eligibility: runtime.eligibility,
       identityMerges: runtime.identityMerges,
+      reports: runtime.reports,
       audit: new AuditService(new PrismaAuditReader(runtime.database)),
       dataMode: new DataModeGuard(
         'REAL',

@@ -241,6 +241,63 @@ describe('Identity merge confirmation', () => {
     ).rejects.toMatchObject({ rule: 'MERGE_RESOLUTION_INVALID' });
     expect(writes.createOperation).not.toHaveBeenCalled();
   });
+  it('supersedes the duplicate marking before moving the effective one, whatever their order', async () => {
+    const { service, sources, writes, context, command } = fixture();
+    const mark = (attendanceId: string, personId: string) =>
+      ({
+        id: attendanceId,
+        sessionId: id(50),
+        personId,
+        familyId: id(60),
+        membershipId: id(70),
+        membershipRevision: 1,
+        status: 'PRESENT',
+        recordedAt: '2026-01-05T13:00:00.000Z',
+        recordedBy: id(1),
+        revision: 1,
+        supersededById: null,
+      }) as const;
+    // The source marking sorts first, so a naive loop would move it onto the still effective duplicate.
+    sources.attendances = [mark(id(41), sourceId), mark(id(42), targetId)];
+    sources.sessions = [
+      {
+        id: id(50),
+        activityId: id(51),
+        responsibleId: id(1),
+        occurredAt: '2026-01-05T13:00:00.000Z',
+        recordedAt: '2026-01-05T13:00:00.000Z',
+        recordedBy: id(1),
+        status: 'COMPLETED',
+        revision: 1,
+      },
+    ];
+    const order: string[] = [];
+    Object.assign(writes, {
+      updateAttendance: vi.fn(async (attendanceId: string, changes: object) => {
+        order.push(
+          `${attendanceId === id(41) ? 'source' : 'target'}:${Object.keys(changes).join()}`,
+        );
+        return {
+          ...sources.attendances.find((row) => row.id === attendanceId)!,
+          ...changes,
+          revision: 2,
+        };
+      }),
+      reviseSession: vi.fn(async () => ({
+        ...sources.sessions[0]!,
+        revision: 2,
+      })),
+    });
+    await service.merge(
+      context,
+      await command({
+        attendanceResolutions: [
+          { sessionId: id(50), effectiveAttendanceId: id(41) },
+        ],
+      }),
+    );
+    expect(order).toEqual(['target:supersededById', 'source:personId']);
+  });
   it('maps the source to the canonical target with reason, author and one operation', async () => {
     const { service, writes, audits, merges, context, command, identities } =
       fixture();

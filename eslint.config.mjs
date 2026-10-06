@@ -36,6 +36,7 @@ export default ts.config(
               'social-forms-api',
               'eligibility-api',
               'identity-merge-api',
+              'reports-api',
             ].map((contract) => ({
               name: `@erp/contracts/${contract}`,
               message: 'Keep HTTP DTOs outside the domain.',
@@ -101,6 +102,7 @@ export default ts.config(
               'social-forms-api',
               'eligibility-api',
               'identity-merge-api',
+              'reports-api',
             ].map((contract) => ({
               name: `@erp/contracts/${contract}`,
               message: 'Map HTTP DTOs to application inputs in presentation.',

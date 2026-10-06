@@ -201,7 +201,7 @@ async function duplicateRecords(
   }));
 }
 /** Follows merge mappings to the canonical identity; unknown ids are returned as given. */
-async function canonicalId(
+export async function canonicalId(
   tx: Transaction,
   entity: 'person' | 'family',
   id: string,

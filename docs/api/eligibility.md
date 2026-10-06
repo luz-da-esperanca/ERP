@@ -153,7 +153,7 @@ Não há cache: cada prévia ou avaliação lê as fontes atuais. `sourceFingerp
 
 Publicação e avaliação gravam `AuditEntry` na mesma transação, com `classification: "ELIGIBILITY"`, ação `CREATE`, revisão 1 e `before: null`. A publicação registra o motivo informado; a avaliação não inventa motivo. `GET /audit-entries?entityType=EligibilityPolicy|EligibilityAssessment` exige `audit.read` e `eligibility.read`.
 
-Outros módulos usam `EligibilityService.evaluate(familyId, referenceDate)`, que devolve a mesma prévia sem HTTP e sem autorização própria; a fronteira pública de quem consome deve autorizar. REL deve usar esse método, sem recalcular.
+Outros módulos usam `EligibilityService.evaluate(familyId, referenceDate)`, que devolve a mesma prévia sem HTTP e sem autorização própria; a fronteira pública de quem consome deve autorizar. Os [relatórios](reports.md) usam `EligibilityService.evaluateAll(referenceDate, familyId?)`, que classifica todas as famílias canônicas com o mesmo avaliador em um único snapshot.
 
 ## Verificação
 

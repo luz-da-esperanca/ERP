@@ -420,7 +420,14 @@ export class IdentityMergeService {
     audit: Audit,
   ) {
     const sessions = new Set<string>();
-    for (const before of sources.attendances) {
+    // Duplicates leave the effective set first: the unique effective marking
+    // per session and person is checked immediately, not at commit.
+    const ordered = [...sources.attendances].sort(
+      (a, b) =>
+        Number(!changes.get(a.id)?.supersededById) -
+        Number(!changes.get(b.id)?.supersededById),
+    );
+    for (const before of ordered) {
       const change = changes.get(before.id);
       if (!change) continue;
       const session = sources.sessions.find(

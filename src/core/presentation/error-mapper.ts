@@ -23,6 +23,10 @@ import {
   EligibilityConflictError,
   EligibilityRuleError,
 } from '../../features/eligibility/domain/eligibility-errors.js';
+import {
+  ReportChangedError,
+  ReportRuleError,
+} from '../../features/reports/domain/report-errors.js';
 import { HttpError } from './http-error.js';
 import type { HttpFailure } from './http-error.js';
 import {
@@ -57,6 +61,15 @@ export function mapError(error: unknown): HttpFailure {
       details: { rule: error.rule },
     };
   if (error instanceof SocialFormRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
+  if (error instanceof ReportChangedError)
+    return { status: 409, code: 'REPORT_CHANGED', message: error.message };
+  if (error instanceof ReportRuleError)
     return {
       status: 422,
       code: 'BUSINESS_RULE_VIOLATION',

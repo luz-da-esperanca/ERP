@@ -13,6 +13,8 @@ export interface EligibilityReaderPorts {
   policies(): Promise<EligibilityPolicy[]>;
   assessment(id: string): Promise<EligibilityAssessment | null>;
   familyExists(id: string): Promise<boolean>;
+  /** Canonical families, ordered by code. */
+  families(): Promise<{ id: string; code: string }[]>;
   activities(
     ids: readonly string[],
   ): Promise<{ id: string; nature: ActivityNature }[]>;

@@ -22,6 +22,7 @@ import {
   civilBoundary,
   nextCivilDay,
   summarizeFrequency,
+  frequencyOpportunities,
 } from '../domain/frequency-rules.js';
 import { invalidateCoverage } from './coverage-invalidation.js';
 import type {
@@ -34,7 +35,6 @@ import type {
   AttendanceCoverage,
   AttendanceReference,
   FrequencyQuery,
-  FrequencyOpportunity,
   SessionsQuery,
   UpdateAttendance,
   CoverageDeclaration,
@@ -789,53 +789,13 @@ export class AttendanceService {
       );
       if (sources.activity.nature !== 'PERIODIC')
         throw new AttendanceRuleError('PERIODIC_ACTIVITY_REQUIRED');
-      const person = this.require(
-        sources.people.find((row) => row.id === query.personId),
+      this.require(sources.people.find((row) => row.id === query.personId));
+      const opportunities = frequencyOpportunities(
+        sources,
+        query.personId,
+        query.from,
+        query.toExclusive,
       );
-      const opportunities: FrequencyOpportunity[] = [];
-      for (const session of sources.sessions.filter(
-        (row) =>
-          row.status === 'COMPLETED' &&
-          row.occurredAt >= query.from &&
-          row.occurredAt < query.toExclusive,
-      )) {
-        const enrolled = sources.enrollments.filter(
-          (row) =>
-            row.personId === query.personId &&
-            isMembershipCurrent(row, session.occurredAt),
-        );
-        const attendance =
-          sources.attendances.find(
-            (row) =>
-              row.sessionId === session.id && row.personId === query.personId,
-          ) ?? null;
-        if (!enrolled.length && !attendance) continue;
-        const membership = person.memberships.find((row) =>
-          isMembershipCurrent(row, session.occurredAt),
-        );
-        opportunities.push({
-          personId: query.personId,
-          sessionId: session.id,
-          occurredAt: session.occurredAt,
-          familyId: attendance?.familyId ?? membership?.familyId ?? null,
-          membershipId: attendance?.membershipId ?? membership?.id ?? null,
-          membershipRevision:
-            attendance?.membershipRevision ?? membership?.revision ?? null,
-          relevance: attendance
-            ? enrolled.length
-              ? 'BOTH'
-              : 'RECORDED'
-            : 'ENROLLMENT',
-          attendance,
-          sessionRevision: session.revision,
-          enrollmentRevisions: enrolled.map((row) => ({
-            entityType: 'ParticipantEnrollment',
-            entityId: row.id,
-            revision: row.revision,
-          })),
-          contextResolved: attendance !== null || membership !== undefined,
-        });
-      }
       const periodStart = civilDateAt(query.from, this.timeZone);
       const periodEndExclusive = nextCivilDay(
         civilDateAt(
