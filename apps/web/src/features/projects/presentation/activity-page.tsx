@@ -13,6 +13,7 @@ import type { ActivityDetail } from '@erp/contracts/projects';
 import { useErp } from '../../../app/erp-provider';
 import { useQuery } from '../../../shared/use-query';
 import { displayInstant } from '../../../shared/time';
+import { EnrollmentList } from './enrollment-list';
 import {
   Alert,
   AsyncView,
@@ -61,7 +62,13 @@ function ServiceTypeInfo({ id }: { id: string }) {
   );
 }
 
-function ActivityProfile({ detail }: { detail: ActivityDetail }) {
+function ActivityProfile({
+  detail,
+  asOf,
+}: {
+  detail: ActivityDetail;
+  asOf: string;
+}) {
   const { activity, project } = detail;
   const StatusIcon = activity.status === 'ACTIVE' ? CheckCircle : Archive;
 
@@ -107,6 +114,9 @@ function ActivityProfile({ detail }: { detail: ActivityDetail }) {
           ) : null}
         </dl>
       </section>
+      {activity.nature === 'PERIODIC' && (
+        <EnrollmentList participants={detail.participants} asOf={asOf} />
+      )}
       <Panel title="Registros recentes">
         <Empty>
           {activity.nature === 'PERIODIC'
@@ -128,7 +138,7 @@ function ActivityContent({ id }: { id: string }) {
   const state = useQuery(load);
   return (
     <AsyncView state={state}>
-      {(detail) => <ActivityProfile detail={detail} />}
+      {(detail) => <ActivityProfile detail={detail} asOf={asOf} />}
     </AsyncView>
   );
 }
