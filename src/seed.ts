@@ -14,8 +14,12 @@ try {
   assertShowcaseEnvironment(config);
   const credentialPath = resolve('.env.demo');
   const password = await readSeedPassword(credentialPath);
+  const darioPassword = await readSeedPassword(
+    credentialPath,
+    'DARIO_SEED_PASSWORD',
+  );
   runtime = await createRuntime(config);
-  const result = await seedShowcase(runtime, config, password);
+  const result = await seedShowcase(runtime, config, password, darioPassword);
   console.log(
     `Showcase seed ready: ${result.familyIds.length} families, 8 people, 2 projects, ${result.activityIds.length} activities.`,
   );

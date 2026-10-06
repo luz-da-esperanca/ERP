@@ -1,10 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { chmod, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, chmod, readFile, writeFile } from 'node:fs/promises';
 import { parseEnv } from 'node:util';
 import { passwordSchema } from '@erp/contracts/access-api';
 import type { ApiConfig } from '../../../core/infra/config.js';
 
 export class ShowcaseSeedError extends Error {}
+type SeedPasswordKey = 'DEMO_SEED_PASSWORD' | 'DARIO_SEED_PASSWORD';
 
 export function assertShowcaseEnvironment(
   config: Pick<ApiConfig, 'NODE_ENV' | 'DATA_MODE'>,
@@ -15,10 +16,13 @@ export function assertShowcaseEnvironment(
     );
 }
 
-export async function readSeedPassword(path: string) {
+export async function readSeedPassword(
+  path: string,
+  key: SeedPasswordKey = 'DEMO_SEED_PASSWORD',
+) {
   const generated = randomBytes(24).toString('base64url');
   try {
-    await writeFile(path, `DEMO_SEED_PASSWORD=${generated}\n`, {
+    await writeFile(path, `${key}=${generated}\n`, {
       mode: 0o600,
       flag: 'wx',
     });
@@ -27,12 +31,19 @@ export async function readSeedPassword(path: string) {
       throw error;
   }
   await chmod(path, 0o600);
-  const result = passwordSchema.safeParse(
-    parseEnv(await readFile(path, 'utf8')).DEMO_SEED_PASSWORD,
-  );
+  const contents = await readFile(path, 'utf8');
+  const environment = parseEnv(contents);
+  if (key === 'DARIO_SEED_PASSWORD' && environment[key] === undefined) {
+    await appendFile(
+      path,
+      `${contents.endsWith('\n') ? '' : '\n'}${key}=${generated}\n`,
+    );
+    environment[key] = generated;
+  }
+  const result = passwordSchema.safeParse(environment[key]);
   if (!result.success)
     throw new ShowcaseSeedError(
-      'Invalid DEMO_SEED_PASSWORD in the showcase credential file',
+      `Invalid ${key} in the showcase credential file`,
     );
   return result.data;
 }

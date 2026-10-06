@@ -21,7 +21,9 @@ O seed rejeita `NODE_ENV=production` e `DATA_MODE=REAL`. Para preparar um ambien
 
 ## Acessos
 
-A senha é gerada aleatoriamente na primeira execução e salva em `.env.demo`, com permissão `600`. Esse arquivo é ignorado pelo Git e reutilizado nas próximas execuções. Abra-o localmente para consultar `DEMO_SEED_PASSWORD`; as quatro contas de demonstração usam esse valor. O comando não imprime a senha. Preserve o arquivo enquanto utilizar esse banco; alterar ou apagar o arquivo não muda a senha das contas existentes.
+As senhas ficam em `.env.demo`, com permissão `600`, ignorado pelo Git. `DEMO_SEED_PASSWORD` atende às quatro contas `demo.*`; `DARIO_SEED_PASSWORD` atende somente à conta `dario.brito`. O seed gera os valores ausentes na primeira preparação e reutiliza os existentes, sem imprimir as senhas. Para escolher a senha inicial de Dario, configure `DARIO_SEED_PASSWORD` antes de criá-lo; ela deve ter pelo menos 12 caracteres e até 72 bytes UTF-8.
+
+Alterar esse arquivo configura futuras criações; não muda a senha de uma conta já cadastrada. Para trocar a senha existente, entre no frontend e use **Alterar senha** (`/change-password`). Se precisar executar novamente o seed após essa troca, atualize também o valor correspondente em `.env.demo` para que o comando consiga autenticar a conta. Preserve o arquivo enquanto utilizar esse banco.
 
 | Login               | Perfil                      | Fluxo sugerido                                            |
 | ------------------- | --------------------------- | --------------------------------------------------------- |

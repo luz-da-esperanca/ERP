@@ -13,8 +13,17 @@ describe('Synthetic showcase seed', () => {
   });
 
   it('creates Dario Brito with every capability through the combined administrator and coordination roles', async () => {
-    await seedShowcase(fixture.runtime, fixture.config, password);
-    const { cookie, response } = await fixture.login('dario.brito', password);
+    const darioPassword = 'admin123demo';
+    await seedShowcase(
+      fixture.runtime,
+      fixture.config,
+      password,
+      darioPassword,
+    );
+    const { cookie, response } = await fixture.login(
+      'dario.brito',
+      darioPassword,
+    );
     const session = response.json().data;
     expect(session.user).toMatchObject({
       login: 'dario.brito',
@@ -68,8 +77,13 @@ describe('Synthetic showcase seed', () => {
     });
     expect(audit.statusCode, audit.body).toBe(200);
     expect(audit.json().data[0].actorId).toBe(session.user.id);
-    await seedShowcase(fixture.runtime, fixture.config, password);
-    const repeated = await fixture.login('dario.brito', password);
+    await seedShowcase(
+      fixture.runtime,
+      fixture.config,
+      password,
+      darioPassword,
+    );
+    const repeated = await fixture.login('dario.brito', darioPassword);
     expect(repeated.response.json().data.user).toEqual(session.user);
     const users = await fixture.runtime.app.inject({
       method: 'GET',
@@ -78,6 +92,10 @@ describe('Synthetic showcase seed', () => {
     });
     expect(users.statusCode, users.body).toBe(200);
     expect(users.json().pagination.total).toBe(6);
+    const admin = await fixture.login('demo.admin', password);
+    expect(admin.response.json().data.user.roleCodes).toEqual([
+      'ADMINISTRATOR',
+    ]);
   });
 
   it('creates usable individual accounts with the four separate roles', async () => {
