@@ -7,7 +7,8 @@ import { useErp } from '../../../app/erp-provider';
 export function LoginPage() {
   const { client, session } = useErp();
   const navigate = useNavigate();
-  const accounts = client.access.demoAccounts();
+  const access = client.access;
+  const accounts = access?.demoAccounts() ?? [];
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
   const [showPassword, setShowPassword] = useState(false);
   if (session) return <Navigate to="/" replace />;
@@ -15,7 +16,8 @@ export function LoginPage() {
   function enterDemo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!accountId) return;
-    client.access.enterDemo(accountId);
+    if (!access) throw new Error('Demo access is required by the demo login');
+    access.enterDemo(accountId);
     navigate('/', { replace: true });
   }
 

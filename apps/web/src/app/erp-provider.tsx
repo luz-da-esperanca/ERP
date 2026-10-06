@@ -1,10 +1,10 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import type { Session } from '@erp/contracts/access';
-import type { ErpClient } from './erp-client';
+import type { ErpViewClient } from './erp-client';
 
 interface ErpContextValue {
-  client: ErpClient;
+  client: ErpViewClient;
   session: Session | null;
   revision: number;
 }
@@ -12,9 +12,11 @@ const ErpContext = createContext<ErpContextValue | null>(null);
 export function ErpProvider({
   client,
   children,
+  session,
 }: {
-  client: ErpClient;
+  client: ErpViewClient;
   children: ReactNode;
+  session?: Session;
 }) {
   const revision = useSyncExternalStore(
     client.subscribe,
@@ -22,7 +24,13 @@ export function ErpProvider({
     client.getVersion,
   );
   return (
-    <ErpContext value={{ client, session: client.access.session(), revision }}>
+    <ErpContext
+      value={{
+        client,
+        session: session ?? client.access?.session() ?? null,
+        revision,
+      }}
+    >
       {children}
     </ErpContext>
   );

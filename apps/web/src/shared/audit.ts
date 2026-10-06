@@ -4,6 +4,7 @@ const auditActionLabels = {
   CREATE: 'Cadastro criado',
   UPDATE: 'Cadastro atualizado',
   CORRECT: 'Registro corrigido',
+  MERGE: 'Cadastros unificados',
   CLOSE: 'Registro encerrado',
   CANCEL: 'Registro cancelado',
   PUBLISH: 'Registro publicado',

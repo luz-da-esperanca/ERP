@@ -97,10 +97,7 @@ function PersonRegistration({ person }: { person: Person }) {
 
   return (
     <Panel title="Dados atuais">
-      <dl
-        aria-label="Dados atuais"
-        className="description-grid"
-      >
+      <dl aria-label="Dados atuais" className="description-grid">
         {fields.map(({ label, value }) => (
           <div
             key={label}
@@ -159,7 +156,13 @@ function FamilyMemberships({
   );
 }
 
-function PersonProfile({ detail }: { detail: PersonDetail }) {
+function PersonProfile({
+  detail,
+  allowEdit,
+}: {
+  detail: PersonDetail;
+  allowEdit: boolean;
+}) {
   const [asOf] = useState(civilToday);
 
   return (
@@ -193,6 +196,14 @@ function PersonProfile({ detail }: { detail: PersonDetail }) {
             </div>
           ) : null}
         </div>
+        {allowEdit && (
+          <Link
+            className="button secondary"
+            to={`/people/${detail.person.id}/edit`}
+          >
+            Editar pessoa
+          </Link>
+        )}
       </header>
       <PersonRegistration person={detail.person} />
       <FamilyMemberships memberships={detail.memberships} asOf={asOf} />
@@ -200,9 +211,9 @@ function PersonProfile({ detail }: { detail: PersonDetail }) {
   );
 }
 
-export function PersonPage() {
+export function PersonPage({ allowEdit = false }: { allowEdit?: boolean }) {
   const { id = '' } = useParams();
-  const { client } = useErp();
+  const { client, session } = useErp();
   const load = useCallback(
     () => client.registration.getPerson(id),
     [client, id],
@@ -213,7 +224,16 @@ export function PersonPage() {
     <>
       <BackLink to="/families">Pessoas e famílias</BackLink>
       <AsyncView state={state}>
-        {(detail) => <PersonProfile detail={detail} />}
+        {(detail) => (
+          <PersonProfile
+            key={detail.person.id}
+            detail={detail}
+            allowEdit={
+              allowEdit &&
+              Boolean(session?.capabilities.includes('registration.write'))
+            }
+          />
+        )}
       </AsyncView>
     </>
   );

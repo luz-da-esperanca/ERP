@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ApplicationError } from '@erp/contracts/common';
-import { ApiRequestError } from './api-client';
 import { ZodError } from 'zod';
+import { ApiRequestError } from './api-client';
 export function errorMessage(error: unknown): string {
   if (error instanceof ZodError)
     return 'Revise os campos informados. Verifique formatos, limites e dados obrigatórios.';
@@ -14,8 +14,8 @@ export function errorMessage(error: unknown): string {
       error.code === 'DOMAIN_CONFLICT'
     )
       return 'A operação conflita com registros existentes. Refaça a prévia e revise os conflitos antes de confirmar.';
-    const messages = {
-      UNAUTHENTICATED: 'Sua sessão terminou. Entre novamente na demonstração.',
+    const messages: Record<string, string> = {
+      UNAUTHENTICATED: 'Sua sessão terminou. Entre novamente.',
       FORBIDDEN: 'Seu perfil não permite esta operação.',
       NOT_FOUND:
         'O registro não está disponível. Verifique a seleção e tente novamente.',
@@ -26,7 +26,7 @@ export function errorMessage(error: unknown): string {
       VALIDATION_ERROR:
         'Revise os valores e as datas. Fatos realizados não podem estar no futuro.',
       FEATURE_NOT_ENABLED:
-        'Esta operação ainda não está disponível nesta demonstração.',
+        'Esta operação depende de uma configuração autorizada. Consulte a coordenação.',
       IDEMPOTENCY_CONFLICT:
         'Esta solicitação já foi usada com outros dados. Revise a operação antes de repetir.',
       REPORT_CHANGED:
@@ -40,9 +40,12 @@ export function errorMessage(error: unknown): string {
       DEPENDENCY_UNAVAILABLE:
         'O serviço está temporariamente indisponível. Tente novamente mais tarde.',
       INTERNAL_ERROR: 'Não foi possível concluir a operação. Tente novamente.',
+      NETWORK_ERROR:
+        'Não foi possível confirmar a operação por falha de conexão. Tente novamente com os mesmos dados.',
+      INVALID_RESPONSE:
+        'Não foi possível validar a resposta do serviço. Tente novamente.',
     };
-    if (error.code in messages)
-      return messages[error.code as keyof typeof messages];
+    return messages[error.code] ?? messages.INTERNAL_ERROR!;
   }
   return 'Não foi possível concluir a operação. Tente novamente.';
 }

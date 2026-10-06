@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConnectedApp } from '../../src/app/connected-app';
 import { HttpAuthentication } from '../../src/access';
 import { ApiClient } from '../../src/shared/api-client';
+import { HttpErpClient } from '../../src/app/http-erp-client';
 
 const session = {
   user: {
@@ -29,16 +30,19 @@ function renderApp(fetcher: typeof fetch, path = '/') {
   render(
     <StrictMode>
       <MemoryRouter initialEntries={[path]}>
-        <ConnectedApp authentication={new HttpAuthentication(api)} />
+        <ConnectedApp
+          authentication={new HttpAuthentication(api)}
+          client={new HttpErpClient(api)}
+        />
       </MemoryRouter>
     </StrictMode>,
   );
   return api;
 }
 
-describe('Connected application authentication', () => {
-  afterEach(cleanup);
+afterEach(cleanup);
 
+describe('Connected application authentication', () => {
   it('keeps access when logout fails, returns to login after confirmed logout and expires the view on any unauthorized request', async () => {
     const user = userEvent.setup();
     const fetcher = vi
@@ -199,17 +203,24 @@ describe('Connected application authentication', () => {
     );
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.queryByLabelText(/^Login/)).toBeNull();
-    fetcher.mockResolvedValue(Response.json({ data: session }));
+    fetcher.mockImplementation(async (url) =>
+      String(url).includes('/auth/session')
+        ? Response.json({ data: session })
+        : Response.json({
+            data: [],
+            pagination: { page: 1, pageSize: 20, total: 0 },
+          }),
+    );
     await userEvent
       .setup()
       .click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(
       await screen.findByRole('heading', {
-        name: 'Pessoas e famílias',
+        name: 'Famílias',
         level: 1,
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/Esta tela aguarda integração/)).toBeTruthy();
+    expect(await screen.findByText('Nenhuma família encontrada.')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
   });
 
@@ -257,72 +268,91 @@ describe('Connected application authentication', () => {
   });
 });
 
-it('opens the authenticated data quality route using the same session-aware API client', async () => {
-  const fetcher = vi.fn<typeof fetch>(async (input) =>
-    String(input).endsWith('/auth/session')
-      ? Response.json({ data: session })
-      : Response.json({
-          data: [],
-          pagination: { page: 1, pageSize: 20, total: 0 },
-        }),
-  );
-  const api = new ApiClient(fetcher);
-  render(
-    <MemoryRouter initialEntries={['/data-quality']}>
-      <ConnectedApp authentication={new HttpAuthentication(api)} api={api} />
-    </MemoryRouter>,
-  );
-  await screen.findByText('Nenhuma ocorrência encontrada.');
-  expect(
-    screen
-      .getByRole('link', { name: 'Duplicidades e qualidade' })
-      .getAttribute('href'),
-  ).toBe('/data-quality');
-  expect(
-    fetcher.mock.calls.some(([path]) =>
-      String(path).includes('/data-quality-issues?'),
-    ),
-  ).toBe(true);
-});
+it.each(['api', 'client'] as const)(
+  'opens the authenticated data quality route using the same session-aware %s client',
+  async (composition) => {
+    const fetcher = vi.fn<typeof fetch>(async (input) =>
+      String(input).endsWith('/auth/session')
+        ? Response.json({ data: session })
+        : Response.json({
+            data: [],
+            pagination: { page: 1, pageSize: 20, total: 0 },
+          }),
+    );
+    const api = new ApiClient(fetcher);
+    render(
+      <MemoryRouter initialEntries={['/data-quality']}>
+        <ConnectedApp
+          authentication={new HttpAuthentication(api)}
+          {...(composition === 'api'
+            ? { api }
+            : { client: new HttpErpClient(api) })}
+        />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Nenhuma ocorrência encontrada.');
+    expect(
+      screen
+        .getByRole('link', { name: 'Duplicidades e qualidade' })
+        .getAttribute('href'),
+    ).toBe('/data-quality');
+    expect(
+      fetcher.mock.calls.some(([path]) =>
+        String(path).includes('/data-quality-issues?'),
+      ),
+    ).toBe(true);
+  },
+);
 
-it('opens authenticated projects through the API and returns to login on expired access', async () => {
-  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (path) => {
-    if (String(path).endsWith('/auth/session'))
+it.each(['api', 'client'] as const)(
+  'opens authenticated projects through the %s client and returns to login on expired access',
+  async (composition) => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (path) => {
+      if (String(path).endsWith('/auth/session'))
+        return Response.json({
+          data: {
+            ...session,
+            capabilities: ['projects.read', 'projects.write'],
+          },
+        });
       return Response.json({
-        data: { ...session, capabilities: ['projects.read', 'projects.write'] },
+        data: [],
+        pagination: { page: 1, pageSize: 100, total: 0 },
       });
-    return Response.json({
-      data: [],
-      pagination: { page: 1, pageSize: 100, total: 0 },
     });
-  });
-  const api = new ApiClient(fetcher);
-  render(
-    <MemoryRouter initialEntries={['/projects']}>
-      <ConnectedApp authentication={new HttpAuthentication(api)} api={api} />
-    </MemoryRouter>,
-  );
-  await screen.findByText('Nenhum projeto cadastrado.');
-  expect(screen.getByRole('button', { name: 'Novo projeto' })).toHaveProperty(
-    'disabled',
-    false,
-  );
-  expect(
-    fetcher.mock.calls.some((call) =>
-      String(call[0]).startsWith('/api/v1/projects?'),
-    ),
-  ).toBe(true);
-  fetcher.mockResolvedValue(
-    Response.json(
-      { error: { code: 'UNAUTHENTICATED', requestId: 'test' } },
-      { status: 401 },
-    ),
-  );
-  await act(async () => {
-    await expect(
-      api.requestEmpty('/projects', { method: 'POST', body: {} }),
-    ).rejects.toMatchObject({ status: 401 });
-  });
-  await screen.findByLabelText(/^Login/);
-  cleanup();
-});
+    const api = new ApiClient(fetcher);
+    render(
+      <MemoryRouter initialEntries={['/projects']}>
+        <ConnectedApp
+          authentication={new HttpAuthentication(api)}
+          {...(composition === 'api'
+            ? { api }
+            : { client: new HttpErpClient(api) })}
+        />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Nenhum projeto cadastrado.');
+    expect(screen.getByRole('button', { name: 'Novo projeto' })).toHaveProperty(
+      'disabled',
+      false,
+    );
+    expect(
+      fetcher.mock.calls.some((call) =>
+        String(call[0]).startsWith('/api/v1/projects?'),
+      ),
+    ).toBe(true);
+    fetcher.mockResolvedValue(
+      Response.json(
+        { error: { code: 'UNAUTHENTICATED', requestId: 'test' } },
+        { status: 401 },
+      ),
+    );
+    await act(async () => {
+      await expect(
+        api.requestEmpty('/projects', { method: 'POST', body: {} }),
+      ).rejects.toMatchObject({ status: 401 });
+    });
+    await screen.findByLabelText(/^Login/);
+    cleanup();
+  },
+);

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { ActivityDetail } from '@erp/contracts/projects';
+import { apiQuery, allApiPages } from '../../../shared/api-query';
 import * as contracts from '@erp/contracts/projects-api';
 import { peoplePageSchema } from '@erp/contracts/registration-api';
 import { responsibleCandidatesPageSchema } from '@erp/contracts/access-api';
@@ -165,4 +167,29 @@ export class HttpProjects {
       contracts.enrollmentDtoSchema,
     );
   }
+  readonly getActivity = async (
+    id: string,
+    asOf: string,
+  ): Promise<ActivityDetail> => {
+    const { data } = await this.api.request(
+      apiQuery(`/activities/${id}`, { asOf }),
+      z.object({ data: contracts.activityDetailSchema }),
+    );
+    const enrollments = await allApiPages(
+      this.api,
+      `/activities/${id}/enrollments`,
+      contracts.enrollmentsPageSchema,
+      { asOf: data.asOf },
+    );
+    return {
+      activity: data.activity,
+      project: data.project,
+      participants: enrollments.map(({ person }) => ({
+        id: person.id,
+        name: person.name,
+        familyCode: person.family?.code ?? null,
+        enrolled: true,
+      })),
+    };
+  };
 }

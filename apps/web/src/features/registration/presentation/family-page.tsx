@@ -34,7 +34,7 @@ function FamilyProfile({
   const { id = '' } = useParams();
   const location = useLocation();
   const { client } = useErp();
-  const [asOf, setAsOf] = useState(civilToday());
+  const [asOf, setAsOf] = useState(civilToday);
   const at = `${asOf}T23:59:59.999-03:00`;
   const load = useCallback(
     () => client.registration.getFamily(id, at),
@@ -109,28 +109,34 @@ function FamilyProfile({
 
 export function FamilyPage({ edit = false }: { edit?: boolean }) {
   const { client, session } = useErp();
+  const { id } = useParams();
   const canReadAudit = Boolean(session?.capabilities.includes('audit.read'));
   const loadAudit = useCallback(
-    () => (canReadAudit ? client.audit.list() : Promise.resolve([])),
-    [canReadAudit, client],
+    () => (canReadAudit ? client.audit.list(id) : Promise.resolve([])),
+    [canReadAudit, client, id],
   );
   const auditState = useQuery(loadAudit);
 
   return (
     <FamilyProfile
-      actions={(id) => (
-        <Link
-          className="button secondary"
-          to={`/families/${id}${edit ? '' : '/edit'}`}
-        >
-          {edit ? 'Ver cadastro' : 'Editar cadastro'}
-        </Link>
-      )}
+      actions={(id) =>
+        session?.capabilities.includes('registration.write') ? (
+          <Link
+            className="button secondary"
+            to={`/families/${id}${edit ? '' : '/edit'}`}
+          >
+            {edit ? 'Ver cadastro' : 'Editar cadastro'}
+          </Link>
+        ) : null
+      }
     >
       {({ detail: { family, members }, asOf, onAsOfChange }) =>
         edit ? (
           <Panel>
-            <FamilyForm family={family} />
+            <FamilyForm
+              key={`${family.id}:${family.revision}`}
+              family={family}
+            />
           </Panel>
         ) : (
           <>
@@ -259,6 +265,7 @@ function FamilyMembersTable({ detail }: { detail: FamilyDetail }) {
 }
 
 export function FamilyMembersPage() {
+  const { session } = useErp();
   return (
     <FamilyProfile>
       {({ id, detail, asOf, onAsOfChange }) => (
@@ -285,12 +292,14 @@ export function FamilyMembersPage() {
                   if (event.target.value) onAsOfChange(event.target.value);
                 }}
               />
-              <Link
-                className="button primary"
-                to={`/people/new?familyId=${id}`}
-              >
-                Adicionar pessoa
-              </Link>
+              {session?.capabilities.includes('registration.write') && (
+                <Link
+                  className="button primary"
+                  to={`/people/new?familyId=${id}`}
+                >
+                  Adicionar pessoa
+                </Link>
+              )}
             </div>
           </div>
           <FamilyMembersTable detail={detail} />

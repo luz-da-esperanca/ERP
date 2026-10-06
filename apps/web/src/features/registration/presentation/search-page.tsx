@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Search, Users, X } from 'lucide-react';
 import type { FamilySummary, Person } from '@erp/contracts/registration';
@@ -97,45 +97,62 @@ function SearchResults({
   );
 }
 
-export function SearchPage({ onClose }: { onClose: () => void }) {
+export function SearchPage({
+  onClose,
+  returnFocusTo,
+}: {
+  onClose: () => void;
+  returnFocusTo?: Element | null;
+}) {
   const { client, session } = useErp();
   const [query, setQuery] = useState('');
+  const dialog = useRef<HTMLDialogElement>(null);
+  const searchQuery = query.trim();
   const canReadRegistration = Boolean(
     session?.capabilities.includes('registration.read'),
   );
   const loadFamilies = useCallback(
     () =>
-      canReadRegistration
-        ? client.registration.listFamilies()
+      canReadRegistration && searchQuery.length >= 2
+        ? client.registration.listFamilies(searchQuery)
         : Promise.resolve([]),
-    [canReadRegistration, client],
+    [canReadRegistration, client, searchQuery],
   );
   const loadPeople = useCallback(
     () =>
-      canReadRegistration
-        ? client.registration.listPeople()
+      canReadRegistration && searchQuery.length >= 2
+        ? client.registration.listPeople(searchQuery)
         : Promise.resolve([]),
-    [canReadRegistration, client],
+    [canReadRegistration, client, searchQuery],
   );
   const families = useQuery(loadFamilies);
   const people = useQuery(loadPeople);
   useEffect(() => {
+    const element = dialog.current;
+    const trigger = returnFocusTo ?? document.activeElement;
+    element?.showModal();
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
     }
 
     window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      element?.close();
+      if (trigger instanceof HTMLElement && trigger.isConnected)
+        trigger.focus();
+    };
+  }, [onClose, returnFocusTo]);
 
   return (
-    <div className="search-overlay" role="presentation">
-      <section
-        className="search-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="search-dialog-title"
-      >
+    <dialog
+      ref={dialog}
+      className="search-overlay m-0 h-full max-h-none w-full max-w-none border-0"
+      aria-modal="true"
+      aria-labelledby="search-dialog-title"
+      onCancel={onClose}
+    >
+      <section className="search-dialog">
         <header>
           <h1 id="search-dialog-title">Buscar cadastros</h1>
           <button
@@ -159,6 +176,7 @@ export function SearchPage({ onClose }: { onClose: () => void }) {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar por família, pessoa ou código..."
               type="search"
+              maxLength={200}
             />
           </label>
         ) : (
@@ -190,6 +208,6 @@ export function SearchPage({ onClose }: { onClose: () => void }) {
         onClick={onClose}
         aria-label="Fechar busca"
       />
-    </div>
+    </dialog>
   );
 }
