@@ -2,6 +2,10 @@
 
 Versão 1.0 · Dependências: [CORE](00-foundation.md), [ACS](01-access.md) e [AUD](08-audit.md). Fontes: PRD 1.1 OBJ-01, CAP-01, RN-01/08/09, AC-01/08 e DEC-01; ERS RF-CAD-01–11, RN-21, RF-REL-09 e AC-15; modelagem D-01 e §4.1. A obrigatoriedade de nascimento/sexo citada na ERS é conciliada com dados ausentes do PRD §4.1 e D-01: o cadastro mínimo exige nome e família, sem fabricar informação.
 
+**Implementação backend em 05/10/2026:** a base cadastral, busca/qualidade e vínculos temporais estão entregues. Com FRQ, alterações simples rejeitam cortes que invalidem marcação concluída, e a prévia/confirmação de [reconciliação composta](../api/membership-reconciliation.md) permite alterar vínculo/contexto na mesma transação. `clientRef` relaciona novos segmentos ainda sem UUID às marcações do plano; o resultado devolve seu mapeamento persistido. [Cadastro HTTP](../api/registration.md) registra os contratos concretos. A [unificação de pessoas e famílias](../api/identity-merges.md) está entregue, com prévia, confirmação atômica e os aceites CAD-AC07/08/09/12/13/15/18 verificados em PostgreSQL. Em 06/10/2026, seleção versionada e pendências `MISSING_DATA` foram implementadas, com geração, resolução automática e histórico; campos não selecionados não geram pendências.
+
+Derivações técnicas da unificação: vínculos, inscrições e marcações efetivos da origem são reapontados para a identidade canônica com nova revisão e auditoria `MERGE`, de modo que as restrições de banco e as contagens continuem valendo após a unificação; duplicatas descartadas conservam conteúdo e identidade de origem com `supersededById`; fichas e avaliações não são alteradas. A prévia e a confirmação exigem somente `registration.merge`. Marcações de um vínculo descartado passam ao vínculo que o substitui na mesma confirmação. Não há operação de desfazer.
+
 ## 1. Resultado e modelo
 
 Reconhecer a pessoa e seu núcleo familiar, prevenir registros repetidos e conservar a família de cada fato no tempo. A família tem código único; assistidos têm identidade própria e pelo menos um vínculo histórico. Usuários operadores não são assistidos automaticamente.
@@ -47,7 +51,7 @@ Antes de cadastrar, a UI consulta pessoas/famílias com os dados disponíveis. N
 
 Criação com candidatos não é automaticamente bloqueada: exige `duplicateReview: { candidateIds, decision: "DISTINCT", reason }` quando o operador confirma que são pessoas/núcleos distintos. O backend repete a busca no estado transacional; se aparecer candidato novo, retorna conflito para revisão. Conservar o motivo e candidatos em `DataQualityIssue`; não fundir por CPF nem impor CPF único.
 
-Dados ausentes produzem issues de tipo `MISSING_DATA`, com os campos selecionados como relevantes em DEC-01/LAC-02. O cadastro mínimo funciona mesmo sem seleção institucional final; não chamar ausência de CPF de erro impeditivo. Complementar um campo resolve a issue correspondente com data/autoria. Issues de duplicidade são `POSSIBLE_DUPLICATE`; análise pode resolver como `DISTINCT` ou `MERGED`. Reaparecimento após alteração relevante cria nova ocorrência, preservando a anterior.
+Dados ausentes produzem issues de tipo `MISSING_DATA`, com os campos selecionados como relevantes em DEC-01/LAC-02. O cadastro mínimo funciona mesmo sem seleção institucional final; não chamar ausência de CPF de erro impeditivo. Complementar um campo resolve a issue correspondente com `COMPLETED`, data/autoria. A seleção global é uma versão imutável publicada pela Coordenação (`featureDecisions.manage`), com listas explícitas de campos opcionais de pessoa/família e referência da decisão. Antes da primeira versão, não há campos selecionados; a publicação reconcilia todos os cadastros canônicos. Retirar um campo encerra sua ocorrência com `NOT_TRACKED`, distinguindo desativação de complemento. Uma nova ausência cria outra ocorrência, preservando a resolvida. Unificação encerra ocorrências da origem com `MERGED` e reconcilia o destino. Seleção, ocorrências, autoria, auditoria e idempotência confirmam na mesma transação; configuração não bloqueia o cadastro mínimo. Os contratos e o procedimento de migration estão na [referência de CAD](../api/registration.md#seleção-de-campos-e-dados-ausentes). Issues de duplicidade são `POSSIBLE_DUPLICATE`; análise pode resolver como `DISTINCT` ou `MERGED`. Reaparecimento após alteração relevante cria nova ocorrência, preservando a anterior.
 
 ## 4. Unificação de pessoas e famílias
 
@@ -94,6 +98,8 @@ Confirmação grava mapeamento, reconciliações, destino, issues, revisões e a
 | `GET /duplicate-candidates` | `entityType`, filtros autorizados; comparação com razões do candidato |
 | `POST /identity-merges/preview` | `{ entityType, sourceId, targetId }`; 200, leitura sem efeitos/Idempotency-Key |
 | `POST /identity-merges` | Identidades, fingerprint/revisões da prévia, seleções e resoluções, motivo |
+| `GET /registration-field-selections/current` | Seleção corrente ou `null`; exige `registration.read` |
+| `POST /registration-field-selections` | Versão esperada, listas completas e referência da decisão; exige `featureDecisions.manage` |
 | `GET /data-quality-issues` | `kind?`, `status?`, `entityType?`, paginação; filtros e campos autorizados |
 | `POST /data-quality-issues/:issueId/resolution` | Revisão, resolução `DISTINCT`, motivo; resolução `MERGED` vem da unificação |
 
@@ -121,5 +127,7 @@ Confirmação grava mapeamento, reconciliações, destino, issues, revisões e a
 | CAD-AC16 | Transferência/encerramento retroativo não invalida marcação silenciosamente; conflito permite revisar corte ou reconciliar explicitamente |
 | CAD-AC17 | Reconciliação cria vínculo e corrige contexto na mesma transação; não exige sobreposição temporária nem deixa uma etapa confirmada sozinha |
 | CAD-AC18 | Duas famílias com vínculos sobrepostos para a mesma pessoa canônica são rejeitadas, inclusive sob concorrência e após unificação; vínculos históricos consecutivos são permitidos |
+| CAD-AC19 | Seleção sem campos padrão gera pendências sem bloquear cadastro; complemento, retirada e reaparecimento preservam resoluções e histórico |
+| CAD-AC20 | Publicação concorrente com cadastro e falha de auditoria preservam seleção, ocorrências e operação atômicas; unificação mantém pendências somente na identidade canônica |
 
 Usar integração PostgreSQL para limites temporais, sequência única, unificação e concorrência; não validar histórico apenas por contagem de chamadas a mocks.

@@ -33,6 +33,11 @@ export const roleCapabilities: Record<Role, readonly Capability[]> = {
   ],
   ADMINISTRATOR: ['accounts.manage', 'audit.read'],
 };
+/** Profiles whose accounts are offered as responsible for an activity or session. */
+export const activityResponsibleRoles: readonly Role[] = [
+  'COORDINATION',
+  'ACTIVITY_MANAGER',
+];
 export const roleLabels: Record<Role, string> = {
   COORDINATION: 'Coordenação',
   SOCIAL_ASSISTANCE: 'Assistência social',

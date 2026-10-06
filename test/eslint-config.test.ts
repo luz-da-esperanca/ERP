@@ -5,13 +5,19 @@ const lint = new ESLint();
 
 describe('Architecture dependency rules', () => {
   it.each(['domain', 'application'])(
-    'rejects registration transport types in %s',
+    'rejects HTTP transport types in %s',
     async (layer) => {
       for (const contract of [
         'registration-api',
         'data-quality-api',
         'audit-api',
         'projects-api',
+        'attendance-api',
+        'membership-reconciliation-api',
+        'social-forms-api',
+        'eligibility-api',
+        'identity-merge-api',
+        'reports-api',
       ]) {
         const [result] = await lint.lintText(
           `export type * from '@erp/contracts/${contract}';`,

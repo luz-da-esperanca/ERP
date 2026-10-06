@@ -2,6 +2,10 @@
 
 Versão 1.0 · Dependências: [CORE](00-foundation.md), [CAD](02-registration.md), [FIC](03-social-forms.md), [ATV](04-projects-activities.md), [FRQ](05-attendance.md), [APT](06-eligibility.md), [ACS](01-access.md). Fontes: PRD 1.1 OBJ-01/02/03/06, CAP-10 parcialmente, RN-09/15/16, AC-01/02/03/08/09; ERS RF-REL-01/02/03/04/07/08/09; modelagem §4.2. RF-REL-05/06 são de estoque/entregas e ficam fora; CSV/PDF RF-REL-10 é evolução excluída.
 
+**Implementação backend em 05/10/2026:** as dez rotas, os contratos públicos e a leitura em snapshot único estão entregues e testados, inclusive com PostgreSQL/Redis. A [referência HTTP](../api/reports.md) registra contratos, erros e projeções. Não há migration: REL só lê. As telas desta spec continuam pendentes e as metas de desempenho não foram medidas.
+
+Derivações técnicas da implementação, sem alterar a regra: o relatório de frequência exige `activityId`, porque a projeção de oportunidades de FRQ é por atividade; a projeção de oportunidades foi extraída para uma função pura de FRQ, usada tanto pela consulta individual quanto pelo relatório; aptidão usa `EligibilityService.evaluateAll`, o mesmo avaliador da prévia; o histórico familiar exige `registration.read` e o pessoal, `participants.lookup`, cada tipo de evento filtrado por sua permissão antes da leitura; o histórico familiar não lista inscrições, que ficam no histórico da pessoa; eventos de ficha informam apenas versão e proveniência; avaliações salvas entram no histórico pela data de referência; filtro de referência inexistente responde 422 `REPORT_FILTER_UNKNOWN`.
+
 ## 1. Resultado e unidade de contagem
 
 Oferecer histórico familiar e pessoal e relatórios de alcance, frequência, aptidão e qualidade cadastral somente sobre fatos deste MVP. Não criar cadastro paralelo, “saldo” de atendimentos fictícios nem linha de quantidade de doação zero para representar um módulo não implementado.

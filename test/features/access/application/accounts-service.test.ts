@@ -22,6 +22,38 @@ describe('AccountsService command protection', () => {
     );
     expect(reader.list).not.toHaveBeenCalled();
   });
+  it('offers responsible candidates only to profiles that designate one, limited to activity roles', async () => {
+    const { service, reader, principal } = createAccountsServiceFixture();
+    const input = { page: 1, pageSize: 20 };
+    const page = {
+      data: [{ id: principal.user.id, displayName: 'Synthetic', active: true }],
+      pagination: { ...input, total: 1 },
+    };
+    reader.responsibleCandidates.mockResolvedValue(page);
+    for (const role of ['COORDINATION', 'ACTIVITY_MANAGER'] as const) {
+      principal.user.roleCodes = [role];
+      await expect(
+        service.responsibleCandidates(principal, input),
+      ).resolves.toEqual(page);
+    }
+    expect(reader.responsibleCandidates).toHaveBeenLastCalledWith({
+      ...input,
+      roleCodes: ['COORDINATION', 'ACTIVITY_MANAGER'],
+    });
+    reader.responsibleCandidates.mockClear();
+    for (const role of ['SOCIAL_ASSISTANCE', 'ADMINISTRATOR'] as const) {
+      principal.user.roleCodes = [role];
+      await expect(
+        service.responsibleCandidates(principal, input),
+      ).rejects.toBeInstanceOf(PermissionDeniedError);
+    }
+    principal.user.roleCodes = ['COORDINATION'];
+    principal.user.mustChangePassword = true;
+    await expect(
+      service.responsibleCandidates(principal, input),
+    ).rejects.toMatchObject({ rule: 'PASSWORD_CHANGE_REQUIRED' });
+    expect(reader.responsibleCandidates).not.toHaveBeenCalled();
+  });
   it('preserves the original revision and audit count for an unchanged profile', async () => {
     const { service, stored, operations, audit, user, context, operationId } =
       createAccountsServiceFixture();

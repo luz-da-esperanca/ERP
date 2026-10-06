@@ -1,3 +1,13 @@
+import type { MembershipReconciliationService } from './features/registration/application/membership-reconciliation-service.js';
+import { registerMembershipReconciliationRoutes } from './features/registration/presentation/membership-reconciliation-routes.js';
+import type { AttendanceService } from './features/attendance/application/attendance-service.js';
+import { registerAttendanceRoutes } from './features/attendance/presentation/attendance-routes.js';
+import type { EligibilityService } from './features/eligibility/application/eligibility-service.js';
+import { registerEligibilityRoutes } from './features/eligibility/presentation/eligibility-routes.js';
+import type { IdentityMergeService } from './features/registration/application/identity-merge-service.js';
+import { registerIdentityMergeRoutes } from './features/registration/presentation/identity-merge-routes.js';
+import type { ReportsService } from './features/reports/application/reports-service.js';
+import { registerReportsRoutes } from './features/reports/presentation/reports-routes.js';
 import Fastify, { LogController, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +26,10 @@ import type { RegistrationService } from './features/registration/application/re
 import { registerRegistrationRoutes } from './features/registration/presentation/registration-routes.js';
 import type { ProjectsService } from './features/projects/application/projects-service.js';
 import { registerProjectsRoutes } from './features/projects/presentation/projects-routes.js';
+import type { SocialFormsService } from './features/social-forms/application/social-forms-service.js';
+import { registerSocialFormsRoutes } from './features/social-forms/presentation/social-forms-routes.js';
+import type { MissingDataSelectionService } from './features/registration/application/missing-data-selection-service.js';
+import { registerMissingDataRoutes } from './features/registration/presentation/missing-data-routes.js';
 
 export interface AppServices {
   access: AccessService;
@@ -24,6 +38,13 @@ export interface AppServices {
   dataMode: DataModeGuard;
   registration: RegistrationService;
   projects: ProjectsService;
+  attendance: AttendanceService;
+  membershipReconciliation: MembershipReconciliationService;
+  socialForms: SocialFormsService;
+  eligibility: EligibilityService;
+  identityMerges: IdentityMergeService;
+  reports: ReportsService;
+  missingDataSelections: MissingDataSelectionService;
 }
 
 export function createApp(
@@ -141,6 +162,17 @@ export function createApp(
   );
   registerAuditRoutes(app, services.audit, principal);
   registerRegistrationRoutes(app, services.registration, principal);
+  registerMissingDataRoutes(app, services.missingDataSelections, principal);
   registerProjectsRoutes(app, services.projects, principal);
+  registerSocialFormsRoutes(app, services.socialForms, principal);
+  registerAttendanceRoutes(app, services.attendance, principal);
+  registerEligibilityRoutes(app, services.eligibility, principal);
+  registerIdentityMergeRoutes(app, services.identityMerges, principal);
+  registerReportsRoutes(app, services.reports, principal);
+  registerMembershipReconciliationRoutes(
+    app,
+    services.membershipReconciliation,
+    principal,
+  );
   return app;
 }

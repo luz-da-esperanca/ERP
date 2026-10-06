@@ -15,7 +15,7 @@ São 53 requisitos funcionais no recorte, sendo 3 de relatórios parcialmente ap
 | RF-CAD-05 | CAD — Transferência/correção e histórico | CAD-AC03/04/16/17; FRQ-AC12 |
 | RF-CAD-06 | CAD — Busca prévia e revisão de candidatos | CAD-AC06/11 |
 | RF-CAD-07 | CAD — Unificação e reconciliação | CAD-AC07/08/09/12/13/15 |
-| RF-CAD-08 | CAD — Dados ausentes sem bloqueio | CAD-AC01; FIC-AC04 |
+| RF-CAD-08 | CAD — Dados ausentes sem bloqueio | CAD-AC01/19/20; FIC-AC04 |
 | RF-CAD-09 | CAD — Composição derivada em data | CAD-AC10 |
 | RF-CAD-10 | CAD — Tamanhos datados, LAC-12 para adultos | CAD-AC14/15; FIC-AC13; seleção de campo |
 | RF-CAD-11 | CAD — Cadastro mínimo antes de presença avulsa | CAD-AC01; FRQ-AC04 |

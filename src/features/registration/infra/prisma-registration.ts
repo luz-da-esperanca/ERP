@@ -1,5 +1,10 @@
 import { Prisma } from '../../../generated/prisma/client.js';
 import {
+  attendanceTransactionPorts,
+  coverageSelect,
+  coverageRecord,
+} from '../../attendance/infra/prisma-attendance.js';
+import {
   databaseOperation,
   serializable,
   type Database,
@@ -35,6 +40,10 @@ import type {
 } from '../domain/duplicate-rules.js';
 import type { QualityQuery, QualityIssue } from '../domain/data-quality.js';
 import { dataQualityIssueSchema } from '@erp/contracts/data-quality-api';
+import {
+  missingDataTransactionPorts,
+  missingDataSelectionLock,
+} from './prisma-missing-data.js';
 
 const familySelect = {
   id: true,
@@ -195,7 +204,29 @@ async function duplicateRecords(
     cpf: person.cpf,
   }));
 }
-function transactionPorts(tx: Transaction): RegistrationTransaction {
+/** Follows merge mappings to the canonical identity; unknown ids are returned as given. */
+export async function canonicalId(
+  tx: Transaction,
+  entity: 'person' | 'family',
+  id: string,
+) {
+  const seen = new Set<string>();
+  let current = id;
+  while (!seen.has(current)) {
+    seen.add(current);
+    const select = { mergedIntoId: true };
+    const row =
+      entity === 'person'
+        ? await tx.person.findUnique({ where: { id: current }, select })
+        : await tx.family.findUnique({ where: { id: current }, select });
+    if (!row?.mergedIntoId) break;
+    current = row.mergedIntoId;
+  }
+  return current;
+}
+export function registrationTransactionPorts(
+  tx: Transaction,
+): RegistrationTransaction {
   const reference = z
     .object({
       entityType: z.string(),
@@ -218,6 +249,44 @@ function transactionPorts(tx: Transaction): RegistrationTransaction {
     return entry.after;
   }
   return {
+    missingData: missingDataTransactionPorts(tx),
+    coverage: attendanceTransactionPorts(tx, false),
+    async personCoverage(personId) {
+      return (
+        await tx.attendanceCoverage.findMany({
+          where: {
+            activity: {
+              OR: [
+                { enrollments: { some: { personId, supersededById: null } } },
+                {
+                  sessions: {
+                    some: {
+                      attendances: { some: { personId, supersededById: null } },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          select: coverageSelect,
+        })
+      ).map(coverageRecord);
+    },
+    async membershipMarkings(membershipId) {
+      return (
+        await tx.attendance.findMany({
+          where: {
+            membershipId,
+            supersededById: null,
+            session: { status: 'COMPLETED' },
+          },
+          select: { id: true, session: { select: { occurredAt: true } } },
+        })
+      ).map((row) => ({
+        id: row.id,
+        occurredAt: row.session.occurredAt.toISOString(),
+      }));
+    },
     async recordPossibleDuplicates(
       operationId,
       actorId,
@@ -297,8 +366,9 @@ function transactionPorts(tx: Transaction): RegistrationTransaction {
       });
     },
     async findPerson(id) {
-      const person = await tx.person.findUnique({
-        where: { id },
+      // A merged source is only an alias: commands must address the canonical person.
+      const person = await tx.person.findFirst({
+        where: { id, mergedIntoId: null },
         select: personSelect,
       });
       return person ? projectPerson(person) : null;
@@ -531,8 +601,8 @@ function transactionPorts(tx: Transaction): RegistrationTransaction {
       );
     },
     async findFamily(id) {
-      const family = await tx.family.findUnique({
-        where: { id },
+      const family = await tx.family.findFirst({
+        where: { id, mergedIntoId: null },
         select: familySelect,
       });
       return family ? projectFamily(family) : null;
@@ -780,9 +850,11 @@ export class PrismaRegistration
     );
   }
   families(query: FamiliesQuery) {
-    const where: Prisma.FamilyWhereInput = {
+    const where = (
+      filter: Prisma.FamilyWhereInput,
+    ): Prisma.FamilyWhereInput => ({
       mergedIntoId: null,
-      ...(query.code ? { code: BigInt(query.code) } : {}),
+      ...filter,
       ...(query.q
         ? {
             OR: [
@@ -791,13 +863,29 @@ export class PrismaRegistration
             ],
           }
         : {}),
-    };
+    });
     return databaseOperation(() =>
       this.database.$transaction(
         async (tx) => {
-          const total = await tx.family.count({ where });
+          // The code of a merged family keeps working as a search alias of its target.
+          const alias = query.code
+            ? await tx.family.findUnique({
+                where: { code: BigInt(query.code) },
+                select: { id: true },
+              })
+            : null;
+          const filter = where(
+            query.code
+              ? {
+                  id: alias
+                    ? await canonicalId(tx, 'family', alias.id)
+                    : '00000000-0000-0000-0000-000000000000',
+                }
+              : {},
+          );
+          const total = await tx.family.count({ where: filter });
           const families = await tx.family.findMany({
-            where,
+            where: filter,
             orderBy: [{ code: 'asc' }, { id: 'asc' }],
             skip: (query.page - 1) * query.pageSize,
             take: query.pageSize,
@@ -827,10 +915,11 @@ export class PrismaRegistration
       ),
     );
   }
-  person(id: string, asOf: string, minimal: boolean) {
+  person(requestedId: string, asOf: string, minimal: boolean) {
     return databaseOperation(() =>
       this.database.$transaction(
         async (tx) => {
+          const id = await canonicalId(tx, 'person', requestedId);
           const current = await tx.familyMembership.findFirst({
             where: { personId: id, ...currentMembershipWhere(asOf) },
             select: { family: { select: { id: true, code: true } } },
@@ -950,10 +1039,11 @@ export class PrismaRegistration
       ),
     );
   }
-  family(id: string, asOf: string) {
+  family(requestedId: string, asOf: string) {
     return databaseOperation(async () => {
       return this.database.$transaction(
         async (tx) => {
+          const id = await canonicalId(tx, 'family', requestedId);
           const family = await tx.family.findUnique({
             where: { id },
             select: familySelect,
@@ -999,12 +1089,13 @@ export class PrismaRegistration
     personIds: readonly string[] = [],
   ) {
     return serializable(this.database, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(${missingDataSelectionLock}::bigint)`;
       await tx.$queryRaw`SELECT id FROM "UserAccount" WHERE id = ${actorId}::uuid FOR UPDATE`;
       if (personIds.length)
         await tx.$queryRaw`SELECT id FROM "Person" WHERE id IN (${Prisma.join([...new Set(personIds)].sort().map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR UPDATE`;
       if (familyIds.length)
         await tx.$queryRaw`SELECT id FROM "Family" WHERE id IN (${Prisma.join([...new Set(familyIds)].sort().map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR UPDATE`;
-      return work(transactionPorts(tx));
+      return work(registrationTransactionPorts(tx));
     });
   }
 }

@@ -2,6 +2,10 @@
 
 Versão 1.0 · Dependências: [CORE](00-foundation.md), [CAD](02-registration.md), [ATV](04-projects-activities.md), [FRQ](05-attendance.md), [ACS](01-access.md) e [AUD](08-audit.md). Fontes: PRD 1.1 OBJ-02, CAP-05, RN-02/03/13, AC-02/03, DEC-02; ERS RF-APT-01–07, RN-18, LAC-01 e AC-14; modelagem D-03. Aptidão não libera entrega nem define prioridade; esses módulos estão fora do MVP.
 
+**Implementação backend em 05/10/2026:** política versionada, avaliador puro, prévia, avaliação persistida, seis rotas, migration e auditoria estão entregues e testados, inclusive com PostgreSQL/Redis. A [referência HTTP](../api/eligibility.md) registra contratos, erros e as premissas adotadas. As telas desta spec continuam pendentes. APT-AC13 está verificado com a [unificação de CAD](../api/identity-merges.md): presenças duplicadas são substituídas e avaliações salvas não mudam.
+
+Derivações técnicas da implementação, sem alterar a regra: `expectedLatestPolicyId` refere-se à versão lançada mais recentemente; publicação e avaliação exigem `Idempotency-Key`; a auditoria usa `CREATE` com revisão 1, como as demais versões imutáveis; a prévia exige `eligibility.read` e a avaliação, `eligibility.evaluate`. O avaliador lê vínculos, encontros, marcações, inscrições e cobertura em um snapshot próprio, reutilizando as regras de cobertura e vigência de FRQ/CAD, em vez de chamar `queryFrequency` por pessoa. Unidade sem oportunidades permanece Pendente conforme §4.3, inclusive quando outra atividade do mesmo membro falha comprovadamente. A cobertura exigida abrange todo o período avaliado de cada atividade.
+
 ## 1. Resultado e separação das decisões
 
 Produzir `ELIGIBLE` (Apta), `INELIGIBLE` (Não apta) ou `PENDING` (Pendente) em uma data civil de referência, com critério, membro, atividade e fatos identificáveis. Somente presença em atividade periódica é evidência. Cadastro, inscrição, declaração de evangelização e atendimento pontual não substituem presença.

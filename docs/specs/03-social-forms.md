@@ -2,6 +2,8 @@
 
 Versão 1.0 · Dependências: [CORE](00-foundation.md), [CAD](02-registration.md), [ACS](01-access.md) e [AUD](08-audit.md). Fontes: PRD 1.1 OBJ-01, CAP-02, RN-08/09/15 e §4.7; ERS RF-FIC-01/02/04–09, RES-01/02/05, DEC-05/08 e LAC-05/08; modelagem D-09; [ficha recebida](../ficha_cadastro_familias_2025.md). RF-FIC-03 (total/per capita) e RF-FIC-10 (alerta) permanecem evoluções excluídas desta spec.
 
+**Implementação backend em 05/10/2026:** persistência/migration, dez rotas, contratos, configuração explícita e projeção da auditoria estão implementados. A [referência HTTP](../api/social-forms.md) e o [guia de integração](../api/integrating-social-forms.md) registram os contratos concretos. Testes locais de regras, contratos e criptografia passaram; a integração PostgreSQL/Redis foi executada e aprovada em 05/10/2026, após corrigir a chamada do bloqueio consultivo de configuração. A [unificação de CAD](../api/identity-merges.md) está entregue e preserva as versões das duas origens (FIC-AC11). UI e integração HTTP do frontend permanecem pendentes.
+
 ## 1. Resultado
 
 Publicar uma fotografia familiar datada, com situação domiciliar, econômica, necessidades, dados dos membros e ciência conhecida. Cada publicação é uma versão completa imutável. A versão atual não reescreve a anterior nem consulta o cadastro atual para substituir os valores históricos.

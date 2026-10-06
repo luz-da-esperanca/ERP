@@ -1,3 +1,13 @@
+import { MembershipReconciliationService } from './features/registration/application/membership-reconciliation-service.js';
+import { PrismaMembershipReconciliation } from './features/registration/infra/prisma-membership-reconciliation.js';
+import { AttendanceService } from './features/attendance/application/attendance-service.js';
+import { PrismaAttendance } from './features/attendance/infra/prisma-attendance.js';
+import { EligibilityService } from './features/eligibility/application/eligibility-service.js';
+import { PrismaEligibility } from './features/eligibility/infra/prisma-eligibility.js';
+import { IdentityMergeService } from './features/registration/application/identity-merge-service.js';
+import { PrismaIdentityMerge } from './features/registration/infra/prisma-identity-merge.js';
+import { ReportsService } from './features/reports/application/reports-service.js';
+import { PrismaReports } from './features/reports/infra/prisma-reports.js';
 import type { ApiConfig } from './core/infra/config.js';
 import { randomUUID } from 'node:crypto';
 import { createDatabase, type Database } from './core/infra/database.js';
@@ -23,6 +33,11 @@ import { PrismaRegistration } from './features/registration/infra/prisma-registr
 import { RegistrationService } from './features/registration/application/registration-service.js';
 import { PrismaProjects } from './features/projects/infra/prisma-projects.js';
 import { ProjectsService } from './features/projects/application/projects-service.js';
+import { SocialFormsService } from './features/social-forms/application/social-forms-service.js';
+import { PrismaSocialForms } from './features/social-forms/infra/prisma-social-forms.js';
+import { createSensitivePayloads } from './features/social-forms/infra/sensitive-payloads.js';
+import { MissingDataSelectionService } from './features/registration/application/missing-data-selection-service.js';
+import { PrismaMissingDataSelections } from './features/registration/infra/prisma-missing-data-selections.js';
 
 export function createAccounts(database: Database, config: ApiConfig) {
   const persistence = new PrismaAccounts(
@@ -60,8 +75,27 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       passwords,
       createTokenSigner(config),
     );
-    const audit = new AuditService(new PrismaAuditReader(database));
+    const socialForms = new SocialFormsService(
+      new PrismaSocialForms(database),
+      createOperationFingerprints(config),
+      createSensitivePayloads(
+        config.SOCIAL_FORM_CURRENT_KEY_ID,
+        config.socialFormKeys,
+      ),
+      () => new Date().toISOString(),
+      randomUUID,
+      config.DATA_MODE,
+    );
+    const audit = new AuditService(
+      new PrismaAuditReader(database),
+      (actor, entry) => socialForms.projectAudit(actor, entry),
+    );
     const registrationPersistence = new PrismaRegistration(database);
+    const missingDataSelections = new MissingDataSelectionService(
+      new PrismaMissingDataSelections(database),
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+    );
     const registration = new RegistrationService(
       registrationPersistence,
       registrationPersistence,
@@ -74,6 +108,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
           month: '2-digit',
           day: '2-digit',
         }).format(new Date()),
+      config.APP_TIMEZONE,
     );
     const projectsPersistence = new PrismaProjects(database);
     const projects = new ProjectsService(
@@ -83,9 +118,64 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       () => new Date().toISOString(),
       config.APP_TIMEZONE,
     );
+    const attendancePersistence = new PrismaAttendance(database);
+    const attendance = new AttendanceService(
+      attendancePersistence,
+      attendancePersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
+    const eligibilityPersistence = new PrismaEligibility(database);
+    const eligibility = new EligibilityService(
+      eligibilityPersistence,
+      eligibilityPersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
+    const mergePersistence = new PrismaIdentityMerge(database);
+    const identityMerges = new IdentityMergeService(
+      mergePersistence,
+      mergePersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
+    const reports = new ReportsService(
+      new PrismaReports(database, config.APP_TIMEZONE),
+      eligibility,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
+    const reconciliationPersistence = new PrismaMembershipReconciliation(
+      database,
+    );
+    const membershipReconciliation = new MembershipReconciliationService(
+      reconciliationPersistence,
+      reconciliationPersistence,
+      createOperationFingerprints(config),
+      () => new Date().toISOString(),
+      config.APP_TIMEZONE,
+    );
     const app = createApp(
       config,
-      { access, accounts, audit, dataMode, registration, projects },
+      {
+        access,
+        accounts,
+        audit,
+        dataMode,
+        registration,
+        projects,
+        attendance,
+        membershipReconciliation,
+        socialForms,
+        eligibility,
+        identityMerges,
+        reports,
+        missingDataSelections,
+      },
       logging,
     );
     app.addHook('onClose', async () => {
@@ -101,6 +191,13 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       sessions,
       registration,
       projects,
+      attendance,
+      membershipReconciliation,
+      socialForms,
+      eligibility,
+      identityMerges,
+      reports,
+      missingDataSelections,
     };
   } catch {
     if (redis.isOpen) redis.destroy();

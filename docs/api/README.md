@@ -1,12 +1,12 @@
 # Integração com o backend
 
-Referência para quem integra a interface do MVP à API. A base normativa é [CORE](../specs/00-foundation.md), [ACS](../specs/01-access.md), [CAD](../specs/02-registration.md), [ATV](../specs/04-projects-activities.md) e [AUD](../specs/08-audit.md). Este diretório documenta os contratos implementados; a existência de uma rota na spec não comprova sua entrega.
+Referência para quem integra a interface do MVP à API. A base normativa é [CORE](../specs/00-foundation.md), [ACS](../specs/01-access.md), [CAD](../specs/02-registration.md), [FIC](../specs/03-social-forms.md), [ATV](../specs/04-projects-activities.md), [FRQ](../specs/05-attendance.md) e [AUD](../specs/08-audit.md). Este diretório documenta os contratos implementados; a existência de uma rota na spec não comprova sua entrega.
 
 ## Disponibilidade
 
-Estão entregues autenticação, contas/perfis, a primeira etapa de [Cadastro](registration.md), [Projetos, atividades e inscrições](projects.md) e auditoria dessas entidades. Para integrar ATV, siga também o [guia de integração](integrating-projects.md). Ficha, frequência, aptidão e relatórios ainda não têm endpoints. Unificação e reconciliação com frequência serão concluídas quando essas dependências existirem, conforme o [índice das specs](../specs/README.md#4-sequência-de-implementação).
+Estão entregues autenticação, contas/perfis, [Cadastro e qualidade dos dados](registration.md), [Projetos, atividades e inscrições](projects.md), [Encontros, frequência e cobertura](attendance.md), [Ficha social](social-forms.md), [Aptidão familiar](eligibility.md), [reconciliação composta CAD/FRQ](membership-reconciliation.md), [unificação de pessoas e famílias](identity-merges.md) e auditoria dessas entidades. Os guias de integração de [ATV](integrating-projects.md), [FRQ](integrating-attendance.md) e [FIC](integrating-social-forms.md) orientam os fluxos. [Históricos e relatórios](reports.md) também estão entregues. Todas as rotas previstas nas specs do MVP têm backend; veja o [índice das specs](../specs/README.md#4-sequência-de-implementação) para o que resta.
 
-A interface existente permanece em memória e não foi integrada nesta etapa. Os DTOs HTTP estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api`, `@erp/contracts/projects-api` e `@erp/contracts/audit-api`. Os contratos legados `registration` e `projects` atendem ao protótipo e não definem os payloads HTTP.
+A entrada da interface já usa autenticação HTTP; os demais módulos aguardam integração pela frente de frontend. Os DTOs HTTP estão em `@erp/contracts/registration-api`, `@erp/contracts/data-quality-api`, `@erp/contracts/projects-api`, `@erp/contracts/attendance-api`, `@erp/contracts/social-forms-api`, `@erp/contracts/eligibility-api`, `@erp/contracts/identity-merge-api`, `@erp/contracts/reports-api`, `@erp/contracts/membership-reconciliation-api` e `@erp/contracts/audit-api`. Os contratos legados `registration`, `projects`, `attendance`, `social-forms` e `reports` atendem ao protótipo e não definem os payloads HTTP.
 
 ## Preparar o ambiente e a conta
 
@@ -14,7 +14,7 @@ Siga os comandos de banco, Redis, variáveis e bootstrap no [README principal](.
 
 O bootstrap cria um Administrador. Para operar CAD, atribua explicitamente `SOCIAL_ASSISTANCE` ou `COORDINATION` a uma conta por `PATCH /api/v1/users/:userId`, com a revisão atual, `roleCodes` e os cabeçalhos abaixo. Ser Administrador, isoladamente, não concede cadastro assistencial. As operações e os schemas de contas estão em [access-api.ts](../../packages/contracts/src/access-api.ts) e [SPEC-ACS](../specs/01-access.md#5-api).
 
-No navegador, sirva a SPA e `/api` pela mesma origem. Em desenvolvimento, quem integra deve configurar um proxy de `/api` para a API; o Vite atual ainda não contém esse proxy. `APP_ORIGIN` deve corresponder exatamente à origem da SPA. O backend não oferece CORS para chamadas com credenciais entre origens distintas.
+No navegador, sirva a SPA e `/api` pela mesma origem. Em desenvolvimento, o Vite encaminha `/api` para `http://127.0.0.1:3001`. `APP_ORIGIN` deve corresponder exatamente à origem da SPA. O backend não oferece CORS para chamadas com credenciais entre origens distintas.
 
 ## Sessão e cabeçalhos
 
@@ -34,7 +34,7 @@ O navegador envia `Origin` automaticamente. Em produção, use a origem HTTPS co
 4. Se `user.mustChangePassword=true`, envie `PUT /auth/password` com `expectedRevision`, `currentPassword` e `newPassword`; a troca revoga a sessão e exige novo login.
 5. Para sair, envie `POST /auth/logout` com `{}`; sucesso retorna 204.
 
-Todas as escritas de CAD e ATV também exigem `Idempotency-Key` com UUID gerado pelo cliente. Login, logout e troca da própria senha seguem as exceções de ACS. `GET` não exige chave nem cria registros de negócio.
+Todas as escritas de CAD, ATV, FRQ, FIC e APT também exigem `Idempotency-Key` com UUID gerado pelo cliente. As prévias POST de reconciliação CAD/FRQ e de unificação não escrevem e dispensam chave. Login, logout e troca da própria senha seguem as exceções de ACS. `GET` não exige chave nem cria registros de negócio.
 
 ## Envelope, datas e revisões
 
@@ -71,12 +71,19 @@ Traduza `code`, `details.rule` e os caminhos de `details.fields` para pt-BR; `me
 
 `GET /audit-entries` exige `entityType`. Aceita `entityId`, `actorId`, `from`, `to`, `action` e paginação. `from` inclui o instante inicial; `to` exclui o final, ambos sobre a data de lançamento `recordedAt`. Ordenação: `recordedAt desc`, `id desc`.
 
-| Entidade                                                                   | Permissões cumulativas             |
-| -------------------------------------------------------------------------- | ---------------------------------- |
-| `UserAccount`                                                              | `audit.read` e `accounts.manage`   |
-| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue`  | `audit.read` e `registration.read` |
-| `Institute`, `ServiceType`, `Project`, `Activity`, `ParticipantEnrollment` | `audit.read` e `projects.read`     |
+| Entidade                                                                                   | Permissões cumulativas                   |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| `RegistrationFieldSelection`                                                               | `audit.read` e `featureDecisions.manage` |
+| `UserAccount`                                                                              | `audit.read` e `accounts.manage`         |
+| `Family`, `Person`, `FamilyMembership`, `SizeProfile`, `DataQualityIssue`, `IdentityMerge` | `audit.read` e `registration.read`       |
+| `Institute`, `ServiceType`, `Project`, `Activity`, `ParticipantEnrollment`                 | `audit.read` e `projects.read`           |
+| `ActivitySession`, `Attendance`, `AttendanceCoverage`                                      | `audit.read` e `attendance.read`         |
+| `SocialForm`, `Acknowledgement`                                                            | `audit.read` e `socialForms.read`        |
+| `EligibilityPolicy`, `EligibilityAssessment`                                               | `audit.read` e `eligibility.read`        |
+| `FieldSelectionVersion`, `SocialFormOption`, `FeatureDecision`                             | `audit.read` e `featureDecisions.manage` |
 
 `GET /audit-entries/:entryId` devolve `{ data: entry }`; um ID fora do universo autorizado retorna 404. Lista e detalhe contêm `operationId`, ação, revisão, autor, `recordedAt`, `occurredAt`, `before`, `after`, motivo e classificação. `occurredAt` pode ser `null`; não substitua por `recordedAt`. Vários eventos podem pertencer à mesma operação composta.
 
 Revisões antigas são recuperáveis nos snapshots da auditoria. Não há rota pública independente `/:resource/:id/revisions/:revision` nesta etapa. Os schemas de saída são [audit-api.ts](../../packages/contracts/src/audit-api.ts); snapshots de contas mantêm a compatibilidade de [account-audit-api.ts](../../packages/contracts/src/account-audit-api.ts).
+
+FIC restringe o conteúdo dos snapshots também por seleção, escopo e flags atuais. Eventos de ficha sem campos sociais visíveis são excluídos antes de contar/paginar; detalhe desse evento retorna 404. Veja a [referência de FIC](social-forms.md#proteção-e-auditoria).

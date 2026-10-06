@@ -1,3 +1,8 @@
+import {
+  AttendanceRuleError,
+  AttendanceConflictError,
+  AttendanceRevisionConflictError,
+} from '../../features/attendance/domain/attendance-errors.js';
 import { z } from 'zod';
 import {
   AccountRevisionConflictError,
@@ -14,6 +19,14 @@ import {
   IdempotencyConflictError,
   FeatureNotEnabledError,
 } from '../application/errors.js';
+import {
+  EligibilityConflictError,
+  EligibilityRuleError,
+} from '../../features/eligibility/domain/eligibility-errors.js';
+import {
+  ReportChangedError,
+  ReportRuleError,
+} from '../../features/reports/domain/report-errors.js';
 import { HttpError } from './http-error.js';
 import type { HttpFailure } from './http-error.js';
 import {
@@ -26,8 +39,78 @@ import {
   ProjectsRevisionConflictError,
   ProjectsRuleError,
 } from '../../features/projects/domain/project-errors.js';
+import {
+  SocialFormRuleError,
+  SocialFormConflictError,
+  SocialFormRevisionConflictError,
+} from '../../features/social-forms/domain/social-form-errors.js';
 
 export function mapError(error: unknown): HttpFailure {
+  if (error instanceof SocialFormRevisionConflictError)
+    return {
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: error.message,
+      details: { currentRevision: error.currentRevision },
+    };
+  if (error instanceof SocialFormConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule },
+    };
+  if (error instanceof SocialFormRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
+  if (error instanceof ReportChangedError)
+    return { status: 409, code: 'REPORT_CHANGED', message: error.message };
+  if (error instanceof ReportRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
+  if (error instanceof EligibilityConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule, ids: error.ids },
+    };
+  if (error instanceof EligibilityRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
+  if (error instanceof AttendanceRevisionConflictError)
+    return {
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: error.message,
+      details: { currentRevision: error.currentRevision },
+    };
+  if (error instanceof AttendanceConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule, ids: error.ids },
+    };
+  if (error instanceof AttendanceRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
   if (error instanceof ProjectsRevisionConflictError)
     return {
       status: 409,

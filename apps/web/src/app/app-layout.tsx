@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router';
 import {
   Users,
@@ -8,8 +9,9 @@ import {
   LogOut,
   Search,
   FolderOpen,
+  CopyCheck,
 } from 'lucide-react';
-import type { Capability } from '@erp/contracts/access';
+import type { Capability, Role } from '@erp/contracts/access';
 import { useErp } from './erp-provider';
 import { roleLabels } from '../features/access/presentation/role-labels';
 import { SearchPage } from '../features/registration/presentation/search-page';
@@ -29,6 +31,12 @@ const navigation: Array<{
     capability: 'registration.read',
   },
   {
+    to: '/data-quality',
+    label: 'Duplicidades e qualidade',
+    icon: CopyCheck,
+    capability: 'registration.read',
+  },
+  {
     to: '/projects',
     label: 'Projetos e atividades',
     icon: FolderOpen,
@@ -38,13 +46,61 @@ const navigation: Array<{
 
 export function AppLayout() {
   const { session, client } = useErp();
-  const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   if (!session) return <Navigate to="/login" replace />;
-  const items = navigation.filter(
-    (item) =>
-      !item.capability || session.capabilities.includes(item.capability),
+  return (
+    <>
+      <AppShell
+        displayName={session.user.displayName}
+        roles={session.user.roles}
+        capabilities={session.capabilities}
+        onLogout={() => client.access.logout()}
+        logoutLabel="Sair da demonstração"
+        accountLabel="Dados sintéticos"
+        onSearch={() => setSearchOpen(true)}
+        searchOpen={searchOpen}
+        headerActions={<GlobalActions />}
+      >
+        <Outlet />
+      </AppShell>
+      {searchOpen ? <SearchPage onClose={() => setSearchOpen(false)} /> : null}
+    </>
   );
+}
+
+export function AppShell({
+  displayName,
+  showDataQuality = false,
+  roles,
+  capabilities,
+  onLogout,
+  logoutPending = false,
+  logoutLabel = 'Sair',
+  accountLabel,
+  onSearch,
+  searchOpen = false,
+  headerActions,
+  children,
+}: {
+  displayName: string;
+  showDataQuality?: boolean;
+  roles: Role[];
+  capabilities: Capability[];
+  onLogout: () => void;
+  logoutPending?: boolean;
+  logoutLabel?: string;
+  accountLabel: string;
+  onSearch?: () => void;
+  searchOpen?: boolean;
+  headerActions?: ReactNode;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const items = navigation
+    .filter((item) => item.to !== '/data-quality' || showDataQuality)
+    .filter(
+      (item) => !item.capability || capabilities.includes(item.capability),
+    );
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -82,16 +138,15 @@ export function AppLayout() {
         </nav>
         <div className="sidebar-bottom">
           <div className="user-card">
-            <strong>{session.user.displayName}</strong>
-            <small>
-              {session.user.roles.map((role) => roleLabels[role]).join(' · ')}
-            </small>
+            <strong>{displayName}</strong>
+            <small>{roles.map((role) => roleLabels[role]).join(' · ')}</small>
           </div>
           <button
             className="button secondary full-button"
-            onClick={() => client.access.logout()}
+            disabled={logoutPending}
+            onClick={onLogout}
           >
-            <LogOut size={16} /> Sair da demonstração
+            <LogOut size={16} /> {logoutPending ? 'Saindo…' : logoutLabel}
           </button>
         </div>
       </aside>
@@ -112,26 +167,25 @@ export function AppLayout() {
           >
             <Menu />
           </button>
-          <button
-            type="button"
-            className="global-search"
-            aria-expanded={searchOpen}
-            aria-haspopup="dialog"
-            onClick={() => setSearchOpen(true)}
-          >
-            <Search aria-hidden="true" size={18} />
-            <span>Buscar por família, pessoa ou código...</span>
-          </button>
-          <span className="top-account" title="Ambiente de demonstração">
-            Dados sintéticos
-          </span>
-          <GlobalActions />
+          {onSearch && (
+            <button
+              type="button"
+              className="global-search"
+              aria-expanded={searchOpen}
+              aria-haspopup="dialog"
+              onClick={onSearch}
+            >
+              <Search aria-hidden="true" size={18} />
+              <span>Buscar por família, pessoa ou código...</span>
+            </button>
+          )}
+          <span className="top-account">{accountLabel}</span>
+          {headerActions}
         </header>
         <main id="main-content" className="page-wrap" tabIndex={-1}>
-          <Outlet />
+          {children}
         </main>
       </div>
-      {searchOpen ? <SearchPage onClose={() => setSearchOpen(false)} /> : null}
     </div>
   );
 }

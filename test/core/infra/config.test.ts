@@ -13,6 +13,42 @@ const environment = {
   COOKIE_SECURE: 'false',
 };
 describe('Runtime configuration', () => {
+  it('keeps social encryption optional until enabled and validates independent 32-byte rotation keys', () => {
+    expect(readConfig(environment).socialFormKeys).toEqual({});
+    const key = randomBytes(32).toString('base64');
+    expect(
+      readConfig({
+        ...environment,
+        SOCIAL_FORM_CURRENT_KEY_ID: 'v1',
+        SOCIAL_FORM_KEYS_JSON: JSON.stringify({ v1: key }),
+      }).socialFormKeys.v1?.length,
+    ).toBe(32);
+    expect(() =>
+      readConfig({
+        ...environment,
+        SOCIAL_FORM_CURRENT_KEY_ID: 'v1',
+        SOCIAL_FORM_KEYS_JSON: JSON.stringify({
+          v1: environment.JWT_SECRET_BASE64,
+        }),
+      }),
+    ).toThrow('must be independent');
+    expect(() =>
+      readConfig({
+        ...environment,
+        SOCIAL_FORM_CURRENT_KEY_ID: 'v1',
+        SOCIAL_FORM_KEYS_JSON: JSON.stringify({
+          v1: randomBytes(48).toString('base64'),
+        }),
+      }),
+    ).toThrow('Invalid social encryption key configuration');
+    expect(() =>
+      readConfig({
+        ...environment,
+        SOCIAL_FORM_CURRENT_KEY_ID: 'missing',
+        SOCIAL_FORM_KEYS_JSON: JSON.stringify({ v1: key }),
+      }),
+    ).toThrow('Current social encryption key is missing');
+  });
   it('defaults to synthetic data and local cookies only when explicitly configured', () => {
     expect(readConfig(environment)).toMatchObject({
       DATA_MODE: 'SYNTHETIC',

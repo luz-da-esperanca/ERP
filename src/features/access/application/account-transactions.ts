@@ -3,12 +3,21 @@ import type { Account } from '../domain/account.js';
 import type { CredentialAccount } from './ports.js';
 import type { AccountAuditWriter } from '../../audit/application/account-audit.js';
 import type { AuditActorType } from '../../audit/domain/account-audit.js';
-import type { ListUsersInput, AccountPage } from './account-commands.js';
+import type {
+  ListUsersInput,
+  AccountPage,
+  ResponsibleCandidatesInput,
+  ResponsibleCandidatePage,
+} from './account-commands.js';
 
 export interface AccountsReader {
   findByLogin(login: string): Promise<CredentialAccount | null>;
   findById(id: string): Promise<CredentialAccount | null>;
   list(input: ListUsersInput): Promise<AccountPage>;
+  /** Identification only; explicit ids are resolved whatever their role or state. */
+  responsibleCandidates(
+    input: ResponsibleCandidatesInput & { roleCodes: readonly Role[] },
+  ): Promise<ResponsibleCandidatePage>;
 }
 export interface AccountCreation {
   login: string;

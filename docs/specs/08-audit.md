@@ -28,6 +28,8 @@ Correção, cancelamento, encerramento de vínculo, troca de titular, unificaç�
 
 `occurredAt` registra a referência do fato quando pertinente, e `recordedAt` usa o instante atual. Lançamento tardio não troca as datas. Alterar conteúdo de um evento anterior não é a forma de corrigir: a operação de domínio publica outro evento/revisão. Fatos cancelados ficam recuperáveis, com a causa e revisão do cancelamento.
 
+A configuração cadastral `RegistrationFieldSelection` usa `REGISTRATION_CONFIGURATION`, com `audit.read` e `featureDecisions.manage` cumulativos. Cada versão possui revisão 1, ação `CREATE`, referência da decisão e autoria; a auditoria de suas ocorrências permanece `DataQualityIssue` em `REGISTRATION`, conforme [CAD](../api/registration.md#seleção-de-campos-e-dados-ausentes).
+
 ## 4. Consulta e interface
 
 | Rota | Filtros e saída |

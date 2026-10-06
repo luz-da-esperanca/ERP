@@ -1,7 +1,23 @@
 import type { RegistrationEntity } from './duplicate-rules.js';
 export type QualityIssueKind = 'MISSING_DATA' | 'POSSIBLE_DUPLICATE';
 export type QualityIssueStatus = 'OPEN' | 'RESOLVED';
-export type QualityResolution = 'DISTINCT' | 'MERGED';
+export type QualityResolution =
+  'DISTINCT' | 'MERGED' | 'COMPLETED' | 'NOT_TRACKED';
+export interface MissingDataSelection {
+  id: string;
+  version: number;
+  personFields: string[];
+  familyFields: string[];
+  decisionReference: string;
+  recordedAt: string;
+  recordedBy: string;
+}
+export interface PublishMissingDataSelection {
+  expectedVersion: number | null;
+  personFields: string[];
+  familyFields: string[];
+  decisionReference: string;
+}
 export interface QualityIssue {
   id: string;
   entityType: RegistrationEntity;

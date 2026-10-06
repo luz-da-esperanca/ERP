@@ -74,6 +74,9 @@ Rotas sob `/api/v1`:
 | `POST /users/:userId/activation` | `{ expectedRevision, active, reason }` | 200; `accounts.manage` |
 | `PUT /users/:userId/password` | `{ expectedRevision, temporaryPassword, reason }` | 200; revoga sessões, exige troca; `accounts.manage` |
 | `GET /roles` | — | Quatro perfis/capacidades; `accounts.manage` |
+| `GET /responsible-candidates` | `q?`, `ids?`, paginação | `id`, `displayName`, `active`; `projects.write` ou `attendance.write` |
+
+Derivação adotada pelo responsável pelo projeto em 05/10/2026: `GET /responsible-candidates` é um diretório mínimo para designar o responsável de atividade/encontro, não administração de contas. Lista contas ativas com perfil Coordenação ou Responsável por Atividade, ordenadas por nome; `ids` resolve contas já gravadas como responsável, qualquer que seja seu perfil ou estado, para que continuem identificáveis. Nunca devolve login, perfis ou metadados de credencial. A gravação de `responsibleId` continua aceitando qualquer conta existente, conforme SPEC-ATV/FRQ.
 
 Contas criadas/resetadas usam `mustChangePassword=true`. Enquanto esse estado estiver ativo, somente sessão, logout e troca de senha são acessíveis; ações de domínio retornam 403 com `details.rule=PASSWORD_CHANGE_REQUIRED`. DTO da sessão informa `UserAccount.revision` para a troca. Comparar senha/hash fora da transação; na confirmação, verificar a revisão capturada, incrementar revisão/`authVersion`, atualizar `mustChangePassword` e registrar auditoria. Uma troca/reset concorrente produz 409, sem bcrypt dentro da transação.
 

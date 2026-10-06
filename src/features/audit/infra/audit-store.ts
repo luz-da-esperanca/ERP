@@ -1,4 +1,11 @@
+import { auditScopes, auditScope } from '../domain/audit-scopes.js';
+import {
+  attendanceAuditEntrySchema,
+  eligibilityAuditEntrySchema,
+  registrationConfigurationAuditEntrySchema,
+} from '@erp/contracts/audit-api';
 import { z } from 'zod';
+import { identityMergeDtoSchema } from '@erp/contracts/identity-merge-api';
 import { userDtoSchema } from '@erp/contracts/access-api';
 import { accountAuditActionSchema } from '@erp/contracts/account-audit-api';
 import {
@@ -29,6 +36,8 @@ import type {
   AuditReader,
   AuditQueryInput,
 } from '../application/audit-reader.js';
+import type { AuditProjector } from '../application/audit-reader.js';
+import { socialSnapshotSchemas } from '../../social-forms/infra/social-form-projections.js';
 import type { AccountAuditSnapshot } from '../domain/account-audit.js';
 
 export class PrismaAccountAudit implements AccountAuditWriter {
@@ -104,6 +113,52 @@ function projectSnapshot(value: Prisma.JsonValue): AccountAuditSnapshot {
 }
 
 function projectEntry(entry: SelectedEntry): AuditEntry {
+  if (entry.classification === 'REGISTRATION_CONFIGURATION')
+    return registrationConfigurationAuditEntrySchema.parse({
+      ...entry,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+    });
+  if (
+    entry.classification === 'SOCIAL_FORMS' ||
+    entry.classification === 'FEATURE_DECISIONS'
+  ) {
+    const entityType = z
+      .enum([
+        'SocialForm',
+        'Acknowledgement',
+        'FieldSelectionVersion',
+        'SocialFormOption',
+        'FeatureDecision',
+      ])
+      .parse(entry.entityType);
+    return {
+      ...entry,
+      entityType,
+      classification: entry.classification,
+      action: z
+        .enum(['CREATE', 'UPDATE', 'CLOSE', 'CORRECT'])
+        .parse(entry.action),
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+      before: entry.before
+        ? socialSnapshotSchemas[entityType].parse(entry.before)
+        : null,
+      after: socialSnapshotSchemas[entityType].parse(entry.after),
+    };
+  }
+  if (entry.classification === 'ATTENDANCE')
+    return attendanceAuditEntrySchema.parse({
+      ...entry,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+    });
+  if (entry.classification === 'ELIGIBILITY')
+    return eligibilityAuditEntrySchema.parse({
+      ...entry,
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+    });
   if (entry.classification === 'PROJECTS')
     return projectsAuditEntrySchema.parse({
       ...entry,
@@ -117,6 +172,7 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
       FamilyMembership: membershipDtoSchema,
       SizeProfile: sizeProfileSchema,
       DataQualityIssue: dataQualityIssueSchema,
+      IdentityMerge: identityMergeDtoSchema,
     };
     const entityType = z
       .enum([
@@ -125,6 +181,7 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
         'FamilyMembership',
         'SizeProfile',
         'DataQualityIssue',
+        'IdentityMerge',
       ])
       .parse(entry.entityType);
     return {
@@ -134,7 +191,7 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
       entityId: entry.entityId,
       revision: entry.revision,
       action: z
-        .enum(['CREATE', 'UPDATE', 'CLOSE', 'CORRECT'])
+        .enum(['CREATE', 'UPDATE', 'CLOSE', 'CORRECT', 'MERGE'])
         .parse(entry.action),
       actorType: entry.actorType,
       actorId: entry.actorId,
@@ -170,22 +227,11 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
 export class PrismaAuditReader implements AuditReader {
   constructor(private readonly database: Database) {}
 
-  list(input: AuditQueryInput) {
+  list(input: AuditQueryInput, project?: AuditProjector) {
     return databaseOperation(async () => {
       const where: Prisma.AuditEntryWhereInput = {
         entityType: input.entityType,
-        classification:
-          input.entityType === 'UserAccount'
-            ? 'ACCOUNTS'
-            : [
-                  'Institute',
-                  'ServiceType',
-                  'Project',
-                  'Activity',
-                  'ParticipantEnrollment',
-                ].includes(input.entityType)
-              ? 'PROJECTS'
-              : 'REGISTRATION',
+        classification: auditScope(input.entityType).classification,
         entityId: input.entityId,
         actorId: input.actorId,
         action: input.action,
@@ -194,6 +240,36 @@ export class PrismaAuditReader implements AuditReader {
           lt: input.to ? new Date(input.to) : undefined,
         },
       };
+      if (project)
+        return this.database.$transaction(
+          async (tx) => {
+            const entries = await tx.auditEntry.findMany({
+              where,
+              select: auditSelect,
+              orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }],
+            });
+            const visible: AuditEntry[] = [];
+            for (const entry of entries) {
+              const value = await project(projectEntry(entry));
+              if (value) visible.push(value);
+            }
+            return {
+              data: visible.slice(
+                (input.page - 1) * input.pageSize,
+                input.page * input.pageSize,
+              ),
+              pagination: {
+                page: input.page,
+                pageSize: input.pageSize,
+                total: visible.length,
+              },
+            };
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+            timeout: 10000,
+          },
+        );
       const [entries, total] = await this.database.$transaction(
         [
           this.database.auditEntry.findMany({
@@ -214,43 +290,29 @@ export class PrismaAuditReader implements AuditReader {
     });
   }
 
-  get(id: string, entityTypes: readonly AuditEntity[] = ['UserAccount']) {
+  get(
+    id: string,
+    entityTypes: readonly AuditEntity[] = ['UserAccount'],
+    project?: AuditProjector,
+  ) {
     return databaseOperation(async () => {
       const entry = await this.database.auditEntry.findFirst({
         where: {
           id,
-          OR: [
-            {
-              entityType: {
-                in: entityTypes.filter((type) => type === 'UserAccount'),
-              },
-              classification: 'ACCOUNTS',
+          OR: auditScopes.map((scope) => ({
+            classification: scope.classification,
+            entityType: {
+              in: entityTypes.filter((type) => scope.entities.includes(type)),
             },
-            {
-              entityType: {
-                in: entityTypes.filter((type) => type !== 'UserAccount'),
-              },
-              classification: 'REGISTRATION',
-            },
-            {
-              entityType: {
-                in: entityTypes.filter((type) =>
-                  [
-                    'Institute',
-                    'ServiceType',
-                    'Project',
-                    'Activity',
-                    'ParticipantEnrollment',
-                  ].includes(type),
-                ),
-              },
-              classification: 'PROJECTS',
-            },
-          ],
+          })),
         },
         select: auditSelect,
       });
-      return entry ? projectEntry(entry) : null;
+      return entry
+        ? project
+          ? project(projectEntry(entry))
+          : projectEntry(entry)
+        : null;
     });
   }
 }

@@ -7,6 +7,7 @@ import type { Role } from '@erp/contracts/access';
 import type { Principal } from '../../src/features/access/application/ports.js';
 import { integrationEnvironment } from './integration-environment.js';
 import { initialInstitutes } from '../../src/features/projects/domain/initial-institutes.js';
+import { initialSocialOptions } from '../../src/features/social-forms/domain/initial-social-options.js';
 
 export function setupIntegrationFixture() {
   const { databaseUrl, redisUrl } = integrationEnvironment();
@@ -18,6 +19,10 @@ export function setupIntegrationFixture() {
     JWT_SECRET_BASE64: randomBytes(32).toString('base64'),
     OPERATION_HMAC_CURRENT_KEY_ID: 'v1',
     OPERATION_HMAC_KEYS_JSON: JSON.stringify({
+      v1: randomBytes(32).toString('base64'),
+    }),
+    SOCIAL_FORM_CURRENT_KEY_ID: 'v1',
+    SOCIAL_FORM_KEYS_JSON: JSON.stringify({
       v1: randomBytes(32).toString('base64'),
     }),
     BCRYPT_COST: '10',
@@ -112,9 +117,16 @@ export function setupIntegrationFixture() {
   });
   beforeEach(async () => {
     await runtime.database.$executeRawUnsafe(
-      'TRUNCATE "DataQualityIssue", "SizeProfile", "FamilyMembership", "Person", "Family", "AuditEntry", "OperationRecord", "RoleAssignment", "FeatureDecision", "UserAccount", "Role" CASCADE',
+      'TRUNCATE "RegistrationFieldSelection", "DataQualityIssue", "SizeProfile", "FamilyMembership", "Person", "Family", "AuditEntry", "OperationRecord", "RoleAssignment", "FeatureDecision", "UserAccount", "Role" CASCADE',
     );
     await runtime.database.serviceType.deleteMany();
+    await runtime.database.socialFormOption.deleteMany();
+    await runtime.database.socialFormOption.createMany({
+      data: initialSocialOptions.map((option) => ({
+        ...option,
+        id: randomUUID(),
+      })),
+    });
     for (const institute of initialInstitutes)
       await runtime.database.institute.update({
         where: { code: institute.code },

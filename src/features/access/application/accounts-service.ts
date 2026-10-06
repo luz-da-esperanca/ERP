@@ -5,7 +5,12 @@ import {
   planAccountActivation,
   assertRevision,
 } from '../domain/account-rules.js';
-import { assertPermission, roleLabels } from '../domain/permissions.js';
+import {
+  activityResponsibleRoles,
+  assertPermission,
+  capabilitiesFor,
+  roleLabels,
+} from '../domain/permissions.js';
 import { AccountRuleError } from '../domain/account-errors.js';
 import { AuthenticationRequiredError } from './access-errors.js';
 import {
@@ -28,6 +33,7 @@ import type {
   ResetPasswordInput,
   ChangePasswordInput,
   ListUsersInput,
+  ResponsibleCandidatesInput,
 } from './account-commands.js';
 
 interface AccountMutation {
@@ -59,6 +65,27 @@ export class AccountsService implements AccountsStore {
       'accounts.manage',
     );
     return this.reader.list(input);
+  }
+  /**
+   * Minimal directory for choosing a responsible. It is not account
+   * administration: only who designates a responsible may read it.
+   */
+  async responsibleCandidates(
+    actor: Principal,
+    input: ResponsibleCandidatesInput,
+  ) {
+    const capabilities = capabilitiesFor(actor.user.roleCodes);
+    assertPermission(
+      actor.user.roleCodes,
+      actor.user.mustChangePassword,
+      capabilities.includes('projects.write')
+        ? 'projects.write'
+        : 'attendance.write',
+    );
+    return this.reader.responsibleCandidates({
+      ...input,
+      roleCodes: [...activityResponsibleRoles],
+    });
   }
 
   private async authorize(

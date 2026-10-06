@@ -2,15 +2,19 @@
 
 Versão 1.0 · Dependências: [CORE](00-foundation.md), [CAD](02-registration.md), [ATV](04-projects-activities.md), [ACS](01-access.md), [AUD](08-audit.md). Fontes: PRD 1.1 OBJ-02/03, CAP-04, RN-08/09/13, AC-08; ERS RF-FRQ-01–04/06/07, IU-04/05/07 e AC-18; modelagem D-03/D-04. Justificativa de ausência RF-FRQ-05 e alerta RF-FRQ-08 não entram sem inclusão explícita.
 
+**Implementação backend em 05/10/2026:** 11 rotas de FRQ, persistência, auditoria, frequência/cobertura e integração com vigências de CAD/ATV estão entregues e testadas. Duas rotas de CAD confirmam [reconciliação composta](../api/membership-reconciliation.md). DTOs, erros e evidências de aceite estão na [referência HTTP](../api/attendance.md); o [guia de integração](../api/integrating-attendance.md) orienta a frente de frontend. A UI desta spec continua pendente; [REL](../api/reports.md) consome a projeção de oportunidades desta spec; a [unificação de identidades](../api/identity-merges.md) está entregue; [APT](../api/eligibility.md) está entregue no backend. FIC possui [contratos de backend](../api/social-forms.md), com validação PostgreSQL/Redis e UI ainda pendentes. O método interno `AttendanceService.queryFrequency` fornece a projeção para consumidores; a avaliação de aptidão pertence a SPEC-APT.
+
 ## 1. Resultado e modelo
 
 Confirmar um encontro realizado e marcações explícitas por pessoa, em uma tela de chamada, distinguindo inscrição, presença, ausência e falta de lançamento. Tela aberta ou rascunho abandonado não cria um encontro.
 
-| Entidade | Campos |
-| --- | --- |
-| `ActivitySession` | `id`, `activityId`, `responsibleId`, `occurredAt`, `recordedAt`, `recordedBy`, `status`, `revision` |
-| `Attendance` | `id`, `sessionId`, `personId`, `familyId`, `membershipId`, `membershipRevision`, `status`, `recordedAt`, `recordedBy`, `revision`, `supersededById?` |
+| Entidade             | Campos                                                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ActivitySession`    | `id`, `activityId`, `responsibleId`, `occurredAt`, `recordedAt`, `recordedBy`, `status`, `revision`                                                                                   |
+| `Attendance`         | `id`, `sessionId`, `personId`, `familyId`, `membershipId`, `membershipRevision`, `status`, `recordedAt`, `recordedBy`, `revision`, `supersededById?`                                  |
 | `AttendanceCoverage` | `id`, `activityId`, `periodStart`, `periodEndExclusive`, `declaredBy`, `declaredAt`, `sourceVersions`, `revision`; declaração de que o registro de encontros do período está completo |
+
+Derivação de persistência: a declaração também conserva `invalidatedPeriods`, com trecho civil, autor, lançamento e motivo. A invalidação incrementa revisão e auditoria e preserva os trechos não afetados. O percentual HTTP usa escala de 0 a 100, permanecendo `null` nas condições descritas na seção 3. Não há cache de frequência/aptidão nesta entrega.
 
 Encontro: `COMPLETED` ou `CANCELED`. Marcação: `PRESENT` ou `ABSENT`; ausência de linha não é enum `ABSENT`. `(sessionId, personId)` é único, com resolução de identidades canônicas/supersessão durante unificação. Encontros distintos na mesma atividade/dia têm IDs diferentes; não impor unicidade por data.
 
@@ -50,21 +54,23 @@ Esse mecanismo não gera calendário nem obriga a converter horário previsto em
 
 ## 4. API e interface
 
-| Método / caminho | Contrato |
-| --- | --- |
-| `GET /activities/:activityId/attendance-context` | `occurredAt`, `sessionId?`, `guestPersonIds?`; lista mínima, vínculos/revisões e `rosterFingerprint` calculado pelo servidor; sem efeitos |
-| `POST /activities/:activityId/sessions` | `{ occurredAt, responsibleId, expectedActivityRevision, expectedRosterFingerprint, entries: [{ personId, expectedPersonRevision, familyId, expectedFamilyRevision, membershipId, expectedMembershipRevision, status }] }`; 201, encontro e chamada |
-| `GET /sessions/:sessionId` | Encontro, marcações e não lançados; projeção mínima |
-| `PUT /sessions/:sessionId/attendance` | `{ expectedSessionRevision, expectedRosterFingerprint, reason, entries }`; linha existente: `{ personId, expectedRevision, status }`; primeira linha: revisão `null` mais pessoa/família/vínculo e revisões do POST; alterações parciais na mesma transação |
-| `PATCH /sessions/:sessionId` | Horário/responsável, revisão, motivo, fingerprint/plano de reconciliação se o contexto mudar |
-| `POST /attendances/:attendanceId/context-corrections` | Vínculo válido escolhido, revisão de marcação/encontro, motivo; corrige atribuição equivocada, sem transferência real |
-| `POST /sessions/:sessionId/cancellation` | Revisão, motivo; 200 |
-| `GET /people/:personId/frequency` | `activityId`, `from`, `toExclusive`, `familyId?`; contagens/lista no contexto histórico conforme o denominador declarado |
-| `GET /activities/:activityId/sessions` | Período/status, paginação; distingue cancelados |
-| `POST /activities/:activityId/coverage-declarations` | Intervalo civil, fingerprint de fontes/revisão da atividade, confirmação e motivo; declaração de cobertura |
-| `GET /activities/:activityId/coverage` | Período; trechos confirmados, lacunas, invalidações e fingerprint atual das fontes para declaração |
+| Método / caminho                                      | Contrato                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /activities/:activityId/attendance-context`      | `occurredAt`, `sessionId?`, `guestPersonIds?`; lista mínima, vínculos/revisões e `rosterFingerprint` calculado pelo servidor; sem efeitos                                                                                                                   |
+| `POST /activities/:activityId/sessions`               | `{ occurredAt, responsibleId, expectedActivityRevision, expectedRosterFingerprint, entries: [{ personId, expectedPersonRevision, familyId, expectedFamilyRevision, membershipId, expectedMembershipRevision, status }] }`; 201, encontro e chamada          |
+| `GET /sessions/:sessionId`                            | Encontro, marcações e não lançados; projeção mínima                                                                                                                                                                                                         |
+| `PUT /sessions/:sessionId/attendance`                 | `{ expectedSessionRevision, expectedRosterFingerprint, reason, entries }`; linha existente: `{ personId, expectedRevision, status }`; primeira linha: revisão `null` mais pessoa/família/vínculo e revisões do POST; alterações parciais na mesma transação |
+| `PATCH /sessions/:sessionId`                          | Horário/responsável, revisão, motivo, fingerprint/plano de reconciliação se o contexto mudar                                                                                                                                                                |
+| `POST /attendances/:attendanceId/context-corrections` | Vínculo válido escolhido, revisão de marcação/encontro, motivo; corrige atribuição equivocada, sem transferência real                                                                                                                                       |
+| `POST /sessions/:sessionId/cancellation`              | Revisão, motivo; 200                                                                                                                                                                                                                                        |
+| `GET /people/:personId/frequency`                     | `activityId`, `from`, `toExclusive`, `familyId?`; contagens/lista no contexto histórico conforme o denominador declarado                                                                                                                                    |
+| `GET /activities/:activityId/sessions`                | Período/status, paginação; distingue cancelados                                                                                                                                                                                                             |
+| `POST /activities/:activityId/coverage-declarations`  | Intervalo civil, fingerprint de fontes/revisão da atividade, confirmação e motivo; declaração de cobertura                                                                                                                                                  |
+| `GET /activities/:activityId/coverage`                | Período; trechos confirmados, lacunas, invalidações e fingerprint atual das fontes para declaração                                                                                                                                                          |
 
 Escritas exigem `attendance.write`; leituras `attendance.read`. Criar chamada e mutações usam CORE para idempotência/revisões/transação. O frontend devolve o `rosterFingerprint` recebido como `expectedRosterFingerprint`, sem calcular outro hash. O servidor usa SHA-256 de instante normalizado, atividade/projeto e revisões, conjunto de inscrições válidas, identidades canônicas/aliases, pessoa/família/vínculo e revisões, avulsos incluídos no contexto e encontro/revisão quando existente. Conjuntos são ordenados por ID; a confirmação repete a seleção dentro da transação, detectando inserções/remoções. Avulso acrescentado depois exige nova prévia que o inclua. Mudança de fonte produz conflito para revisão; fingerprint não concede autorização.
+
+Derivação HTTP: POST de encontro e PUT de chamada aceitam `guestPersonIds?: UUID[]`, padrão vazio, para repetir a seleção completa da prévia, inclusive avulsos não marcados. Seleção sem marcação não cria fato/inscrição nem inclui o avulso no denominador. Entradas e IDs de avulsos são conjuntos normalizados por ID, limitados a 1.000 e sem duplicatas. Declaração de cobertura retorna 201; consultas mantêm envelope CORE. Unificação/aliases só poderão ampliar o resolvedor quando seu comando transversal estiver concluído, sem fusão implícita nesta etapa.
 
 `/activities/:id/attendance` funciona em celular e tem uma única lista com marcação rápida, avulsos, prévia e confirmação. Rascunho é memória da página. Depois da confirmação, o operador vê ID do encontro, data do fato e data do lançamento; correção inicia pelo encontro existente. Listagem não oferece “novo encontro” como forma de corrigir presença já lançada.
 
@@ -72,22 +78,22 @@ Na mesma área, “Cobertura dos encontros” permite selecionar período encerr
 
 ## 5. Critérios de aceite
 
-| ID | Cenário |
-| --- | --- |
-| FRQ-AC01 | Abrir/abandonar tela não cria encontro nem altera frequência |
-| FRQ-AC02 | Inscrição sem marcação não é presença nem ausência automática |
-| FRQ-AC03 | Dois encontros distintos no mesmo dia são contados separadamente |
-| FRQ-AC04 | Avulso cadastrado com família válida recebe presença sem ganhar inscrição |
-| FRQ-AC05 | Chamada tardia resolve vínculo antigo e conserva fato/lançamento distintos (ERS AC-18) |
-| FRQ-AC06 | Um vínculo inválido em uma das linhas impede a confirmação inteira, inclusive auditoria |
-| FRQ-AC07 | Repetir confirmação após erro de rede devolve o mesmo encontro e marcações |
-| FRQ-AC08 | Correção com revisão antiga conflita; correção válida preserva antes/depois/motivo |
-| FRQ-AC09 | Cancelamento retira encontro de denominador/evidências e mantém histórico |
-| FRQ-AC10 | Chamada incompleta mostra contagens conhecidas e percentual desconhecido; zero encontros não é 0%/100% |
-| FRQ-AC11 | Inclusão/correção tardia invalida cobertura afetada e exige nova declaração, sem reescrever avaliação anterior |
-| FRQ-AC12 | Transferência posterior não muda família na marcação; correção de contexto exige comando explícito |
-| FRQ-AC13 | Todas as linhas conhecidas marcadas, mas encontros sem cobertura: contagens aparecem e taxa completa permanece desconhecida |
-| FRQ-AC14 | Filtro familiar separa oportunidades antes/depois de transferência, inclusive linhas não marcadas, pelo contexto histórico |
+| ID       | Cenário                                                                                                                                  |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| FRQ-AC01 | Abrir/abandonar tela não cria encontro nem altera frequência                                                                             |
+| FRQ-AC02 | Inscrição sem marcação não é presença nem ausência automática                                                                            |
+| FRQ-AC03 | Dois encontros distintos no mesmo dia são contados separadamente                                                                         |
+| FRQ-AC04 | Avulso cadastrado com família válida recebe presença sem ganhar inscrição                                                                |
+| FRQ-AC05 | Chamada tardia resolve vínculo antigo e conserva fato/lançamento distintos (ERS AC-18)                                                   |
+| FRQ-AC06 | Um vínculo inválido em uma das linhas impede a confirmação inteira, inclusive auditoria                                                  |
+| FRQ-AC07 | Repetir confirmação após erro de rede devolve o mesmo encontro e marcações                                                               |
+| FRQ-AC08 | Correção com revisão antiga conflita; correção válida preserva antes/depois/motivo                                                       |
+| FRQ-AC09 | Cancelamento retira encontro de denominador/evidências e mantém histórico                                                                |
+| FRQ-AC10 | Chamada incompleta mostra contagens conhecidas e percentual desconhecido; zero encontros não é 0%/100%                                   |
+| FRQ-AC11 | Inclusão/correção tardia invalida cobertura afetada e exige nova declaração, sem reescrever avaliação anterior                           |
+| FRQ-AC12 | Transferência posterior não muda família na marcação; correção de contexto exige comando explícito                                       |
+| FRQ-AC13 | Todas as linhas conhecidas marcadas, mas encontros sem cobertura: contagens aparecem e taxa completa permanece desconhecida              |
+| FRQ-AC14 | Filtro familiar separa oportunidades antes/depois de transferência, inclusive linhas não marcadas, pelo contexto histórico               |
 | FRQ-AC15 | Primeira marcação em encontro existente conflita se vínculo/contexto mudou depois da prévia; correção de status mantém contexto original |
-| FRQ-AC16 | Frontend devolve fingerprint do servidor; inclusão de inscrição ou avulso sem renovar a prévia não confirma contexto obsoleto |
-| FRQ-AC17 | Cobertura não confirma dia em andamento ou período futuro; período encerrado sem encontros pode ser declarado sem inventar marcações |
+| FRQ-AC16 | Frontend devolve fingerprint do servidor; inclusão de inscrição ou avulso sem renovar a prévia não confirma contexto obsoleto            |
+| FRQ-AC17 | Cobertura não confirma dia em andamento ou período futuro; período encerrado sem encontros pode ser declarado sem inventar marcações     |

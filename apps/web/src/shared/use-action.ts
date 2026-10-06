@@ -1,10 +1,19 @@
 import { useState } from 'react';
 import { ApplicationError } from '@erp/contracts/common';
+import { ApiRequestError } from './api-client';
 import { ZodError } from 'zod';
 export function errorMessage(error: unknown): string {
   if (error instanceof ZodError)
     return 'Revise os campos informados. Verifique formatos, limites e dados obrigatórios.';
-  if (error instanceof ApplicationError) {
+  if (error instanceof ApplicationError || error instanceof ApiRequestError) {
+    if (error instanceof ApiRequestError && error.status === 401)
+      return 'Sua sessão terminou. Entre novamente.';
+    if (
+      error instanceof ApiRequestError &&
+      error.status === 409 &&
+      error.code === 'DOMAIN_CONFLICT'
+    )
+      return 'A operação conflita com registros existentes. Refaça a prévia e revise os conflitos antes de confirmar.';
     const messages = {
       UNAUTHENTICATED: 'Sua sessão terminou. Entre novamente na demonstração.',
       FORBIDDEN: 'Seu perfil não permite esta operação.',
@@ -32,7 +41,8 @@ export function errorMessage(error: unknown): string {
         'O serviço está temporariamente indisponível. Tente novamente mais tarde.',
       INTERNAL_ERROR: 'Não foi possível concluir a operação. Tente novamente.',
     };
-    return messages[error.code];
+    if (error.code in messages)
+      return messages[error.code as keyof typeof messages];
   }
   return 'Não foi possível concluir a operação. Tente novamente.';
 }

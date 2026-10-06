@@ -3,6 +3,7 @@ import type {
   AuditEntity,
   AuditEntry,
   RegistrationAuditAction,
+  AttendanceAuditAction,
 } from '../domain/audit-entry.js';
 
 export interface AuditQueryInput {
@@ -13,16 +14,18 @@ export interface AuditQueryInput {
   actorId?: string;
   from?: string;
   to?: string;
-  action?: AccountAuditAction | RegistrationAuditAction;
+  action?: AccountAuditAction | RegistrationAuditAction | AttendanceAuditAction;
 }
 export interface AuditPage {
   data: AuditEntry[];
   pagination: { page: number; pageSize: number; total: number };
 }
 export interface AuditReader {
-  list(input: AuditQueryInput): Promise<AuditPage>;
+  list(input: AuditQueryInput, project?: AuditProjector): Promise<AuditPage>;
   get(
     id: string,
     entityTypes?: readonly AuditEntity[],
+    project?: AuditProjector,
   ): Promise<AuditEntry | null>;
 }
+export type AuditProjector = (entry: AuditEntry) => Promise<AuditEntry | null>;

@@ -1,6 +1,7 @@
 import { ProjectsRuleError, ProjectsConflictError } from './project-errors.js';
 import type { Enrollment } from './projects.js';
 import type { Activity, ActivityNature } from './projects.js';
+import type { ActivitySession } from '../../attendance/domain/attendance.js';
 
 export function civilDateAt(instant: string, timeZone: string) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -44,11 +45,21 @@ export function assertClosurePlan(
   >[],
   effectiveAt: string,
   now: string,
+  sessions: readonly Pick<
+    ActivitySession,
+    'id' | 'occurredAt' | 'status'
+  >[] = [],
 ) {
   const cut = Date.parse(effectiveAt);
   if (cut > Date.parse(now))
     throw new ProjectsRuleError('FUTURE_EFFECTIVE_DATE');
   const ids = [
+    ...sessions
+      .filter(
+        (row) =>
+          row.status === 'COMPLETED' && Date.parse(row.occurredAt) >= cut,
+      )
+      .map((row) => row.id),
     ...activities
       .filter((row) => row.closedAt !== null && Date.parse(row.closedAt) > cut)
       .map((row) => row.id),

@@ -22,31 +22,45 @@ enum AuditAction {
   PASSWORD_RESET
   CLOSE
   CORRECT
+  CANCEL
+  INVALIDATE
+  MERGE
 }
 
 model UserAccount {
-  id                         String                  @id @default(uuid()) @db.Uuid
-  login                      String                  @unique @db.VarChar(100)
-  displayName                String                  @db.VarChar(200)
-  passwordHash               String
-  active                     Boolean                 @default(true)
-  mustChangePassword         Boolean                 @default(true)
-  authVersion                Int                     @default(1)
-  revision                   Int                     @default(1)
-  createdAt                  DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt                  DateTime                @updatedAt @db.Timestamptz(3)
-  roles                      RoleAssignment[]
-  operations                 OperationRecord[]
-  auditEntries               AuditEntry[]
-  decisions                  FeatureDecision[]
-  resolvedRegistrationIssues DataQualityIssue[]
-  createdProjects            Project[]               @relation("ProjectCreator")
-  updatedProjects            Project[]               @relation("ProjectUpdater")
-  createdActivities          Activity[]              @relation("ActivityCreator")
-  updatedActivities          Activity[]              @relation("ActivityUpdater")
-  responsibleActivities      Activity[]              @relation("ActivityResponsible")
-  createdEnrollments         ParticipantEnrollment[] @relation("EnrollmentCreator")
-  updatedEnrollments         ParticipantEnrollment[] @relation("EnrollmentUpdater")
+  id                          String                       @id @default(uuid()) @db.Uuid
+  login                       String                       @unique @db.VarChar(100)
+  displayName                 String                       @db.VarChar(200)
+  passwordHash                String
+  active                      Boolean                      @default(true)
+  mustChangePassword          Boolean                      @default(true)
+  authVersion                 Int                          @default(1)
+  revision                    Int                          @default(1)
+  createdAt                   DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime                     @updatedAt @db.Timestamptz(3)
+  roles                       RoleAssignment[]
+  operations                  OperationRecord[]
+  auditEntries                AuditEntry[]
+  decisions                   FeatureDecision[]
+  resolvedRegistrationIssues  DataQualityIssue[]
+  createdProjects             Project[]                    @relation("ProjectCreator")
+  updatedProjects             Project[]                    @relation("ProjectUpdater")
+  createdActivities           Activity[]                   @relation("ActivityCreator")
+  updatedActivities           Activity[]                   @relation("ActivityUpdater")
+  responsibleActivities       Activity[]                   @relation("ActivityResponsible")
+  createdEnrollments          ParticipantEnrollment[]      @relation("EnrollmentCreator")
+  updatedEnrollments          ParticipantEnrollment[]      @relation("EnrollmentUpdater")
+  recordedSessions            ActivitySession[]            @relation("SessionRecorder")
+  executedSessions            ActivitySession[]            @relation("SessionResponsible")
+  recordedAttendances         Attendance[]
+  coverageDeclarations        AttendanceCoverage[]
+  fieldSelections             FieldSelectionVersion[]
+  recordedSocialForms         SocialForm[]
+  recordedAcknowledgements    Acknowledgement[]
+  eligibilityPolicies         EligibilityPolicy[]
+  eligibilityAssessments      EligibilityAssessment[]
+  identityMerges              IdentityMerge[]
+  registrationFieldSelections RegistrationFieldSelection[]
 }
 
 model Role {
@@ -65,17 +79,18 @@ model RoleAssignment {
 }
 
 model OperationRecord {
-  id                 String       @id @default(uuid()) @db.Uuid
-  type               String       @db.VarChar(100)
-  key                String       @db.Uuid
+  id                 String         @id @default(uuid()) @db.Uuid
+  type               String         @db.VarChar(100)
+  key                String         @db.Uuid
   actorType          ActorType
-  actorId            String?      @db.Uuid
-  actor              UserAccount? @relation(fields: [actorId], references: [id], onDelete: Restrict)
-  fingerprintKeyId   String?      @db.VarChar(100)
-  requestFingerprint String       @db.VarChar(64)
+  actorId            String?        @db.Uuid
+  actor              UserAccount?   @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  fingerprintKeyId   String?        @db.VarChar(100)
+  requestFingerprint String         @db.VarChar(64)
   resultReference    Json?
-  completedAt        DateTime?    @db.Timestamptz(3)
+  completedAt        DateTime?      @db.Timestamptz(3)
   entries            AuditEntry[]
+  identityMerge      IdentityMerge?
 
   @@unique([type, key])
 }
@@ -103,6 +118,7 @@ model AuditEntry {
 }
 
 model FeatureDecision {
+  id                String      @unique @default(uuid()) @db.Uuid
   code              String      @id @db.VarChar(100)
   enabled           Boolean
   decisionReference String      @db.VarChar(2000)
@@ -128,31 +144,38 @@ model Family {
   mergedInto    Family?            @relation("FamilyAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
   aliases       Family[]           @relation("FamilyAliases")
   memberships   FamilyMembership[]
+  attendances   Attendance[]
   nameSearch    String             @default("") @db.VarChar(200)
+  socialForms   SocialForm[]
 
-  addressSearch String @default("") @db.VarChar(500)
+  addressSearch          String                  @default("") @db.VarChar(500)
+  eligibilityAssessments EligibilityAssessment[]
 }
 
 model Person {
-  id             String                  @id @default(uuid()) @db.Uuid
-  name           String                  @db.VarChar(200)
-  birthDate      DateTime?               @db.Date
-  sex            String?                 @db.VarChar(100)
-  cpf            String?                 @db.VarChar(11)
-  rg             String?                 @db.VarChar(30)
-  occupation     String?                 @db.VarChar(100)
-  educationLevel String?                 @db.VarChar(100)
-  contactPhone   String?                 @db.VarChar(50)
-  revision       Int                     @default(1)
-  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
-  mergedIntoId   String?                 @db.Uuid
-  mergedInto     Person?                 @relation("PersonAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
-  aliases        Person[]                @relation("PersonAliases")
-  memberships    FamilyMembership[]
-  nameSearch     String                  @default("") @db.VarChar(200)
-  sizeProfile    SizeProfile?
-  enrollments    ParticipantEnrollment[]
+  id                   String                  @id @default(uuid()) @db.Uuid
+  name                 String                  @db.VarChar(200)
+  birthDate            DateTime?               @db.Date
+  sex                  String?                 @db.VarChar(100)
+  cpf                  String?                 @db.VarChar(11)
+  rg                   String?                 @db.VarChar(30)
+  occupation           String?                 @db.VarChar(100)
+  educationLevel       String?                 @db.VarChar(100)
+  contactPhone         String?                 @db.VarChar(50)
+  revision             Int                     @default(1)
+  createdAt            DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                @updatedAt @db.Timestamptz(3)
+  mergedIntoId         String?                 @db.Uuid
+  mergedInto           Person?                 @relation("PersonAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
+  aliases              Person[]                @relation("PersonAliases")
+  memberships          FamilyMembership[]
+  nameSearch           String                  @default("") @db.VarChar(200)
+  sizeProfile          SizeProfile?
+  enrollments          ParticipantEnrollment[]
+  attendances          Attendance[]
+  formMembers          FormMember[]
+  acknowledgements     Acknowledgement[]
+  eligibilityEvidences EligibilityEvidence[]
 
   @@index([cpf])
 }
@@ -184,6 +207,17 @@ model DataQualityIssue {
   @@index([entityType, entityId, kind])
 }
 
+model RegistrationFieldSelection {
+  id                String      @id @default(uuid()) @db.Uuid
+  version           Int         @unique
+  personFields      String[]
+  familyFields      String[]
+  decisionReference String      @db.VarChar(1000)
+  recordedAt        DateTime    @db.Timestamptz(3)
+  recordedBy        String      @db.Uuid
+  actor             UserAccount @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+}
+
 model FamilyMembership {
   id                      String             @id @default(uuid()) @db.Uuid
   personId                String             @db.Uuid
@@ -198,9 +232,92 @@ model FamilyMembership {
   supersededById          String?            @db.Uuid
   supersededBy            FamilyMembership?  @relation("MembershipSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
   superseded              FamilyMembership[] @relation("MembershipSupersession")
+  attendances             Attendance[]
+  formMembers             FormMember[]
 
   @@index([personId, validFrom])
   @@index([familyId, validFrom])
+}
+
+model FieldSelectionVersion {
+  id                String       @id @default(uuid()) @db.Uuid
+  version           Int          @unique
+  recordedAt        DateTime     @db.Timestamptz(3)
+  recordedBy        String       @db.Uuid
+  actor             UserAccount  @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  decisionReference String       @db.VarChar(2000)
+  fields            Json
+  socialForms       SocialForm[]
+}
+
+model SocialFormOption {
+  id       String  @id @default(uuid()) @db.Uuid
+  fieldKey String  @db.VarChar(100)
+  code     String  @db.VarChar(100)
+  label    String  @db.VarChar(200)
+  active   Boolean @default(true)
+  isOther  Boolean @default(false)
+  revision Int     @default(1)
+
+  @@unique([fieldKey, code])
+}
+
+model SocialForm {
+  id                      String                @id @default(uuid()) @db.Uuid
+  familyId                String                @db.Uuid
+  family                  Family                @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  version                 Int
+  previousVersionId       String?               @unique @db.Uuid
+  previousVersion         SocialForm?           @relation("SocialFormVersions", fields: [previousVersionId], references: [id], onDelete: Restrict)
+  nextVersion             SocialForm?           @relation("SocialFormVersions")
+  correctionOfFormId      String?               @db.Uuid
+  correctionOfForm        SocialForm?           @relation("SocialFormCorrections", fields: [correctionOfFormId], references: [id], onDelete: Restrict)
+  corrections             SocialForm[]          @relation("SocialFormCorrections")
+  referenceMemberId       String?               @db.Uuid
+  referenceMember         FormMember?           @relation("FormReference", fields: [referenceMemberId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  occurredAt              DateTime              @db.Timestamptz(3)
+  recordedAt              DateTime              @db.Timestamptz(3)
+  recordedBy              String                @db.Uuid
+  actor                   UserAccount           @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  fieldSelectionVersionId String                @db.Uuid
+  fieldSelection          FieldSelectionVersion @relation(fields: [fieldSelectionVersionId], references: [id], onDelete: Restrict)
+  familySnapshot          Json
+  blocks                  Json
+  reason                  String?               @db.VarChar(1000)
+  members                 FormMember[]
+  acknowledgement         Acknowledgement?
+
+  @@unique([familyId, version])
+  @@index([familyId, recordedAt])
+}
+
+model FormMember {
+  id                 String           @id @default(uuid()) @db.Uuid
+  socialFormId       String           @db.Uuid
+  socialForm         SocialForm       @relation(fields: [socialFormId], references: [id], onDelete: Restrict)
+  personId           String           @db.Uuid
+  person             Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
+  membershipId       String           @db.Uuid
+  membership         FamilyMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  membershipRevision Int
+  payload            Json
+  referenceFor       SocialForm[]     @relation("FormReference")
+
+  @@unique([socialFormId, personId])
+}
+
+model Acknowledgement {
+  id                String      @id @default(uuid()) @db.Uuid
+  socialFormId      String      @unique @db.Uuid
+  socialForm        SocialForm  @relation(fields: [socialFormId], references: [id], onDelete: Restrict)
+  referencePersonId String      @db.Uuid
+  person            Person      @relation(fields: [referencePersonId], references: [id], onDelete: Restrict)
+  method            String      @db.VarChar(100)
+  acknowledgedOn    DateTime    @db.Date
+  recordedAt        DateTime    @db.Timestamptz(3)
+  recordedBy        String      @db.Uuid
+  actor             UserAccount @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  revision          Int         @default(1)
 }
 
 model Institute {
@@ -243,27 +360,29 @@ model Project {
 }
 
 model Activity {
-  id                 String                  @id @default(uuid()) @db.Uuid
-  projectId          String                  @db.Uuid
-  project            Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  name               String                  @db.VarChar(200)
-  nameSearch         String                  @db.VarChar(200)
-  nature             String                  @db.VarChar(10)
-  serviceTypeId      String?                 @db.Uuid
-  serviceType        ServiceType?            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
-  plannedSchedule    String?                 @db.VarChar(500)
-  responsibleId      String?                 @db.Uuid
-  responsibleAccount UserAccount?            @relation("ActivityResponsible", fields: [responsibleId], references: [id], onDelete: Restrict)
-  status             String                  @default("ACTIVE") @db.VarChar(10)
-  closedAt           DateTime?               @db.Timestamptz(3)
-  revision           Int                     @default(1)
-  createdAt          DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime                @updatedAt @db.Timestamptz(3)
-  createdBy          String                  @db.Uuid
-  creator            UserAccount             @relation("ActivityCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  updatedBy          String                  @db.Uuid
-  updater            UserAccount             @relation("ActivityUpdater", fields: [updatedBy], references: [id], onDelete: Restrict)
-  enrollments        ParticipantEnrollment[]
+  id                   String                  @id @default(uuid()) @db.Uuid
+  projectId            String                  @db.Uuid
+  project              Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  name                 String                  @db.VarChar(200)
+  nameSearch           String                  @db.VarChar(200)
+  nature               String                  @db.VarChar(10)
+  serviceTypeId        String?                 @db.Uuid
+  serviceType          ServiceType?            @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  plannedSchedule      String?                 @db.VarChar(500)
+  responsibleId        String?                 @db.Uuid
+  responsibleAccount   UserAccount?            @relation("ActivityResponsible", fields: [responsibleId], references: [id], onDelete: Restrict)
+  status               String                  @default("ACTIVE") @db.VarChar(10)
+  closedAt             DateTime?               @db.Timestamptz(3)
+  revision             Int                     @default(1)
+  createdAt            DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                @updatedAt @db.Timestamptz(3)
+  createdBy            String                  @db.Uuid
+  creator              UserAccount             @relation("ActivityCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy            String                  @db.Uuid
+  updater              UserAccount             @relation("ActivityUpdater", fields: [updatedBy], references: [id], onDelete: Restrict)
+  enrollments          ParticipantEnrollment[]
+  sessions             ActivitySession[]
+  coverageDeclarations AttendanceCoverage[]
 }
 
 model ParticipantEnrollment {
@@ -287,4 +406,133 @@ model ParticipantEnrollment {
 
   @@index([activityId, validFrom])
   @@index([personId, validFrom])
+}
+
+model ActivitySession {
+  id            String       @id @default(uuid()) @db.Uuid
+  activityId    String       @db.Uuid
+  activity      Activity     @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  responsibleId String       @db.Uuid
+  responsible   UserAccount  @relation("SessionResponsible", fields: [responsibleId], references: [id], onDelete: Restrict)
+  occurredAt    DateTime     @db.Timestamptz(3)
+  recordedAt    DateTime     @default(now()) @db.Timestamptz(3)
+  recordedBy    String       @db.Uuid
+  recorder      UserAccount  @relation("SessionRecorder", fields: [recordedBy], references: [id], onDelete: Restrict)
+  status        String       @default("COMPLETED") @db.VarChar(10)
+  revision      Int          @default(1)
+  attendances   Attendance[]
+
+  @@index([activityId, occurredAt])
+}
+
+model Attendance {
+  id                 String           @id @default(uuid()) @db.Uuid
+  sessionId          String           @db.Uuid
+  session            ActivitySession  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  personId           String           @db.Uuid
+  person             Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
+  familyId           String           @db.Uuid
+  family             Family           @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  membershipId       String           @db.Uuid
+  membership         FamilyMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  membershipRevision Int
+  status             String           @db.VarChar(10)
+  recordedAt         DateTime         @default(now()) @db.Timestamptz(3)
+  recordedBy         String           @db.Uuid
+  recorder           UserAccount      @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  revision           Int              @default(1)
+  supersededById     String?          @db.Uuid
+  supersededBy       Attendance?      @relation("AttendanceSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
+  superseded         Attendance[]     @relation("AttendanceSupersession")
+
+  @@index([personId, sessionId])
+  @@index([membershipId])
+}
+
+model AttendanceCoverage {
+  id                 String      @id @default(uuid()) @db.Uuid
+  activityId         String      @db.Uuid
+  activity           Activity    @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  periodStart        DateTime    @db.Date
+  periodEndExclusive DateTime    @db.Date
+  declaredBy         String      @db.Uuid
+  declarer           UserAccount @relation(fields: [declaredBy], references: [id], onDelete: Restrict)
+  declaredAt         DateTime    @default(now()) @db.Timestamptz(3)
+  sourceVersions     Json
+  invalidatedPeriods Json        @default("[]")
+  revision           Int         @default(1)
+
+  @@index([activityId, periodStart, periodEndExclusive])
+}
+
+model EligibilityPolicy {
+  id                String                  @id @default(uuid()) @db.Uuid
+  effectiveFrom     DateTime                @unique @db.Date
+  definition        Json
+  decisionReference String                  @db.VarChar(2000)
+  reason            String                  @db.VarChar(1000)
+  recordedAt        DateTime                @default(now()) @db.Timestamptz(3)
+  recordedBy        String                  @db.Uuid
+  recorder          UserAccount             @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  assessments       EligibilityAssessment[]
+}
+
+model EligibilityAssessment {
+  id                String                @id @default(uuid()) @db.Uuid
+  familyId          String                @db.Uuid
+  family            Family                @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  referenceDate     DateTime              @db.Date
+  evaluatedAt       DateTime              @db.Timestamptz(3)
+  policyId          String?               @db.Uuid
+  policy            EligibilityPolicy?    @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  status            String                @db.VarChar(10)
+  pendingReasons    String[]
+  explanation       Json
+  sourceFingerprint String                @db.VarChar(64)
+  requestedBy       String                @db.Uuid
+  requester         UserAccount           @relation(fields: [requestedBy], references: [id], onDelete: Restrict)
+  evidences         EligibilityEvidence[]
+
+  @@index([familyId, referenceDate])
+}
+
+model EligibilityEvidence {
+  id                   String                @id @default(uuid()) @db.Uuid
+  assessmentId         String                @db.Uuid
+  assessment           EligibilityAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  position             Int
+  personId             String                @db.Uuid
+  person               Person                @relation(fields: [personId], references: [id], onDelete: Restrict)
+  membershipIds        String[]              @db.Uuid
+  activityIds          String[]              @db.Uuid
+  periodStart          DateTime              @db.Date
+  periodEndExclusive   DateTime              @db.Date
+  sessionCount         Int
+  presenceCount        Int
+  absenceCount         Int
+  unrecordedCount      Int
+  rateLowerBasisPoints Int?
+  rateUpperBasisPoints Int?
+  coverageComplete     Boolean
+  status               String                @db.VarChar(10)
+  pendingReason        String?               @db.VarChar(40)
+  sourceVersions       Json
+
+  @@unique([assessmentId, position])
+}
+
+model IdentityMerge {
+  id          String          @id @default(uuid()) @db.Uuid
+  entityType  String          @db.VarChar(20)
+  sourceId    String          @unique @db.Uuid
+  targetId    String          @db.Uuid
+  recordedAt  DateTime        @default(now()) @db.Timestamptz(3)
+  recordedBy  String          @db.Uuid
+  recorder    UserAccount     @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  reason      String          @db.VarChar(1000)
+  operationId String          @unique @db.Uuid
+  operation   OperationRecord @relation(fields: [operationId], references: [id], onDelete: Restrict)
+  resolution  Json
+
+  @@index([targetId])
 }

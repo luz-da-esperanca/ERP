@@ -46,6 +46,8 @@ const environmentSchema = z.object({
   JWT_AUDIENCE: z.string().min(1).default('erp-web'),
   OPERATION_HMAC_CURRENT_KEY_ID: z.string().min(1),
   OPERATION_HMAC_KEYS_JSON: z.string(),
+  SOCIAL_FORM_CURRENT_KEY_ID: z.string().default(''),
+  SOCIAL_FORM_KEYS_JSON: z.string().default('{}'),
   BCRYPT_COST: z.coerce.number().int().min(10).max(16).default(12),
   COOKIE_SECURE: z
     .enum(['true', 'false'])
@@ -106,10 +108,41 @@ export function readConfig(environment: NodeJS.ProcessEnv) {
     )
   )
     throw new Error('Authentication and operation keys must be independent');
+  let socialFormKeys: Record<string, Uint8Array>;
+  try {
+    const encoded = z
+      .record(z.string().min(1), z.string())
+      .parse(JSON.parse(config.SOCIAL_FORM_KEYS_JSON));
+    socialFormKeys = Object.fromEntries(
+      Object.entries(encoded).map(([id, value]) => {
+        const key = decodeKey(value);
+        if (key.length !== 32) throw new Error('Invalid key length');
+        return [id, key];
+      }),
+    );
+  } catch {
+    throw new Error('Invalid social encryption key configuration');
+  }
+  if (
+    config.SOCIAL_FORM_CURRENT_KEY_ID &&
+    !socialFormKeys[config.SOCIAL_FORM_CURRENT_KEY_ID]
+  )
+    throw new Error('Current social encryption key is missing');
+  if (
+    Object.values(socialFormKeys).some((key) =>
+      [jwtSecret, ...Object.values(hmacKeys)].some((other) =>
+        Buffer.from(key).equals(Buffer.from(other)),
+      ),
+    )
+  )
+    throw new Error(
+      'Social encryption, authentication and operation keys must be independent',
+    );
   return {
     ...config,
     jwtSecret,
     hmacKeys,
+    socialFormKeys,
     cookieName: config.COOKIE_SECURE ? '__Host-erp_session' : 'erp_session',
   };
 }

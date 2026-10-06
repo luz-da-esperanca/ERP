@@ -23,8 +23,15 @@ import type {
   SizeProfile,
 } from '../domain/registration.js';
 import type { QualityIssue, QualityQuery } from '../domain/data-quality.js';
+import type { AttendanceTransaction } from '../../attendance/application/attendance-ports.js';
+import type { AttendanceCoverage } from '../../attendance/domain/attendance.js';
+import type { MissingDataTransaction } from './missing-data-ports.js';
 
 export interface RegistrationTransaction {
+  missingData: MissingDataTransaction;
+  coverage: Pick<AttendanceTransaction, 'updateCoverage' | 'audit'>;
+  personCoverage(id: string): Promise<AttendanceCoverage[]>;
+  membershipMarkings(id: string): Promise<{ id: string; occurredAt: string }[]>;
   recordPossibleDuplicates(
     operationId: string,
     actorId: string,
