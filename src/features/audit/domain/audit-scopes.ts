@@ -37,6 +37,16 @@ export const auditScopes: readonly {
     capability: 'attendance.read',
     entities: ['ActivitySession', 'Attendance', 'AttendanceCoverage'],
   },
+  {
+    classification: 'SOCIAL_FORMS',
+    capability: 'socialForms.read',
+    entities: ['SocialForm', 'Acknowledgement'],
+  },
+  {
+    classification: 'FEATURE_DECISIONS',
+    capability: 'featureDecisions.manage',
+    entities: ['FieldSelectionVersion', 'SocialFormOption', 'FeatureDecision'],
+  },
 ];
 export function auditScope(entity: AuditEntity) {
   const scope = auditScopes.find((scope) => scope.entities.includes(entity));

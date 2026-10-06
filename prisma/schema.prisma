@@ -53,6 +53,9 @@ model UserAccount {
   executedSessions           ActivitySession[]       @relation("SessionResponsible")
   recordedAttendances        Attendance[]
   coverageDeclarations       AttendanceCoverage[]
+  fieldSelections            FieldSelectionVersion[]
+  recordedSocialForms        SocialForm[]
+  recordedAcknowledgements   Acknowledgement[]
 }
 
 model Role {
@@ -109,6 +112,7 @@ model AuditEntry {
 }
 
 model FeatureDecision {
+  id                String      @unique @default(uuid()) @db.Uuid
   code              String      @id @db.VarChar(100)
   enabled           Boolean
   decisionReference String      @db.VarChar(2000)
@@ -136,31 +140,34 @@ model Family {
   memberships   FamilyMembership[]
   attendances   Attendance[]
   nameSearch    String             @default("") @db.VarChar(200)
+  socialForms   SocialForm[]
 
   addressSearch String @default("") @db.VarChar(500)
 }
 
 model Person {
-  id             String                  @id @default(uuid()) @db.Uuid
-  name           String                  @db.VarChar(200)
-  birthDate      DateTime?               @db.Date
-  sex            String?                 @db.VarChar(100)
-  cpf            String?                 @db.VarChar(11)
-  rg             String?                 @db.VarChar(30)
-  occupation     String?                 @db.VarChar(100)
-  educationLevel String?                 @db.VarChar(100)
-  contactPhone   String?                 @db.VarChar(50)
-  revision       Int                     @default(1)
-  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
-  mergedIntoId   String?                 @db.Uuid
-  mergedInto     Person?                 @relation("PersonAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
-  aliases        Person[]                @relation("PersonAliases")
-  memberships    FamilyMembership[]
-  nameSearch     String                  @default("") @db.VarChar(200)
-  sizeProfile    SizeProfile?
-  enrollments    ParticipantEnrollment[]
-  attendances    Attendance[]
+  id               String                  @id @default(uuid()) @db.Uuid
+  name             String                  @db.VarChar(200)
+  birthDate        DateTime?               @db.Date
+  sex              String?                 @db.VarChar(100)
+  cpf              String?                 @db.VarChar(11)
+  rg               String?                 @db.VarChar(30)
+  occupation       String?                 @db.VarChar(100)
+  educationLevel   String?                 @db.VarChar(100)
+  contactPhone     String?                 @db.VarChar(50)
+  revision         Int                     @default(1)
+  createdAt        DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime                @updatedAt @db.Timestamptz(3)
+  mergedIntoId     String?                 @db.Uuid
+  mergedInto       Person?                 @relation("PersonAliases", fields: [mergedIntoId], references: [id], onDelete: Restrict)
+  aliases          Person[]                @relation("PersonAliases")
+  memberships      FamilyMembership[]
+  nameSearch       String                  @default("") @db.VarChar(200)
+  sizeProfile      SizeProfile?
+  enrollments      ParticipantEnrollment[]
+  attendances      Attendance[]
+  formMembers      FormMember[]
+  acknowledgements Acknowledgement[]
 
   @@index([cpf])
 }
@@ -207,9 +214,91 @@ model FamilyMembership {
   supersededBy            FamilyMembership?  @relation("MembershipSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
   superseded              FamilyMembership[] @relation("MembershipSupersession")
   attendances             Attendance[]
+  formMembers             FormMember[]
 
   @@index([personId, validFrom])
   @@index([familyId, validFrom])
+}
+
+model FieldSelectionVersion {
+  id                String       @id @default(uuid()) @db.Uuid
+  version           Int          @unique
+  recordedAt        DateTime     @db.Timestamptz(3)
+  recordedBy        String       @db.Uuid
+  actor             UserAccount  @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  decisionReference String       @db.VarChar(2000)
+  fields            Json
+  socialForms       SocialForm[]
+}
+
+model SocialFormOption {
+  id       String  @id @default(uuid()) @db.Uuid
+  fieldKey String  @db.VarChar(100)
+  code     String  @db.VarChar(100)
+  label    String  @db.VarChar(200)
+  active   Boolean @default(true)
+  isOther  Boolean @default(false)
+  revision Int     @default(1)
+
+  @@unique([fieldKey, code])
+}
+
+model SocialForm {
+  id                      String                @id @default(uuid()) @db.Uuid
+  familyId                String                @db.Uuid
+  family                  Family                @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  version                 Int
+  previousVersionId       String?               @unique @db.Uuid
+  previousVersion         SocialForm?           @relation("SocialFormVersions", fields: [previousVersionId], references: [id], onDelete: Restrict)
+  nextVersion             SocialForm?           @relation("SocialFormVersions")
+  correctionOfFormId      String?               @db.Uuid
+  correctionOfForm        SocialForm?           @relation("SocialFormCorrections", fields: [correctionOfFormId], references: [id], onDelete: Restrict)
+  corrections             SocialForm[]          @relation("SocialFormCorrections")
+  referenceMemberId       String?               @db.Uuid
+  referenceMember         FormMember?           @relation("FormReference", fields: [referenceMemberId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  occurredAt              DateTime              @db.Timestamptz(3)
+  recordedAt              DateTime              @db.Timestamptz(3)
+  recordedBy              String                @db.Uuid
+  actor                   UserAccount           @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  fieldSelectionVersionId String                @db.Uuid
+  fieldSelection          FieldSelectionVersion @relation(fields: [fieldSelectionVersionId], references: [id], onDelete: Restrict)
+  familySnapshot          Json
+  blocks                  Json
+  reason                  String?               @db.VarChar(1000)
+  members                 FormMember[]
+  acknowledgement         Acknowledgement?
+
+  @@unique([familyId, version])
+  @@index([familyId, recordedAt])
+}
+
+model FormMember {
+  id                 String           @id @default(uuid()) @db.Uuid
+  socialFormId       String           @db.Uuid
+  socialForm         SocialForm       @relation(fields: [socialFormId], references: [id], onDelete: Restrict)
+  personId           String           @db.Uuid
+  person             Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
+  membershipId       String           @db.Uuid
+  membership         FamilyMembership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  membershipRevision Int
+  payload            Json
+  referenceFor       SocialForm[]     @relation("FormReference")
+
+  @@unique([socialFormId, personId])
+}
+
+model Acknowledgement {
+  id                String      @id @default(uuid()) @db.Uuid
+  socialFormId      String      @unique @db.Uuid
+  socialForm        SocialForm  @relation(fields: [socialFormId], references: [id], onDelete: Restrict)
+  referencePersonId String      @db.Uuid
+  person            Person      @relation(fields: [referencePersonId], references: [id], onDelete: Restrict)
+  method            String      @db.VarChar(100)
+  acknowledgedOn    DateTime    @db.Date
+  recordedAt        DateTime    @db.Timestamptz(3)
+  recordedBy        String      @db.Uuid
+  actor             UserAccount @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  revision          Int         @default(1)
 }
 
 model Institute {

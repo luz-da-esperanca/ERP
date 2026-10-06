@@ -20,6 +20,8 @@ import type { RegistrationService } from './features/registration/application/re
 import { registerRegistrationRoutes } from './features/registration/presentation/registration-routes.js';
 import type { ProjectsService } from './features/projects/application/projects-service.js';
 import { registerProjectsRoutes } from './features/projects/presentation/projects-routes.js';
+import type { SocialFormsService } from './features/social-forms/application/social-forms-service.js';
+import { registerSocialFormsRoutes } from './features/social-forms/presentation/social-forms-routes.js';
 
 export interface AppServices {
   access: AccessService;
@@ -30,6 +32,7 @@ export interface AppServices {
   projects: ProjectsService;
   attendance: AttendanceService;
   membershipReconciliation: MembershipReconciliationService;
+  socialForms: SocialFormsService;
 }
 
 export function createApp(
@@ -148,6 +151,7 @@ export function createApp(
   registerAuditRoutes(app, services.audit, principal);
   registerRegistrationRoutes(app, services.registration, principal);
   registerProjectsRoutes(app, services.projects, principal);
+  registerSocialFormsRoutes(app, services.socialForms, principal);
   registerAttendanceRoutes(app, services.attendance, principal);
   registerMembershipReconciliationRoutes(
     app,

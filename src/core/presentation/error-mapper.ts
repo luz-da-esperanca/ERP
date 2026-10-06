@@ -31,8 +31,34 @@ import {
   ProjectsRevisionConflictError,
   ProjectsRuleError,
 } from '../../features/projects/domain/project-errors.js';
+import {
+  SocialFormRuleError,
+  SocialFormConflictError,
+  SocialFormRevisionConflictError,
+} from '../../features/social-forms/domain/social-form-errors.js';
 
 export function mapError(error: unknown): HttpFailure {
+  if (error instanceof SocialFormRevisionConflictError)
+    return {
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: error.message,
+      details: { currentRevision: error.currentRevision },
+    };
+  if (error instanceof SocialFormConflictError)
+    return {
+      status: 409,
+      code: 'DOMAIN_CONFLICT',
+      message: error.message,
+      details: { rule: error.rule },
+    };
+  if (error instanceof SocialFormRuleError)
+    return {
+      status: 422,
+      code: 'BUSINESS_RULE_VIOLATION',
+      message: error.message,
+      details: { rule: error.rule },
+    };
   if (error instanceof AttendanceRevisionConflictError)
     return {
       status: 409,

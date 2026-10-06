@@ -16,8 +16,17 @@ import {
 } from '../../../src/core/application/errors.js';
 import { z } from 'zod';
 import { mapError } from '../../../src/core/presentation/error-mapper.js';
+import { SocialFormRevisionConflictError } from '../../../src/features/social-forms/domain/social-form-errors.js';
 
 describe('HTTP error mapping', () => {
+  it('reports the current social revision independently from publication identity conflicts', () => {
+    expect(mapError(new SocialFormRevisionConflictError(3))).toEqual({
+      status: 409,
+      code: 'REVISION_CONFLICT',
+      message: 'Resource revision changed',
+      details: { currentRevision: 3 },
+    });
+  });
   it('translates a domain revision conflict into the public HTTP contract', () => {
     expect(mapError(new AccountRevisionConflictError(9))).toEqual({
       status: 409,

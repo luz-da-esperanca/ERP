@@ -27,6 +27,9 @@ import { PrismaRegistration } from './features/registration/infra/prisma-registr
 import { RegistrationService } from './features/registration/application/registration-service.js';
 import { PrismaProjects } from './features/projects/infra/prisma-projects.js';
 import { ProjectsService } from './features/projects/application/projects-service.js';
+import { SocialFormsService } from './features/social-forms/application/social-forms-service.js';
+import { PrismaSocialForms } from './features/social-forms/infra/prisma-social-forms.js';
+import { createSensitivePayloads } from './features/social-forms/infra/sensitive-payloads.js';
 
 export function createAccounts(database: Database, config: ApiConfig) {
   const persistence = new PrismaAccounts(
@@ -64,7 +67,21 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       passwords,
       createTokenSigner(config),
     );
-    const audit = new AuditService(new PrismaAuditReader(database));
+    const socialForms = new SocialFormsService(
+      new PrismaSocialForms(database),
+      createOperationFingerprints(config),
+      createSensitivePayloads(
+        config.SOCIAL_FORM_CURRENT_KEY_ID,
+        config.socialFormKeys,
+      ),
+      () => new Date().toISOString(),
+      randomUUID,
+      config.DATA_MODE,
+    );
+    const audit = new AuditService(
+      new PrismaAuditReader(database),
+      (actor, entry) => socialForms.projectAudit(actor, entry),
+    );
     const registrationPersistence = new PrismaRegistration(database);
     const registration = new RegistrationService(
       registrationPersistence,
@@ -117,6 +134,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
         projects,
         attendance,
         membershipReconciliation,
+        socialForms,
       },
       logging,
     );
@@ -135,6 +153,7 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       projects,
       attendance,
       membershipReconciliation,
+      socialForms,
     };
   } catch {
     if (redis.isOpen) redis.destroy();

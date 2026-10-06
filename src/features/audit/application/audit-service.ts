@@ -6,10 +6,23 @@ import {
 } from '../../access/domain/permissions.js';
 import { ResourceNotFoundError } from '../../../core/application/errors.js';
 import type { AuditReader, AuditQueryInput } from './audit-reader.js';
-import type { AuditEntity } from '../domain/audit-entry.js';
+import type { AuditEntity, AuditEntry } from '../domain/audit-entry.js';
 
 export class AuditService {
-  constructor(private readonly reader: AuditReader) {}
+  constructor(
+    private readonly reader: AuditReader,
+    private readonly socialProjection?: (
+      actor: Principal,
+      entry: AuditEntry,
+    ) => Promise<AuditEntry | null>,
+  ) {}
+  private project(actor: Principal, entry: AuditEntry) {
+    return ['SOCIAL_FORMS', 'FEATURE_DECISIONS'].includes(entry.classification)
+      ? this.socialProjection
+        ? this.socialProjection(actor, entry)
+        : Promise.resolve(null)
+      : Promise.resolve(entry);
+  }
 
   private authorize(
     principal: Principal,
@@ -25,7 +38,14 @@ export class AuditService {
 
   async list(principal: Principal, input: AuditQueryInput) {
     this.authorize(principal, input.entityType);
-    return this.reader.list(input);
+    return this.reader.list(
+      input,
+      ['SOCIAL_FORMS', 'FEATURE_DECISIONS'].includes(
+        auditScope(input.entityType).classification,
+      )
+        ? (entry) => this.project(principal, entry)
+        : undefined,
+    );
   }
 
   async get(principal: Principal, id: string) {
@@ -40,7 +60,9 @@ export class AuditService {
       principal.user.mustChangePassword,
       'audit.read',
     );
-    const entry = await this.reader.get(id, entityTypes);
+    const entry = await this.reader.get(id, entityTypes, (entry) =>
+      this.project(principal, entry),
+    );
     if (!entry) throw new ResourceNotFoundError();
     return entry;
   }

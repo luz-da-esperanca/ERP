@@ -4,7 +4,7 @@ Monorepo TypeScript do MVP. O recorte e suas decisões estão no [índice das sp
 
 ## Estado da implementação
 
-O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV, FRQ e auditoria dessas entidades**:
+O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV, FRQ, FIC e auditoria dessas entidades**:
 
 - Fastify com contratos Zod, paginação, erros padronizados e validação da configuração.
 - PostgreSQL/Prisma com migration reproduzível, revisões, autoria e auditoria imutável.
@@ -23,8 +23,12 @@ O backend entrega **CORE, ACS, a primeira etapa de CAD, ATV, FRQ e auditoria des
 - Consulta de frequência com oportunidades, contagens conhecidas e condições independentes de completude.
 - Cobertura declarada de dias encerrados, revisões de fontes e invalidação dos trechos afetados.
 - Reconciliação composta de vínculos e marcações; proteção de fatos concluídos em alterações de CAD/ATV.
+- Seleção de campos e decisões explícitas, catálogos versionados e fichas familiares imutáveis com composição histórica.
+- Ciência datada independente, publicação/replay autorizados e proteção dos blocos de saúde, medicamentos e religião.
 
-Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md) e [FRQ](docs/api/integrating-attendance.md) apresentam os fluxos HTTP. **Ainda não há endpoints de FIC, APT ou REL.** Unificação transversal de CAD depende desses módulos; pendências automáticas de dados ausentes dependem da seleção dos campos relevantes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões institucionais também está pendente; o mecanismo de inicialização já recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+Os contratos entregues estão no [guia do backend](docs/api/README.md), nas referências de [Cadastro](docs/api/registration.md), [ATV](docs/api/projects.md), [FRQ](docs/api/attendance.md), [FIC](docs/api/social-forms.md) e [reconciliação CAD/FRQ](docs/api/membership-reconciliation.md). Os guias para integrar [ATV](docs/api/integrating-projects.md), [FRQ](docs/api/integrating-attendance.md) e [FIC](docs/api/integrating-social-forms.md) apresentam os fluxos HTTP. **Ainda não há endpoints de APT ou REL.** Unificação transversal de CAD depende desses módulos; pendências automáticas de dados ausentes continuam pendentes. A auditoria dos próximos módulos será entregue com suas operações. A administração de decisões FIC está implementada; o mecanismo de inicialização recusa `DATA_MODE=REAL` sem decisão registrada. Isso não aprova o uso institucional nem reconhece automaticamente se o dado inserido é sintético.
+
+FIC foi validada localmente por regras, contratos, criptografia e checagens estáticas. A migration e os testes PostgreSQL/Redis de FIC estão escritos, mas sua execução nesta entrega ficou impedida pela indisponibilidade dos serviços de teste e do daemon Docker. A validação de integração permanece necessária antes de considerar essas garantias verificadas.
 
 `apps/web` contém a reorganização do protótipo, com adaptadores em memória, e ainda precisa concluir suas telas e integração HTTP. O backend não usa esses adaptadores. Contas da demonstração não são contas PostgreSQL.
 
@@ -66,6 +70,11 @@ src/
     application/            # chamada, frequência e invalidação de cobertura
     presentation/           # contratos e rotas de FRQ
     infra/                  # persistência, bloqueios e snapshots PostgreSQL
+  features/social-forms/
+    domain/                 # campos fixos, escopos, escolhas e regras da ficha
+    application/            # publicação, configuração, ciência e projeção autorizada
+    presentation/           # rotas e contratos HTTP de FIC
+    infra/                  # Prisma, snapshots e envelopes AES-256-GCM
 prisma/                     # schema e migrations
 test/                       # espelha src/: core e features
   support/                  # doubles, fixtures e preparação da integração
@@ -118,6 +127,7 @@ Disponibilidade: `GET http://127.0.0.1:3001/api/v1/health`. Essa rota verifica o
 - `BCRYPT_COST=12`, mínimo 10. Meça o custo no ambiente do piloto. Senhas usam no mínimo 12 caracteres Unicode, no máximo 72 bytes UTF-8, sem NUL; espaços são preservados.
 - Criação, troca/reset e desativação preservam autoria. Senha/reset/desativação mudam `authVersion` em PostgreSQL. Sessões antigas são negadas mesmo enquanto suas chaves Redis existem; elas expiram por TTL. Não há dependência de limpeza posterior para revogar.
 - Ao rotacionar HMAC, mantenha em `OPERATION_HMAC_KEYS_JSON` as chaves antigas referenciadas por operações existentes e altere apenas o ID corrente. Uma chave ausente impede comparar o replay; nunca reutilize a chave JWT.
+- Saúde, medicamentos e religião começam desabilitados. Sua habilitação exige seleção/decisão explícita e chave independente de 32 bytes em `SOCIAL_FORM_KEYS_JSON`, com ID corrente em `SOCIAL_FORM_CURRENT_KEY_ID`. Mantenha as chaves históricas ao rotacionar; consulte a [proteção de FIC](docs/api/social-forms.md#proteção-e-auditoria).
 - Logs de requisição contêm ID técnico, método e status; corpos, cookies, tokens, hashes e snapshots não são registrados.
 
 ## Contratos HTTP entregues
@@ -142,6 +152,8 @@ CAD acrescenta 16 rotas de pessoas, famílias, vínculos, tamanhos, candidatos e
 ATV acrescenta 19 rotas de institutos, tipos pontuais, projetos, atividades e inscrições, detalhadas em [Projetos e atividades](docs/api/projects.md). Todas as escritas são idempotentes e auditadas. A migration cria os seis institutos; tipos pontuais são cadastrados pela coordenação. Auditoria de ATV exige `projects.read` e `audit.read`. Inscrição não registra presença, atendimento realizado ou aptidão.
 
 FRQ acrescenta 11 rotas de encontros, marcações, frequência e cobertura, detalhadas em [Encontros e frequência](docs/api/attendance.md). Auditoria de FRQ exige `attendance.read` e `audit.read`. CAD acrescenta duas rotas de prévia/confirmação de [reconciliação composta](docs/api/membership-reconciliation.md); mudanças de chamada exigem também `attendance.write`. A prévia não grava e dispensa chave; a confirmação é idempotente e atômica.
+
+FIC acrescenta dez rotas de contexto, versões, ciência, seleção, opções e decisões, detalhadas em [Ficha social](docs/api/social-forms.md). Operar ficha exige acesso social; configurar campos/flags exige Coordenação. Auditoria aplica essas capacidades cumulativamente com `audit.read` e projeta conteúdo conforme seleção/flags atuais antes da paginação. Nenhum bloco é habilitado pela instalação.
 
 As escritas de contas usam `Idempotency-Key` UUID; login, logout e troca da própria senha são exceções. Uma repetição com a mesma chave/autor/conteúdo retorna a revisão original. Outra senha, alvo ou autor produz 409. As entradas e DTOs estão em [access-api.ts](packages/contracts/src/access-api.ts) e [account-audit-api.ts](packages/contracts/src/account-audit-api.ts); os contratos de cada rota seguem [SPEC-ACS](docs/specs/01-access.md). Auditoria aceita período `from/to` com fim exclusivo e paginação de 1 a 100 itens, padrão 20.
 
@@ -176,7 +188,7 @@ pnpm start
 
 ## Próximas etapas do MVP
 
-1. FIC: seleção/habilitação de campos e versões da ficha com composição e dados individuais históricos.
+1. Validar FIC com PostgreSQL/Redis exclusivos de teste; integrar as telas conforme os contratos entregues.
 2. APT: políticas versionadas e evidências; sem política, estado Pendente.
 3. Fechar CAD transversal: unificação autorizada e reconciliação com FIC/APT, além da seleção de dados relevantes para pendências.
 4. REL: consultas e detalhamento de totais somente sobre os módulos acima.

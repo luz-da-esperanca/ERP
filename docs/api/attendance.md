@@ -162,4 +162,4 @@ Prepare os serviços exclusivos conforme o [README](../../README.md#validar). Te
 | AC12/14       | Família factual, reconciliação explícita e filtro anterior às contagens                                             |
 | AC16          | Fingerprint obsoleto, seleção de avulsos e revisão das fontes                                                       |
 
-Integrações adicionais verificam autorização, isolamento de auditoria, unicidade PostgreSQL, rollback e corridas entre autores/encerramento. UI, políticas de aptidão, ficha social, relatórios e unificação de identidades continuam pendentes; os testes não comprovam essas entregas nem aprovação institucional para dados reais.
+Integrações adicionais verificam autorização, isolamento de auditoria, unicidade PostgreSQL, rollback e corridas entre autores/encerramento. UI, políticas de aptidão, relatórios e unificação de identidades continuam pendentes; FIC possui [API própria](social-forms.md), cuja integração PostgreSQL/Redis ainda precisa ser executada; os testes não comprovam essas entregas nem aprovação institucional para dados reais.

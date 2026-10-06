@@ -20,6 +20,13 @@ import {
   activityDtoSchema,
   enrollmentDtoSchema,
 } from './projects-api';
+import {
+  socialFormDtoSchema,
+  acknowledgementDtoSchema,
+  fieldSelectionDtoSchema,
+  socialOptionDtoSchema,
+  featureDecisionDtoSchema,
+} from './social-forms-api';
 
 export { dataQualityIssueSchema } from './data-quality-api';
 export const registrationAuditActionSchema = z.enum([
@@ -144,17 +151,55 @@ export const attendanceAuditQuerySchema = recordAuditQuerySchema
     action: attendanceAuditActionSchema.optional(),
   })
   .refine(validAuditPeriod);
+export const socialFormsAuditEntitySchema = z.enum([
+  'SocialForm',
+  'Acknowledgement',
+  'FieldSelectionVersion',
+  'SocialFormOption',
+  'FeatureDecision',
+]);
+export const socialFormsAuditQuerySchema = recordAuditQuerySchema
+  .extend({ entityType: socialFormsAuditEntitySchema })
+  .refine(validAuditPeriod);
+const socialEntry = <
+  T extends z.infer<typeof socialFormsAuditEntitySchema>,
+  S extends z.ZodType,
+>(
+  entityType: T,
+  snapshot: S,
+  classification: 'SOCIAL_FORMS' | 'FEATURE_DECISIONS',
+) =>
+  entryFields.extend({
+    entityType: z.literal(entityType),
+    classification: z.literal(classification),
+    action: registrationAuditActionSchema,
+    before: snapshot.nullable(),
+    after: snapshot,
+  });
+export const socialFormsAuditEntrySchema = z.discriminatedUnion('entityType', [
+  socialEntry('SocialForm', socialFormDtoSchema, 'SOCIAL_FORMS'),
+  socialEntry('Acknowledgement', acknowledgementDtoSchema, 'SOCIAL_FORMS'),
+  socialEntry(
+    'FieldSelectionVersion',
+    fieldSelectionDtoSchema,
+    'FEATURE_DECISIONS',
+  ),
+  socialEntry('SocialFormOption', socialOptionDtoSchema, 'FEATURE_DECISIONS'),
+  socialEntry('FeatureDecision', featureDecisionDtoSchema, 'FEATURE_DECISIONS'),
+]);
 export const auditEntrySchema = z.union([
   accountAuditEntrySchema,
   registrationAuditEntrySchema,
   projectsAuditEntrySchema,
   attendanceAuditEntrySchema,
+  socialFormsAuditEntrySchema,
 ]);
 export const authorizedAuditQuerySchema = z.union([
   auditQuerySchema,
   registrationAuditQuerySchema,
   projectsAuditQuerySchema,
   attendanceAuditQuerySchema,
+  socialFormsAuditQuerySchema,
 ]);
 export const auditPageSchema = z.object({
   data: z.array(auditEntrySchema),

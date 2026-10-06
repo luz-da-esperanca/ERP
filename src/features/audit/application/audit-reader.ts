@@ -21,9 +21,11 @@ export interface AuditPage {
   pagination: { page: number; pageSize: number; total: number };
 }
 export interface AuditReader {
-  list(input: AuditQueryInput): Promise<AuditPage>;
+  list(input: AuditQueryInput, project?: AuditProjector): Promise<AuditPage>;
   get(
     id: string,
     entityTypes?: readonly AuditEntity[],
+    project?: AuditProjector,
   ): Promise<AuditEntry | null>;
 }
+export type AuditProjector = (entry: AuditEntry) => Promise<AuditEntry | null>;

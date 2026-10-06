@@ -14,10 +14,18 @@ import type {
   ProjectsEntity,
   ProjectsSnapshot,
 } from '../../projects/domain/projects.js';
+import type {
+  SocialEntity,
+  SocialSnapshot,
+} from '../../social-forms/domain/social-forms.js';
 export type RegistrationAuditEntity =
   'Family' | 'Person' | 'FamilyMembership' | 'SizeProfile' | 'DataQualityIssue';
 export type AuditEntity =
-  'UserAccount' | RegistrationAuditEntity | ProjectsEntity | AttendanceEntity;
+  | 'UserAccount'
+  | RegistrationAuditEntity
+  | ProjectsEntity
+  | AttendanceEntity
+  | SocialEntity;
 export type RegistrationAuditAction = 'CREATE' | 'UPDATE' | 'CLOSE' | 'CORRECT';
 export type RegistrationSnapshot =
   | RegisteredFamily
@@ -61,4 +69,15 @@ export type AuditEntry =
   | AccountAuditEntry
   | RegistrationAuditEntry
   | ProjectsAuditEntry
-  | AttendanceAuditEntry;
+  | AttendanceAuditEntry
+  | SocialFormsAuditEntry;
+export type SocialFormsAuditEntry = Omit<
+  AccountAuditEntry,
+  'entityType' | 'action' | 'before' | 'after' | 'classification'
+> & {
+  entityType: SocialEntity;
+  action: RegistrationAuditAction;
+  before: SocialSnapshot | null;
+  after: SocialSnapshot;
+  classification: 'SOCIAL_FORMS' | 'FEATURE_DECISIONS';
+};

@@ -31,6 +31,8 @@ import type {
   AuditReader,
   AuditQueryInput,
 } from '../application/audit-reader.js';
+import type { AuditProjector } from '../application/audit-reader.js';
+import { socialSnapshotSchemas } from '../../social-forms/infra/social-form-projections.js';
 import type { AccountAuditSnapshot } from '../domain/account-audit.js';
 
 export class PrismaAccountAudit implements AccountAuditWriter {
@@ -106,6 +108,34 @@ function projectSnapshot(value: Prisma.JsonValue): AccountAuditSnapshot {
 }
 
 function projectEntry(entry: SelectedEntry): AuditEntry {
+  if (
+    entry.classification === 'SOCIAL_FORMS' ||
+    entry.classification === 'FEATURE_DECISIONS'
+  ) {
+    const entityType = z
+      .enum([
+        'SocialForm',
+        'Acknowledgement',
+        'FieldSelectionVersion',
+        'SocialFormOption',
+        'FeatureDecision',
+      ])
+      .parse(entry.entityType);
+    return {
+      ...entry,
+      entityType,
+      classification: entry.classification,
+      action: z
+        .enum(['CREATE', 'UPDATE', 'CLOSE', 'CORRECT'])
+        .parse(entry.action),
+      recordedAt: entry.recordedAt.toISOString(),
+      occurredAt: entry.occurredAt?.toISOString() ?? null,
+      before: entry.before
+        ? socialSnapshotSchemas[entityType].parse(entry.before)
+        : null,
+      after: socialSnapshotSchemas[entityType].parse(entry.after),
+    };
+  }
   if (entry.classification === 'ATTENDANCE')
     return attendanceAuditEntrySchema.parse({
       ...entry,
@@ -178,7 +208,7 @@ function projectEntry(entry: SelectedEntry): AuditEntry {
 export class PrismaAuditReader implements AuditReader {
   constructor(private readonly database: Database) {}
 
-  list(input: AuditQueryInput) {
+  list(input: AuditQueryInput, project?: AuditProjector) {
     return databaseOperation(async () => {
       const where: Prisma.AuditEntryWhereInput = {
         entityType: input.entityType,
@@ -191,6 +221,36 @@ export class PrismaAuditReader implements AuditReader {
           lt: input.to ? new Date(input.to) : undefined,
         },
       };
+      if (project)
+        return this.database.$transaction(
+          async (tx) => {
+            const entries = await tx.auditEntry.findMany({
+              where,
+              select: auditSelect,
+              orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }],
+            });
+            const visible: AuditEntry[] = [];
+            for (const entry of entries) {
+              const value = await project(projectEntry(entry));
+              if (value) visible.push(value);
+            }
+            return {
+              data: visible.slice(
+                (input.page - 1) * input.pageSize,
+                input.page * input.pageSize,
+              ),
+              pagination: {
+                page: input.page,
+                pageSize: input.pageSize,
+                total: visible.length,
+              },
+            };
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+            timeout: 10000,
+          },
+        );
       const [entries, total] = await this.database.$transaction(
         [
           this.database.auditEntry.findMany({
@@ -211,7 +271,11 @@ export class PrismaAuditReader implements AuditReader {
     });
   }
 
-  get(id: string, entityTypes: readonly AuditEntity[] = ['UserAccount']) {
+  get(
+    id: string,
+    entityTypes: readonly AuditEntity[] = ['UserAccount'],
+    project?: AuditProjector,
+  ) {
     return databaseOperation(async () => {
       const entry = await this.database.auditEntry.findFirst({
         where: {
@@ -225,7 +289,11 @@ export class PrismaAuditReader implements AuditReader {
         },
         select: auditSelect,
       });
-      return entry ? projectEntry(entry) : null;
+      return entry
+        ? project
+          ? project(projectEntry(entry))
+          : projectEntry(entry)
+        : null;
     });
   }
 }
