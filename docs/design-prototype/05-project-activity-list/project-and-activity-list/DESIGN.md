@@ -163,6 +163,22 @@ spacing:
   space-3xl: 4rem
 ---
 
+## Ações de cadastro — interface atual e evolução
+
+O cabeçalho de “Projetos e atividades” mantém os dois pontos de entrada do protótipo: **Novo projeto** como ação primária e **Nova atividade** como secundária. Eles continuam visíveis no estado sem projetos para perfis com `projects.read` e `projects.write`. Perfis de consulta não recebem ações de cadastro. Em telas estreitas, os botões podem quebrar linha.
+
+Na interface React atual, os formulários ainda não estão implementados. Os dois botões ficam desabilitados, associados por `aria-describedby` ao texto visível “Cadastros de projetos e atividades em breve.” Não navegam para rotas inexistentes nem simulam salvamento. A API e o adaptador em memória já oferecem operações de criação; habilitar os formulários e integrar HTTP são trabalhos posteriores.
+
+### Fluxos previstos para implementação
+
+- **Novo projeto:** formulário com nome e um instituto ativo obrigatórios; descrição, início e fim opcionais, preservando datas desconhecidas e validando início anterior ou igual ao fim quando ambos informados. Ações “Cadastrar projeto” e “Cancelar”; após sucesso, retornar à lista com o projeto criado.
+- **Nova atividade:** reutilizar a [referência de cadastro de atividade](../../06-activity-registration/new-activity/code.html). Selecionar projeto ativo, nome e natureza; exigir tipo ativo somente para natureza pontual. Horário planejado é opcional. Ações “Cadastrar atividade” e “Cancelar”; após sucesso, retornar à lista com o projeto correspondente expandido. Sem projeto ativo, orientar a cadastrar um projeto antes de liberar o envio.
+- **Acesso contextual futuro:** no detalhe do projeto, disponibilizar “Nova atividade” com o projeto de origem já selecionado. Manter o atalho global da lista; não exigir a navegação ao detalhe para iniciar um cadastro. Projetos encerrados preservam consulta e histórico, sem ação para criar atividade.
+
+Esses fluxos seguem [SPEC-ATV](../../../specs/04-projects-activities.md), incluindo autorização no backend, revisão do projeto na criação da atividade, idempotência e auditoria. A natureza pontual cadastra apenas a atividade, sem introduzir registro de atendimento realizado. A referência existente de atividade deve ser conciliada com o recorte vigente antes da implementação.
+
+Esta atualização documental define os pontos de entrada e o fluxo futuro; não introduz um novo mockup de formulário de projeto. Não foram criados testes para fixar a redação. A presença e o estado das ações na interface são verificados nos testes da tela React.
+
 ## Brand & Style
 
 ### Identidade e Filosofia

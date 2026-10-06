@@ -1,10 +1,19 @@
 import { useState } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router';
-import { Users, LayoutDashboard, Menu, X, LogOut, Search } from 'lucide-react';
+import {
+  Users,
+  LayoutDashboard,
+  Menu,
+  X,
+  LogOut,
+  Search,
+  FolderOpen,
+} from 'lucide-react';
 import type { Capability } from '@erp/contracts/access';
 import { useErp } from './erp-provider';
 import { roleLabels } from '../features/access/presentation/role-labels';
 import { SearchPage } from '../features/registration/presentation/search-page';
+import { GlobalActions } from './global-actions';
 
 const navigation: Array<{
   to: string;
@@ -18,6 +27,12 @@ const navigation: Array<{
     label: 'Pessoas e famílias',
     icon: Users,
     capability: 'registration.read',
+  },
+  {
+    to: '/projects',
+    label: 'Projetos e atividades',
+    icon: FolderOpen,
+    capability: 'projects.read',
   },
 ];
 
@@ -110,6 +125,7 @@ export function AppLayout() {
           <span className="top-account" title="Ambiente de demonstração">
             Dados sintéticos
           </span>
+          <GlobalActions />
         </header>
         <main id="main-content" className="page-wrap" tabIndex={-1}>
           <Outlet />
