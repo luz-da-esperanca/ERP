@@ -103,6 +103,34 @@ export const listUsersSchema = paginationSchema
       .optional(),
   })
   .strict();
+export const responsibleCandidatesQuerySchema = paginationSchema
+  .extend({
+    q: z.string().trim().min(2).max(200).optional(),
+    // Resolves accounts already recorded as responsible, including inactive ones.
+    ids: z
+      .preprocess(
+        (value) =>
+          typeof value === 'string' ? value.split(',').filter(Boolean) : value,
+        z.array(z.uuid()).min(1).max(100),
+      )
+      .transform((ids) => [...new Set(ids)].sort())
+      .optional(),
+  })
+  .strict();
+export const responsibleCandidateSchema = z
+  .object({ id: z.uuid(), displayName: z.string(), active: z.boolean() })
+  .strict();
+export const responsibleCandidatesPageSchema = z
+  .object({
+    data: z.array(responsibleCandidateSchema),
+    pagination: paginationSchema.extend({
+      total: z.number().int().nonnegative(),
+    }),
+  })
+  .strict();
+export type ResponsibleCandidateDto = z.infer<
+  typeof responsibleCandidateSchema
+>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type ActivationInput = z.infer<typeof activationSchema>;

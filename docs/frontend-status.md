@@ -19,16 +19,16 @@ não foi adicionada uma segunda entrada de demonstração.
 
 ## Interfaces já existentes no protótipo
 
-| Tela ou fluxo                              | Evidência                                       | Trabalho restante                                                                                                                             |
-| ------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Início                                     | `features/home/presentation/dashboard-page.tsx` | Consultas autorizadas, totais com fonte e atividade recente pela API.                                                                         |
-| Lista e busca de famílias                  | `families-page.tsx`, `search-page.tsx`          | Busca/paginação HTTP e estados de erro; a aptidão exibida ainda é fixa como Pendente.                                                         |
-| Criação, edição e perfil familiar          | `family-page.tsx`, `family-form.tsx`            | Adaptar os DTOs HTTP, revisões, conflitos e idempotência; conectar composição por data e histórico autorizado.                                |
-| Membros da família                         | `FamilyMembersPage` em `family-page.tsx`        | Consultar a API e implementar as ações de composição. O link “Adicionar pessoa” aponta para `/people/new`, mas falta a página correspondente. |
-| Perfil individual                          | `person-page.tsx`                               | Integrar os dados atuais e vínculos históricos; não existe formulário de criação/edição individual.                                           |
-| Lista de projetos e atividades             | `projects-page.tsx`, `project-group.tsx`        | Consultar a API. “Novo projeto” e “Nova atividade” estão desabilitados.                                                                       |
-| Detalhe de atividade e inscrições vigentes | `activity-page.tsx`, `enrollment-list.tsx`      | Integrar o detalhe e participantes; responsável e encontros recentes estão indisponíveis; faltam ações de inscrição.                          |
-| Histórico familiar                         | `family-audit-timeline.tsx`                     | Integrar a consulta de auditoria com filtros e projeção autorizada.                                                                           |
+| Tela ou fluxo                              | Evidência                                       | Trabalho restante                                                                                                                                            |
+| ------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Início                                     | `features/home/presentation/dashboard-page.tsx` | Consultas autorizadas, totais com fonte e atividade recente pela API.                                                                                        |
+| Lista e busca de famílias                  | `families-page.tsx`, `search-page.tsx`          | Busca/paginação HTTP e estados de erro; a aptidão exibida ainda é fixa como Pendente.                                                                        |
+| Criação, edição e perfil familiar          | `family-page.tsx`, `family-form.tsx`            | Adaptar os DTOs HTTP, revisões, conflitos e idempotência; conectar composição por data e histórico autorizado.                                               |
+| Membros da família                         | `FamilyMembersPage` em `family-page.tsx`        | Consultar a API e implementar as ações de composição. O link “Adicionar pessoa” aponta para `/people/new`, mas falta a página correspondente.                |
+| Perfil individual                          | `person-page.tsx`                               | Integrar os dados atuais e vínculos históricos; não existe formulário de criação/edição individual.                                                          |
+| Lista de projetos e atividades             | `projects-page.tsx`, `project-group.tsx`        | Consultar a API. “Novo projeto” e “Nova atividade” estão desabilitados.                                                                                      |
+| Detalhe de atividade e inscrições vigentes | `activity-page.tsx`, `enrollment-list.tsx`      | Integrar o detalhe e participantes; responsável (via `GET /responsible-candidates`) e encontros recentes ainda não estão ligados; faltam ações de inscrição. |
+| Histórico familiar                         | `family-audit-timeline.tsx`                     | Integrar a consulta de auditoria com filtros e projeção autorizada.                                                                                          |
 
 Os arquivos de cadastro ficam em
 `apps/web/src/features/registration/presentation/`; os de projetos, em
@@ -49,7 +49,7 @@ cada linha não exige uma nova rota isolada.
 | APT — Aptidão                  | Configurar políticas versionadas; prévia e avaliação familiar; mostrar Pendente/Apta/Não apta, período, política, membro e evidências.                    | API entregue, sem parâmetros presumidos.                           |
 | ACS — Administração            | Listar/criar/editar contas; atribuir perfis; ativar/desativar; reset administrativo de senha.                                                             | API entregue.                                                      |
 | AUD — Consulta                 | Consulta transversal com filtros, autor, data do fato/lançamento, motivo e valores anterior/novo conforme autorização.                                    | Auditoria dos módulos entregues disponível.                        |
-| REL — Relatórios               | Consultas de alcance, frequência, aptidão, históricos e qualidade, com período, filtros, unidades e registros componentes.                                | UI e API específica ainda pendentes.                               |
+| REL — Relatórios               | Consultas de alcance, frequência, aptidão, históricos e qualidade, com período, filtros, unidades e registros componentes.                                | API entregue; UI pendente.                                         |
 
 ## Ordem sugerida de integração
 
@@ -59,7 +59,7 @@ cada linha não exige uma nova rota isolada.
 4. Conectar projetos, detalhe de atividade e inscrições; completar sua gestão.
 5. Entregar encontros/chamada/frequência, ficha social e aptidão.
 6. Completar administração, duplicidades/unificação e consulta de auditoria.
-7. Integrar REL quando os contratos de backend forem entregues.
+7. Integrar REL, cujos contratos de backend já estão entregues.
 
 Atendimentos realizados, estoque, entregas, Bazar e migração não são telas
 pendentes deste MVP. CSV/PDF e notificações não entram nesta lista de entregas

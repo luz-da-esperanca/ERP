@@ -184,6 +184,7 @@ Login, logout e troca de senha tratam falhas sem repetição automática. Após 
 | POST      | `/users/:userId/activation`             | `accounts.manage`, revisão e motivo                         |
 | PUT       | `/users/:userId/password`               | `accounts.manage`, revisão e motivo                         |
 | GET       | `/roles`                                | `accounts.manage`                                           |
+| GET       | `/responsible-candidates`               | `projects.write` ou `attendance.write`; só identificação    |
 | GET       | `/audit-entries?entityType=UserAccount` | `audit.read` e `accounts.manage`                            |
 | GET       | `/audit-entries/:entryId`               | Autorização da entidade; detalhe fora do acesso retorna 404 |
 

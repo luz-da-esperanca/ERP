@@ -15,7 +15,7 @@ Pessoa sem vínculo válido não pode ser marcada. Operador com acesso a CAD reg
 
 ## Cliente com validação de contratos
 
-Exemplo independente para o navegador, após login. `loadContext` é leitura; `captureSessionIntent` captura somente escolhas explícitas; `confirmSession` pode ser repetido com a mesma intenção após timeout. Passe `responsibleId` de uma conta conhecida. A capacidade de FRQ não concede listagem administrativa de contas; o operador pode usar sua própria conta ou uma designação conhecida da atividade.
+Exemplo independente para o navegador, após login. `loadContext` é leitura; `captureSessionIntent` captura somente escolhas explícitas; `confirmSession` pode ser repetido com a mesma intenção após timeout. Passe `responsibleId` de uma conta conhecida. A capacidade de FRQ não concede listagem administrativa de contas; para escolher o responsável use `GET /responsible-candidates`, descrito no [guia de ATV](integrating-projects.md).
 
 ```typescript
 import { z } from 'zod';

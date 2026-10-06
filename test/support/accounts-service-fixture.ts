@@ -19,6 +19,7 @@ export function createAccountsServiceFixture() {
       .mockResolvedValue(account),
     findById: vi.fn<AccountsReader['findById']>().mockResolvedValue(account),
     list: vi.fn<AccountsReader['list']>(),
+    responsibleCandidates: vi.fn<AccountsReader['responsibleCandidates']>(),
   } satisfies AccountsReader;
   const stored = {
     findByLogin: vi

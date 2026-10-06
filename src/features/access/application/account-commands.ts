@@ -31,6 +31,21 @@ export interface ListUsersInput {
   q?: string;
   active?: boolean;
 }
+export interface ResponsibleCandidatesInput {
+  page: number;
+  pageSize: number;
+  q?: string;
+  ids?: string[];
+}
+export interface ResponsibleCandidate {
+  id: string;
+  displayName: string;
+  active: boolean;
+}
+export interface ResponsibleCandidatePage {
+  data: ResponsibleCandidate[];
+  pagination: { page: number; pageSize: number; total: number };
+}
 export interface AccountPage {
   data: Account[];
   pagination: { page: number; pageSize: number; total: number };

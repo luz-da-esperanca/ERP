@@ -3,7 +3,11 @@ import { Prisma } from '../../../generated/prisma/client.js';
 import { roleSchema } from '@erp/contracts/access';
 import type { Account } from '../domain/account.js';
 import type { CredentialAccount } from '../application/ports.js';
-import type { ListUsersInput } from '../application/account-commands.js';
+import type {
+  ListUsersInput,
+  ResponsibleCandidatesInput,
+} from '../application/account-commands.js';
+import type { Role } from '@erp/contracts/access';
 import type {
   AccountsReader,
   AccountUnitOfWork,
@@ -231,6 +235,38 @@ export class PrismaAccounts implements AccountsReader, AccountUnitOfWork {
       );
       return {
         data: accounts.map(projectAccount),
+        pagination: { page: input.page, pageSize: input.pageSize, total },
+      };
+    });
+  }
+  responsibleCandidates(
+    input: ResponsibleCandidatesInput & { roleCodes: readonly Role[] },
+  ) {
+    return databaseOperation(async () => {
+      const where: Prisma.UserAccountWhereInput = input.ids
+        ? { id: { in: input.ids } }
+        : {
+            active: true,
+            roles: { some: { roleCode: { in: [...input.roleCodes] } } },
+          };
+      if (input.q)
+        where.displayName = { contains: input.q, mode: 'insensitive' };
+      const [data, total] = await this.database.$transaction(
+        [
+          this.database.userAccount.findMany({
+            where,
+            // Never the login, roles or any credential metadata.
+            select: { id: true, displayName: true, active: true },
+            orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+          }),
+          this.database.userAccount.count({ where }),
+        ],
+        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+      );
+      return {
+        data,
         pagination: { page: input.page, pageSize: input.pageSize, total },
       };
     });

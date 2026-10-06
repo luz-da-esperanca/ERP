@@ -4,8 +4,30 @@ import {
   createUserSchema,
   usersPageSchema,
   sessionDtoSchema,
+  responsibleCandidateSchema,
+  responsibleCandidatesQuerySchema,
 } from '../src/access-api';
 describe('Access contracts', () => {
+  it('exposes only the identification of a responsible candidate', () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const candidate = { id, displayName: 'Synthetic Operator', active: true };
+    expect(responsibleCandidateSchema.parse(candidate)).toEqual(candidate);
+    for (const extra of [{ login: 'synthetic' }, { roleCodes: [] }])
+      expect(
+        responsibleCandidateSchema.safeParse({ ...candidate, ...extra })
+          .success,
+      ).toBe(false);
+    expect(
+      responsibleCandidatesQuerySchema.parse({
+        ids: `${id},${id}`,
+        q: ' Ana ',
+      }),
+    ).toEqual({ ids: [id], q: 'Ana', page: 1, pageSize: 20 });
+    for (const query of [{ ids: 'not-a-uuid' }, { q: 'a' }, { login: 'x' }])
+      expect(responsibleCandidatesQuerySchema.safeParse(query).success).toBe(
+        false,
+      );
+  });
   it('validates authenticated session data without inventing capabilities from roles', () => {
     const session = {
       user: {

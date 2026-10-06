@@ -8,6 +8,8 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   listUsersSchema,
+  responsibleCandidatesPageSchema,
+  responsibleCandidatesQuerySchema,
   userDtoSchema,
   usersPageSchema,
 } from '@erp/contracts/access-api';
@@ -67,6 +69,14 @@ export function registerAccessRoutes(
       await accounts.list(actor, listUsersSchema.parse(request.query)),
     );
   });
+  app.get('/api/v1/responsible-candidates', async (request) =>
+    responsibleCandidatesPageSchema.parse(
+      await accounts.responsibleCandidates(
+        await principal(request),
+        responsibleCandidatesQuerySchema.parse(request.query),
+      ),
+    ),
+  );
   app.post('/api/v1/users', async (request, reply) => {
     const actor = await principal(request, 'accounts.manage');
     const input = createUserSchema.parse(request.body);

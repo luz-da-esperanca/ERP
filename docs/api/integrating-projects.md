@@ -21,7 +21,7 @@ Guia para desenvolvedores da interface ou outro cliente autorizado do MVP. O obj
 | Encerramento   | Mostrar histórico e inscrições conhecidas, pedir corte/motivo e enviar revisão do alvo; os efeitos efetivos vêm nos arrays da resposta                        |
 | Auditoria      | Consultar `/audit-entries?entityType=...&entityId=...`; usar `operationId` para correlacionar alterações compostas                                            |
 
-Essas telas são orientações para a integração futura; não foram implementadas nesta entrega. A seleção de responsável recebe UUID de conta existente. Nesta etapa ACS não oferece diretório de operadores acessível à coordenação isolada: `/users` exige `accounts.manage`. Não contorne essa permissão para construir um seletor; use o próprio ID da sessão quando pertinente ou mantenha o responsável desconhecido até a definição de uma projeção autorizada na frente de interface/ACS.
+Essas telas são orientações para a integração futura; não foram implementadas nesta entrega. A seleção de responsável recebe UUID de conta existente. Monte o seletor com `GET /responsible-candidates`, que exige `projects.write` ou `attendance.write` e devolve apenas `id`, `displayName` e `active` das contas ativas com perfil Coordenação ou Responsável por Atividade; `q` filtra pelo nome. Para mostrar o nome de um responsável já gravado, inclusive de conta desativada, use `?ids=`. `/users` continua exigindo `accounts.manage` e não deve ser usado para isso.
 
 ## Cliente HTTP com validação de resposta
 
