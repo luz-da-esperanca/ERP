@@ -62,7 +62,6 @@ export interface CreateRegisteredPerson extends PersonFields {
   validFrom: string;
   relationshipToReference: string | null;
   isReference: boolean;
-  duplicateReview?: DuplicateReview;
 }
 export interface CreateRegisteredFamily extends FamilyFields {
   duplicateReview?: DuplicateReview;

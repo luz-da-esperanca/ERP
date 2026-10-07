@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nullableCpfSchema } from './cpf-schema';
 import {
   idSchema,
   nameSchema,
@@ -36,13 +37,7 @@ export const personInputSchema = z
     name: nameSchema,
     birthDate: optionalDateSchema,
     sex: optionalText(100),
-    cpf: z.preprocess(
-      (v) => (v === '' || v === undefined ? null : v),
-      z
-        .string()
-        .regex(/^\d{11}$/)
-        .nullable(),
-    ),
+    cpf: nullableCpfSchema.default(null),
     rg: optionalText(30),
     occupation: optionalText(100),
     educationLevel: optionalText(100),

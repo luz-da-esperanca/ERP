@@ -76,7 +76,7 @@ describe('Registration queries and personal revisions', () => {
       headers: fixture.headers(actor.cookie),
       payload: {
         expectedRevision: 1,
-        cpf: '123.456.789-00',
+        cpf: '123.456.789-09',
         occupation: 'Synthetic occupation',
       },
     };
@@ -84,7 +84,7 @@ describe('Registration queries and personal revisions', () => {
     expect(update.statusCode, update.body).toBe(200);
     expect(update.json().data).toMatchObject({
       name: person.name,
-      cpf: '12345678900',
+      cpf: '12345678909',
       revision: 2,
     });
     const noop = await fixture.runtime.app.inject({
@@ -92,7 +92,7 @@ describe('Registration queries and personal revisions', () => {
       headers: fixture.headers(actor.cookie),
       payload: {
         expectedRevision: 2,
-        cpf: '123.456.789-00',
+        cpf: '123.456.789-09',
         occupation: 'Synthetic occupation',
       },
     });
@@ -118,7 +118,7 @@ describe('Registration queries and personal revisions', () => {
     expect(history.json().data).toHaveLength(2);
     expect(history.json().data[0]).toMatchObject({
       before: { cpf: null },
-      after: { cpf: '12345678900' },
+      after: { cpf: '12345678909' },
       actorId: actor.user.id,
     });
     const activity = await fixture.operator('synthetic.activity', [

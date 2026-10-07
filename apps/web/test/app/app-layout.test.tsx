@@ -59,7 +59,7 @@ describe('AppLayout', () => {
           displayName="Conta sintética"
           roles={['ADMINISTRATOR', 'COORDINATION']}
           capabilities={capabilitySchema.options}
-          showDataQuality
+          showManagement
           onLogout={() => {}}
           accountLabel="Dados sintéticos"
         >
@@ -77,6 +77,9 @@ describe('AppLayout', () => {
       'Campos cadastrais',
       'Usuários e perfis',
     ];
+    expect(
+      screen.queryByRole('link', { name: 'Duplicidades e qualidade' }),
+    ).toBeNull();
     const silhouettes = destinations.map((name) => {
       const icon = screen.getByRole('link', { name }).querySelector('svg');
       expect(icon).not.toBeNull();

@@ -9,7 +9,6 @@ import {
   LogOut,
   Search,
   FolderKanban,
-  CopyCheck,
   BadgeCheck,
   ChartColumnIncreasing,
   History,
@@ -34,12 +33,6 @@ const navigation: Array<{
     to: '/families',
     label: 'Pessoas e famílias',
     icon: Users,
-    capability: 'registration.read',
-  },
-  {
-    to: '/data-quality',
-    label: 'Duplicidades e qualidade',
-    icon: CopyCheck,
     capability: 'registration.read',
   },
   {
@@ -78,7 +71,7 @@ export function AppLayout() {
 
 export function AppShell({
   displayName,
-  showDataQuality = false,
+  showManagement = false,
   roles,
   capabilities,
   onLogout,
@@ -91,7 +84,7 @@ export function AppShell({
   children,
 }: {
   displayName: string;
-  showDataQuality?: boolean;
+  showManagement?: boolean;
   roles: Role[];
   capabilities: Capability[];
   onLogout: () => void;
@@ -146,7 +139,7 @@ export function AppShell({
       trigger?.focus();
     };
   }, [open]);
-  const connectedNavigation: typeof navigation = showDataQuality
+  const connectedNavigation: typeof navigation = showManagement
     ? [
         ...navigation,
         {
@@ -187,11 +180,9 @@ export function AppShell({
         },
       ]
     : navigation;
-  const items = connectedNavigation
-    .filter((item) => item.to !== '/data-quality' || showDataQuality)
-    .filter(
-      (item) => !item.capability || capabilities.includes(item.capability),
-    );
+  const items = connectedNavigation.filter(
+    (item) => !item.capability || capabilities.includes(item.capability),
+  );
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">

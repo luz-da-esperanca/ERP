@@ -63,6 +63,60 @@ afterEach(() => {
 });
 
 describe('Connected business screens', () => {
+  it('submits a normalized masked CPF and rejects duplication without a distinct-person override', async () => {
+    const user = userEvent.setup();
+    const fetcher = vi.fn<typeof fetch>(async (value, options) => {
+      if (String(value).endsWith('/auth/session'))
+        return Response.json({ data: session });
+      if (options?.method === 'POST')
+        return Response.json(
+          {
+            error: {
+              code: 'DOMAIN_CONFLICT',
+              requestId: 'cpf-conflict',
+              details: { rule: 'CPF_ALREADY_REGISTERED', ids: [userId] },
+            },
+          },
+          { status: 409 },
+        );
+      return Response.json({
+        data: {
+          family: { ...family, memberCount: 0, referencePersonName: null },
+          members: [],
+        },
+      });
+    });
+    renderConnected(fetcher, `/people/new?familyId=${familyId}`);
+    await user.type(
+      await screen.findByLabelText(/^Nome completo/),
+      'Pessoa sintética',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: 'CPF' }),
+      '12345678909',
+    );
+    await user.click(screen.getByRole('button', { name: 'Cadastrar pessoa' }));
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Este CPF já está cadastrado. Localize a pessoa existente para continuar.',
+    );
+    const write = fetcher.mock.calls.find(
+      ([, options]) => options?.method === 'POST',
+    );
+    expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+      cpf: '12345678909',
+    });
+    expect(JSON.parse(String(write?.[1]?.body))).not.toHaveProperty(
+      'duplicateReview',
+    );
+    expect(
+      screen.queryByLabelText(/^Motivo para cadastrar como distinto/),
+    ).toBeNull();
+    expect(
+      fetcher.mock.calls.some(([path]) =>
+        String(path).includes('/duplicate-candidates'),
+      ),
+    ).toBe(false);
+  });
   it('searches authorized families and people through the API and closes the search with Escape', async () => {
     const user = userEvent.setup();
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) => {

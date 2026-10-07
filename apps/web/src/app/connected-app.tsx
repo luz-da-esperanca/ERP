@@ -25,9 +25,6 @@ import { SessionPage } from '../features/attendance/presentation/session-page';
 import { ManagedProjectsPage } from '../features/projects/presentation/projects-page';
 import { ManagedActivityPage } from '../features/projects/presentation/activity-page';
 import { ApiClient } from '../shared/api-client';
-import { HttpDataQuality } from '../features/registration/infra/http-data-quality';
-import type { DataQualityGateway } from '../features/registration/application/data-quality-gateway';
-import { DataQualityPage } from '../features/registration/presentation/data-quality-page';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, Navigate, Outlet, Route, Routes } from 'react-router';
@@ -65,26 +62,19 @@ export function ConnectedApp({
 }) {
   const [http] = useState(() => providedClient?.api ?? api ?? new ApiClient());
   const [client] = useState(() => providedClient ?? new HttpErpClient(http));
-  const [quality] = useState(() => new HttpDataQuality(http));
   const [attendance] = useState(() => new HttpAttendance(http));
   return (
     <AuthenticationProvider authentication={authentication}>
-      <ConnectedRoutes
-        client={client}
-        quality={quality}
-        attendance={attendance}
-      />
+      <ConnectedRoutes client={client} attendance={attendance} />
     </AuthenticationProvider>
   );
 }
 
 function ConnectedRoutes({
   client,
-  quality,
   attendance,
 }: {
   client: HttpErpClient;
-  quality: DataQualityGateway;
   attendance: HttpAttendance;
 }) {
   const { authentication, state } = useAuthentication();
@@ -209,12 +199,6 @@ function ConnectedRoutes({
                   capabilities={state.session.capabilities}
                 />
               }
-            />
-          </Route>
-          <Route element={<RequireCapability capability="registration.read" />}>
-            <Route
-              path="data-quality"
-              element={<ConnectedQualityPage gateway={quality} />}
             />
           </Route>
           <Route element={<RequireCapability capability="attendance.read" />}>
@@ -464,7 +448,7 @@ function ConnectedLayout() {
         roles={state.session.roles}
         capabilities={state.session.capabilities}
         accountLabel="Acesso autenticado"
-        showDataQuality
+        showManagement
         onSearch={
           state.session.capabilities.includes('registration.read')
             ? () => {
@@ -515,16 +499,5 @@ function RequireCapability({
     <Page title="Acesso restrito">
       <Alert error>Seu perfil não permite acessar esta área.</Alert>
     </Page>
-  );
-}
-
-function ConnectedQualityPage({ gateway }: { gateway: DataQualityGateway }) {
-  const { state } = useAuthentication();
-  if (state.status !== 'authenticated') return null;
-  return (
-    <DataQualityPage
-      gateway={gateway}
-      capabilities={state.session.capabilities}
-    />
   );
 }

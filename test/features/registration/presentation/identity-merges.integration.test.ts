@@ -114,6 +114,26 @@ describe('Person identity merge', () => {
   const coordinator = () =>
     fixture.operator('synthetic.coordinator', ['COORDINATION']);
 
+  it('adopts a source CPF while preserving a single canonical identity under the unique index', async () => {
+    const operator = await coordinator();
+    const http = api(fixture, operator.cookie);
+    const family = await http.family();
+    const source = await http.person('Synthetic source', family.id, {
+      cpf: '12345678909',
+    });
+    const target = await http.person('Synthetic target', family.id);
+    const response = await http.merge(
+      await http.preview('PERSON', source.person.id, target.person.id),
+    );
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json().data.target).toMatchObject({ cpf: '12345678909' });
+    expect(
+      await fixture.runtime.database.person.count({
+        where: { cpf: '12345678909', mergedIntoId: null },
+      }),
+    ).toBe(1);
+  });
+
   it('completes adopted fields, retires source occurrences and keeps only canonical missing data after a merge', async () => {
     const operator = await coordinator();
     const http = api(fixture, operator.cookie);
@@ -129,7 +149,7 @@ describe('Person identity merge', () => {
     ).toBe(201);
     const family = await http.family();
     const source = await http.person('Synthetic Source', family.id, {
-      cpf: '11111111111',
+      cpf: '11144477735',
     });
     const target = await http.person('Synthetic Target', family.id);
     const view = await http.preview(
@@ -203,7 +223,7 @@ describe('Person identity merge', () => {
     const first = await http.family();
     const second = await http.family();
     const source = await http.person('Alpha Uno', first.id, {
-      cpf: '11111111111',
+      cpf: '11144477735',
     });
     const closed = await http.send(
       'POST',
@@ -271,7 +291,7 @@ describe('Person identity merge', () => {
         reason: 'Synthetic duplicate registration',
         resolution: { adoptedFields: ['cpf'], resolvedIssueIds: view.issueIds },
       },
-      target: { id: target.person.id, cpf: '11111111111', revision: 3 },
+      target: { id: target.person.id, cpf: '11144477735', revision: 3 },
     });
     const replay = await http.merge(view, {}, key);
     expect(replay.statusCode, replay.body).toBe(201);

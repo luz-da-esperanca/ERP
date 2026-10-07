@@ -84,7 +84,7 @@ describe('Historical participant enrollments', () => {
       name: 'Synthetic Participant',
       family: { id: family.id, code: family.code },
     });
-    expect(JSON.stringify(list.json())).not.toContain('12345678901');
+    expect(JSON.stringify(list.json())).not.toContain('12345678909');
     const nature = await app.inject({
       method: 'PATCH',
       url: `/api/v1/activities/${activity.id}`,

@@ -4,7 +4,6 @@ import {
   ArrowRight,
   ChartColumnIncreasing,
   CircleCheck,
-  CopyCheck,
   FolderKanban,
   History,
   Users,
@@ -26,14 +25,6 @@ const workLinks: {
   label: string;
   icon: LucideIcon;
 }[] = [
-  {
-    capability: 'registration.read',
-    title: 'Conferir duplicidades e dados ausentes',
-    description: 'Qualidade cadastral',
-    to: '/data-quality',
-    label: 'Revisar cadastros',
-    icon: CopyCheck,
-  },
   {
     capability: 'projects.read',
     title: 'Acompanhar projetos e atividades',

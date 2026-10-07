@@ -6,22 +6,35 @@ em memória permanecem restritos ao protótipo e seus testes.
 
 ## Fluxos conectados
 
-| Área   | Telas e operações HTTP                                                                                                                                                                                                                                                                   |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ACS    | Login, sessão por cookie, logout, troca obrigatória de senha e administração de contas, perfis, ativação e redefinição de senha.                                                                                                                                                         |
-| Início | Composição do [protótipo do dashboard](design-prototype/00-initial-screen/dashboard/screen.png): saudação e data local, ações rápidas com ícones, rotinas do MVP em “Para hoje” e alterações familiares em “Atividade recente”. Total e registros vêm da API, respeitando as permissões. |
-| CAD    | Lista paginada, busca, criação/edição, composição por data, duplicidades, unificação, tamanhos, vinculação de pessoa existente, titularidade, transferência, correção e encerramento de vínculos; prévia e confirmação de reconciliação composta e seleção de campos cadastrais.         |
-| ATV    | Catálogos, projetos, atividades, responsáveis e inscrições, incluindo criação, edição, encerramento e histórico.                                                                                                                                                                         |
-| FRQ    | Encontros, chamada, correções, cancelamento, frequência, cobertura e correção da data/contexto familiar com prévia e revisões capturadas.                                                                                                                                                |
-| FIC    | Versões da ficha, composição histórica, publicação/correção, ciência em papel, configuração explícita de campos, catálogos e decisões de habilitação.                                                                                                                                    |
-| APT    | Prévia familiar, consulta solicitada para as famílias da página, avaliação persistida, evidências, políticas versionadas e consulta de avaliações/políticas históricas por identificador.                                                                                                |
-| REL    | Alcance, frequência, aptidão e qualidade, filtros e recuperação paginada dos registros pelo fingerprint do relatório; históricos de pessoa e família.                                                                                                                                    |
-| AUD    | Consulta paginada por escopo autorizado, autor, registro e período, com valores anteriores/posteriores e motivos.                                                                                                                                                                        |
+| Área   | Telas e operações HTTP                                                                                                                                                                                                                                                                                               |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACS    | Login, sessão por cookie, logout, troca obrigatória de senha e administração de contas, perfis, ativação e redefinição de senha.                                                                                                                                                                                     |
+| Início | Composição do [protótipo do dashboard](design-prototype/00-initial-screen/dashboard/screen.png): saudação e data local, ações rápidas com ícones, rotinas do MVP em “Para hoje” e alterações familiares em “Atividade recente”. Total e registros vêm da API, respeitando as permissões.                             |
+| CAD    | Lista paginada, busca, criação/edição com CPF válido e único, máscara no formulário e no perfil, composição por data, tamanhos, vinculação de pessoa existente, titularidade, transferência, correção e encerramento de vínculos; reconciliação composta e seleção de campos cadastrais. A central de duplicidades foi retirada. |
+| ATV    | Catálogos, projetos, atividades, responsáveis e inscrições, incluindo criação, edição, encerramento e histórico.                                                                                                                                                                                                     |
+| FRQ    | Encontros, chamada, correções, cancelamento, frequência, cobertura e correção da data/contexto familiar com prévia e revisões capturadas.                                                                                                                                                                            |
+| FIC    | Versões da ficha, composição histórica, publicação/correção, ciência em papel, configuração explícita de campos, catálogos e decisões de habilitação.                                                                                                                                                                |
+| APT    | Prévia familiar, consulta solicitada para as famílias da página, avaliação persistida, evidências, políticas versionadas e consulta de avaliações/políticas históricas por identificador.                                                                                                                            |
+| REL    | Alcance, frequência, aptidão e qualidade, filtros e recuperação paginada dos registros pelo fingerprint do relatório; históricos de pessoa e família.                                                                                                                                                                |
+| AUD    | Consulta paginada por escopo autorizado, autor, registro e período, com valores anteriores/posteriores e motivos.                                                                                                                                                                                                    |
 
 As rotas ficam em `apps/web/src/app/connected-app.tsx`; apresentação e
 adaptadores HTTP ficam em `apps/web/src/features/`, por módulo. A ficha social
 fica no perfil familiar; tamanhos e vínculos ficam no perfil individual;
 catálogos ficam na área de projetos. O menu mostra as áreas permitidas ao usuário.
+
+Em 07/10/2026, por exigência de Dário comunicada pelo responsável pelo projeto,
+a tela e a rota “Duplicidades e qualidade” foram removidas, incluindo componentes
+de comparação/unificação e atalhos no início. O cadastro de pessoa não oferece
+exceção por justificativa: CPF repetido na criação ou edição retorna um bloqueio
+com mensagem específica. A máscara não é persistida; o value object `Cpf` e os
+schemas compartilhados normalizam e validam o documento. CPF desconhecido
+continua permitido. A regra de revisão de núcleos familiares semelhantes permanece
+no próprio cadastro de família; a exigência confirmada de unicidade é por CPF.
+
+Os históricos de auditoria e de qualidade já persistidos continuam disponíveis
+nos contratos de leitura/relatórios. A proteção de concorrência exige aplicar a
+migration de [unicidade do CPF](api/registration.md#migration-de-unicidade-do-cpf).
 
 ## Garantias e limites
 

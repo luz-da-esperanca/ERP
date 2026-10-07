@@ -3,9 +3,23 @@ import { ApplicationError } from '@erp/contracts/common';
 import { ZodError } from 'zod';
 import { ApiRequestError } from './api-client';
 export function errorMessage(error: unknown): string {
+  if (
+    error instanceof ZodError &&
+    error.issues.some((issue) => issue.path.includes('cpf'))
+  )
+    return 'CPF inválido. Confira os 11 dígitos informados.';
   if (error instanceof ZodError)
     return 'Revise os campos informados. Verifique formatos, limites e dados obrigatórios.';
   if (error instanceof ApplicationError || error instanceof ApiRequestError) {
+    if (
+      error instanceof ApiRequestError &&
+      error.code === 'DOMAIN_CONFLICT' &&
+      error.details &&
+      typeof error.details === 'object' &&
+      'rule' in error.details &&
+      error.details.rule === 'CPF_ALREADY_REGISTERED'
+    )
+      return 'Este CPF já está cadastrado. Localize a pessoa existente para continuar.';
     if (error instanceof ApiRequestError && error.status === 401)
       return 'Sua sessão terminou. Entre novamente.';
     if (

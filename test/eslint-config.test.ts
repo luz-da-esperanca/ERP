@@ -5,6 +5,30 @@ const lint = new ESLint();
 
 describe('Architecture dependency rules', () => {
   it.each(['domain', 'application'])(
+    'allows the shared pure CPF value object in %s while rejecting its Zod schema',
+    async (layer) => {
+      const filePath = `src/features/registration/${layer}/cpf-example.ts`;
+      const [valueObject] = await lint.lintText(
+        "export { Cpf } from '@erp/contracts/cpf';",
+        { filePath },
+      );
+      expect(
+        valueObject?.messages.filter(
+          (message) => message.ruleId === 'no-restricted-imports',
+        ),
+      ).toHaveLength(0);
+      const [schema] = await lint.lintText(
+        "export { cpfSchema } from '@erp/contracts/cpf-schema';",
+        { filePath },
+      );
+      expect(
+        schema?.messages.filter(
+          (message) => message.ruleId === 'no-restricted-imports',
+        ),
+      ).toHaveLength(1);
+    },
+  );
+  it.each(['domain', 'application'])(
     'rejects HTTP transport types in %s',
     async (layer) => {
       for (const contract of [

@@ -8,6 +8,7 @@ import {
   civilDateSchema,
 } from './common';
 import { paginationSchema } from './access-api';
+import { nullableCpfSchema } from './cpf-schema';
 
 const nullableText = (limit: number) =>
   z
@@ -212,7 +213,7 @@ export const createRegisteredPersonSchema = personFields
   .extend({
     birthDate: personFields.shape.birthDate.default(null),
     sex: personFields.shape.sex.default(null),
-    cpf: personFields.shape.cpf.default(null),
+    cpf: nullableCpfSchema.default(null),
     rg: personFields.shape.rg.default(null),
     occupation: personFields.shape.occupation.default(null),
     educationLevel: personFields.shape.educationLevel.default(null),
@@ -224,7 +225,6 @@ export const createRegisteredPersonSchema = personFields
     ),
     relationshipToReference: nullableText(100).default(null),
     isReference: z.boolean().default(false),
-    duplicateReview: duplicateReviewSchema.optional(),
   })
   .strict();
 
@@ -248,7 +248,10 @@ export const familiesPageSchema = z.object({
 });
 export const updatePersonSchema = personFields
   .partial()
-  .extend({ expectedRevision: revisionSchema })
+  .extend({
+    expectedRevision: revisionSchema,
+    cpf: nullableCpfSchema.optional(),
+  })
   .strict()
   .refine((input) => Object.keys(input).length > 1);
 export const sizeProfileSchema = z.object({

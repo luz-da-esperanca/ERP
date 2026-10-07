@@ -99,13 +99,6 @@ export async function seedShowcaseData(
           validFrom: at(-45),
           isReference: memberIndex === 0,
           relationshipToReference: memberIndex === 0 ? null : 'Filho(a)',
-          ...(await duplicateReview(
-            new URLSearchParams({
-              entityType: 'PERSON',
-              name,
-              ...(birthDate ? { birthDate } : {}),
-            }),
-          )),
         });
       });
       members.push(personId);

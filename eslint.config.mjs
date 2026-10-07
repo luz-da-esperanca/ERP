@@ -76,7 +76,7 @@ export default ts.config(
                 'Keep frameworks and external effects outside the domain.',
             },
             {
-              group: ['@erp/contracts/*'],
+              group: ['@erp/contracts/*', '!@erp/contracts/cpf'],
               allowTypeImports: true,
               message: 'Only shared domain types belong in the domain.',
             },
@@ -136,7 +136,7 @@ export default ts.config(
               message: 'Inject external effects through application ports.',
             },
             {
-              group: ['@erp/contracts/*'],
+              group: ['@erp/contracts/*', '!@erp/contracts/cpf'],
               allowTypeImports: true,
               message: 'Validate transport contracts in presentation.',
             },

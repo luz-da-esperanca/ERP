@@ -83,7 +83,7 @@ describe('Registration HTTP API', () => {
       after: { isReference: false },
     });
   });
-  it('requires a review for matching CPF and persists distinct people when the operator confirms it', async () => {
+  it('rejects a repeated CPF and a distinct-person override without creating another person', async () => {
     const actor = await fixture.operator('synthetic.social', [
       'SOCIAL_ASSISTANCE',
     ]);
@@ -101,52 +101,46 @@ describe('Registration HTTP API', () => {
       headers: fixture.headers(actor.cookie),
       payload: {
         name: 'First Identity',
-        cpf: '12345678900',
+        cpf: '12345678909',
         familyId: family.id,
         expectedFamilyRevision: 1,
         validFrom: '2026-01-01T00:00:00Z',
       },
     });
-    const candidateId = first.json().data.person.id;
+    expect(first.statusCode, first.body).toBe(201);
     const request = {
       method: 'POST' as const,
       url: '/api/v1/people',
       headers: fixture.headers(actor.cookie),
       payload: {
         name: 'Second Identity',
-        cpf: '123.456.789-00',
+        cpf: '123.456.789-09',
         familyId: family.id,
         expectedFamilyRevision: 2,
         validFrom: '2026-01-01T00:00:00Z',
       },
     };
-    expect((await fixture.runtime.app.inject(request)).statusCode).toBe(409);
-    const response = await fixture.runtime.app.inject({
+    const blocked = await fixture.runtime.app.inject(request);
+    expect(blocked.statusCode, blocked.body).toBe(409);
+    expect(blocked.json().error.details.rule).toBe('CPF_ALREADY_REGISTERED');
+    const override = await fixture.runtime.app.inject({
       ...request,
       payload: {
         ...request.payload,
         duplicateReview: {
-          candidateIds: [candidateId],
+          candidateIds: [first.json().data.person.id],
           decision: 'DISTINCT',
-          reason: 'Synthetic shared document review',
+          reason: 'Override',
         },
       },
     });
-    expect(response.statusCode, response.body).toBe(201);
-    expect(response.json().data.person.id).not.toBe(candidateId);
+    expect(override.statusCode, override.body).toBe(400);
+    expect(await fixture.runtime.database.person.count()).toBe(1);
     expect(
-      await fixture.runtime.database.person.count({
-        where: { cpf: '12345678900' },
+      await fixture.runtime.database.dataQualityIssue.count({
+        where: { kind: 'POSSIBLE_DUPLICATE' },
       }),
-    ).toBe(2);
-    const issue =
-      await fixture.runtime.database.dataQualityIssue.findFirstOrThrow();
-    expect(issue).toMatchObject({
-      entityId: response.json().data.person.id,
-      resolution: 'DISTINCT',
-      resolvedBy: actor.user.id,
-      candidateIds: [candidateId],
-    });
+    ).toBe(0);
   });
   it('rejects competing authors sharing a concurrent idempotency key', async () => {
     const first = await fixture.operator('synthetic.first', [
@@ -376,7 +370,7 @@ describe('Registration HTTP API', () => {
       headers: fixture.headers(social.cookie),
       payload: {
         name: 'Synthetic Participant',
-        cpf: '12345678900',
+        cpf: '12345678909',
         familyId: family.id,
         expectedFamilyRevision: 1,
         validFrom: '2026-01-01T00:00:00Z',
@@ -418,7 +412,7 @@ describe('Registration HTTP API', () => {
       (
         await fixture.runtime.app.inject({
           method: 'GET',
-          url: '/api/v1/people?cpf=12345678900',
+          url: '/api/v1/people?cpf=12345678909',
           headers: { cookie: activity.cookie },
         })
       ).statusCode,

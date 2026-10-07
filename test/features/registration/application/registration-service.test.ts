@@ -22,6 +22,25 @@ function fixture() {
     qualityIssues: vi.fn(),
   } satisfies RegistrationReader;
   const ports = {
+    duplicateRecords: vi
+      .fn<RegistrationTransaction['duplicateRecords']>()
+      .mockResolvedValue([]),
+    findPerson: vi
+      .fn<RegistrationTransaction['findPerson']>()
+      .mockResolvedValue({
+        id: 'person',
+        name: 'Synthetic Person',
+        cpf: null,
+        birthDate: null,
+        sex: null,
+        rg: null,
+        occupation: null,
+        educationLevel: null,
+        contactPhone: null,
+        revision: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
     findActor: vi
       .fn<RegistrationTransaction['findActor']>()
       .mockResolvedValue(principal),
@@ -71,6 +90,61 @@ function fixture() {
   };
 }
 describe('Registration command protection', () => {
+  it('rejects a CPF already registered even when an override is submitted', async () => {
+    const { service, ports, context } = fixture();
+    ports.duplicateRecords.mockResolvedValue([
+      {
+        id: 'existing-person',
+        entityType: 'PERSON',
+        name: 'Different name',
+        cpf: '12345678909',
+        birthDate: null,
+        address: null,
+      },
+    ]);
+    const input = {
+      name: 'Synthetic Person',
+      cpf: '12345678909',
+      birthDate: null,
+      sex: null,
+      rg: null,
+      occupation: null,
+      educationLevel: null,
+      contactPhone: null,
+      familyId: 'family',
+      expectedFamilyRevision: 1,
+      validFrom: '2026-01-01T00:00:00Z',
+      isReference: false,
+      relationshipToReference: null,
+      duplicateReview: {
+        candidateIds: ['existing-person'],
+        decision: 'DISTINCT' as const,
+        reason: 'Override',
+      },
+    };
+    await expect(service.createPerson(context, input)).rejects.toMatchObject({
+      rule: 'CPF_ALREADY_REGISTERED',
+    });
+  });
+  it('rejects assigning another person CPF during an edit', async () => {
+    const { service, ports, context } = fixture();
+    ports.duplicateRecords.mockResolvedValue([
+      {
+        id: 'other-person',
+        entityType: 'PERSON',
+        name: 'Other person',
+        cpf: '12345678909',
+        birthDate: null,
+        address: null,
+      },
+    ]);
+    await expect(
+      service.updatePerson(context, 'person', {
+        expectedRevision: 1,
+        cpf: '12345678909',
+      }),
+    ).rejects.toMatchObject({ rule: 'CPF_ALREADY_REGISTERED' });
+  });
   it('revalidates a revoked session before reading an operation or registration data', async () => {
     const { service, principal, ports, context } = fixture();
     ports.findActor.mockResolvedValue({

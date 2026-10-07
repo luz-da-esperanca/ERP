@@ -295,6 +295,8 @@ export class IdentityMergeService {
             occurredAt,
           });
         const summary = await apply(tx, operationId, actor.user.id, audit);
+        // Retire the source before adopting its CPF under canonical uniqueness.
+        await tx.markMerged(identities);
         const target = await tx.updateTarget(identities, summary.changes);
         const entityType =
           identities.entityType === 'PERSON' ? 'Person' : 'Family';
@@ -309,7 +311,6 @@ export class IdentityMergeService {
           await audit('REGISTRATION', 'DataQualityIssue', before, after);
           resolvedIssueIds.push(after.id);
         }
-        await tx.markMerged(identities);
         for (const issue of await tx.missingData.openIssues(
           identities.entityType,
           identities.sourceId,

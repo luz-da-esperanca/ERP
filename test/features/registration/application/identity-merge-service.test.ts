@@ -202,6 +202,24 @@ describe('Identity merge preview', () => {
 });
 
 describe('Identity merge confirmation', () => {
+  it('adopts the source CPF without assigning it to two canonical identities', async () => {
+    const { service, sources, writes, context, command } = fixture();
+    let sourceIsCanonical = true;
+    writes.markMerged.mockImplementation(async () => {
+      sourceIsCanonical = false;
+    });
+    writes.updateTarget.mockImplementation(async (_identities, changes) => {
+      if (sourceIsCanonical && changes.cpf === sources.source.cpf)
+        throw new Error('Canonical CPF unique constraint violated');
+      return {
+        ...sources.target,
+        ...changes,
+        revision: sources.target.revision + 1,
+      };
+    });
+    const result = await service.merge(context, await command());
+    expect(result.target).toMatchObject({ cpf: sources.source.cpf });
+  });
   it.each(['revoked', 'inactive'] as const)(
     'rejects a %s author before looking up an idempotent result',
     async (state) => {

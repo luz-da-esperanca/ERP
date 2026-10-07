@@ -114,9 +114,7 @@ it('shows authorized work links in the daily panel and icons in quick actions', 
       .getByRole('link', { name: 'Consultar famílias' })
       .getAttribute('href'),
   ).toBe('/families');
-  expect(
-    daily.getByRole('link', { name: 'Revisar cadastros' }).getAttribute('href'),
-  ).toBe('/data-quality');
+  expect(daily.queryByRole('link', { name: 'Revisar cadastros' })).toBeNull();
   expect(
     daily.getByRole('link', { name: 'Abrir projetos' }).getAttribute('href'),
   ).toBe('/projects');

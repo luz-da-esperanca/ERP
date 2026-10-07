@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { CalendarDays, Phone, CircleCheck, History } from 'lucide-react';
+import { formatCpfInput } from '@erp/contracts/cpf';
 import type {
   FamilyMembership,
   Person,
@@ -88,7 +89,10 @@ function PersonRegistration({ person }: { person: Person }) {
     { label: 'Nome', value: person.name },
     { label: 'Data de nascimento', value: displayDate(person.birthDate) },
     { label: 'Sexo', value: registrationValue(person.sex) },
-    { label: 'CPF', value: registrationValue(person.cpf) },
+    {
+      label: 'CPF',
+      value: registrationValue(person.cpf ? formatCpfInput(person.cpf) : null),
+    },
     { label: 'RG', value: registrationValue(person.rg) },
     { label: 'Contato', value: registrationValue(person.contactPhone) },
     { label: 'Ocupação', value: registrationValue(person.occupation) },

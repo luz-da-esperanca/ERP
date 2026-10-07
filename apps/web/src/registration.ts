@@ -4,9 +4,8 @@ export {
   FamiliesPage,
   PersonPage,
 } from './features/registration';
-export { DataQualityPage } from './features/registration/presentation/data-quality-page';
-export { HttpDataQuality } from './features/registration/infra/http-data-quality';
 export { HttpRegistration } from './features/registration/infra/http-registration';
+export { CpfField } from './features/registration/presentation/cpf-field';
 export { HttpComposition } from './features/registration/infra/http-composition';
 export { SizesPage } from './features/registration/presentation/sizes-page';
 export { MembershipsPage } from './features/registration/presentation/memberships-page';

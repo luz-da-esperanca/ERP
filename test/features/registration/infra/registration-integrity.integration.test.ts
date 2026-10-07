@@ -4,6 +4,35 @@ import { setupIntegrationFixture } from '../../../support/integration-fixture.js
 const fixture = setupIntegrationFixture();
 
 describe('PostgreSQL registration integrity', () => {
+  it('enforces canonical CPF uniqueness under concurrent inserts and edits while permitting unknown CPF', async () => {
+    const database = fixture.runtime.database;
+    const attempts = await Promise.allSettled([
+      database.person.create({
+        data: { name: 'Synthetic First', cpf: '12345678909' },
+      }),
+      database.person.create({
+        data: { name: 'Synthetic Second', cpf: '12345678909' },
+      }),
+    ]);
+    expect(
+      attempts.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    expect(
+      attempts.filter((result) => result.status === 'rejected'),
+    ).toHaveLength(1);
+    const unknown = await database.person.create({
+      data: { name: 'Unknown CPF' },
+    });
+    await expect(
+      database.person.create({ data: { name: 'Another unknown CPF' } }),
+    ).resolves.toMatchObject({ cpf: null });
+    await expect(
+      database.person.update({
+        where: { id: unknown.id },
+        data: { cpf: '12345678909' },
+      }),
+    ).rejects.toMatchObject({ code: 'P2002' });
+  });
   it('rejects overlapping membership, concurrent references and family code rewrites at the database boundary', async () => {
     const database = fixture.runtime.database;
     const family = await database.family.create({ data: {} });

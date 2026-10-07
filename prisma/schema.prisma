@@ -157,6 +157,7 @@ model Person {
   name                 String                  @db.VarChar(200)
   birthDate            DateTime?               @db.Date
   sex                  String?                 @db.VarChar(100)
+  /// A partial unique index protects canonical identities while preserving merged history.
   cpf                  String?                 @db.VarChar(11)
   rg                   String?                 @db.VarChar(30)
   occupation           String?                 @db.VarChar(100)

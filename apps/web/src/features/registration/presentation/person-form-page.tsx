@@ -21,11 +21,8 @@ import {
   textValue,
 } from '../../../shared/ui';
 import { civilToday } from '../../../shared/time';
-import {
-  useRegistrationIntent,
-  canRefreshDuplicateReview,
-} from './use-registration-intent';
-import { DuplicateCreationReview as DuplicateReview } from './duplicate-review';
+import { useRegistrationIntent } from './use-registration-intent';
+import { CpfField } from './cpf-field';
 
 function PersonForm({
   registration,
@@ -75,16 +72,12 @@ function PersonForm({
           ),
           isReference: form.get('isReference') === 'on',
         });
-        const prepared = await intent.prepare(input, form, () =>
-          registration.reviewPersonDuplicates(input),
-        );
+        const prepared = await intent.prepare(input, form);
         if (!prepared) return;
-        const result = await registration
-          .createRegisteredPerson({ ...input, ...prepared.body }, prepared.key)
-          .catch((error: unknown) => {
-            intent.captureRejectedReview(error);
-            throw error;
-          });
+        const result = await registration.createRegisteredPerson(
+          input,
+          prepared.key,
+        );
         navigate(`/people/${result.person.id}`);
       }
     });
@@ -125,12 +118,7 @@ function PersonForm({
           maxLength={100}
           defaultValue={person?.sex ?? ''}
         />
-        <Field
-          label="CPF (11 dígitos)"
-          name="cpf"
-          pattern="[0-9]{11}"
-          defaultValue={person?.cpf ?? ''}
-        />
+        <CpfField defaultValue={person?.cpf} />
         <Field
           label="RG"
           name="rg"
@@ -178,22 +166,7 @@ function PersonForm({
           </>
         )}
       </div>
-      {intent.review && (
-        <DuplicateReview
-          key={`${intent.review.input}:${intent.review.candidates.map((candidate) => candidate.id).join()}`}
-          candidates={intent.review.candidates}
-        />
-      )}
       {action.error && <Alert error>{action.error}</Alert>}
-      {canRefreshDuplicateReview(action.cause) && !person && (
-        <button
-          className="button secondary"
-          type="button"
-          onClick={intent.reset}
-        >
-          Consultar candidatos novamente
-        </button>
-      )}
       <Submit pending={action.pending}>
         {person ? 'Salvar pessoa' : 'Cadastrar pessoa'}
       </Submit>

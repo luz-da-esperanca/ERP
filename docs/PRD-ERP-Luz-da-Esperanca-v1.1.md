@@ -171,6 +171,8 @@ O responsável pelo cadastro procura a pessoa e sua família antes de criar novo
 
 **Resultado esperado:** a mesma família é reconhecida em atividades e atendimentos diferentes. Uma correção de composição familiar preserva o contexto dos fatos anteriores. Dados ausentes e possíveis duplicidades são sinalizados para análise; exigências como CPF, telefone ou endereço completo não são presumidas como critérios de acesso à assistência.
 
+**Atualização do recorte em 07/10/2026:** por exigência de Dário comunicada pelo responsável pelo projeto, a interface remove a central “Duplicidades e qualidade”. O CPF, quando conhecido e informado, deve ser válido e único por pessoa canônica; o cadastro e a edição impedem repeti-lo, sem exceção por justificativa. O CPF continua opcional. A mudança não transforma homônimos em duplicados nem apaga cadastros ou históricos existentes; os critérios e o procedimento técnico estão em [SPEC-CAD, §3](specs/02-registration.md#3-busca-dados-ausentes-e-duplicidades).
+
 ### 4.2 Registrar participação e avaliar aptidão
 
 O responsável identifica a atividade periódica e a ocorrência realizada, registra a participação das pessoas e corrige eventuais erros com justificativa. A avaliação da aptidão familiar considera os registros pertinentes e a política aprovada.

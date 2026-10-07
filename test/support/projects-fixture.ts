@@ -63,7 +63,7 @@ export async function createParticipant(
     headers: fixture.headers(cookie),
     payload: {
       name: 'Synthetic Participant',
-      cpf: '12345678901',
+      cpf: '12345678909',
       familyId: family.id,
       expectedFamilyRevision: family.revision,
       validFrom: '2026-01-01T03:00:00Z',

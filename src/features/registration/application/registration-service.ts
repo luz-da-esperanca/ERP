@@ -1,3 +1,5 @@
+import { Cpf } from '@erp/contracts/cpf';
+import { assertCpfAvailable } from '../domain/cpf-uniqueness.js';
 import type {
   CreateRegisteredFamily,
   CreateRegisteredPerson,
@@ -218,7 +220,6 @@ export class RegistrationService {
           validFrom,
           relationshipToReference,
           isReference,
-          duplicateReview,
           ...fields
         } = input;
         const before = await tx.findFamily(familyId);
@@ -227,15 +228,15 @@ export class RegistrationService {
           throw new RegistrationRevisionConflictError(before.revision);
         if (input.birthDate && input.birthDate > this.today())
           throw new RegistrationRuleError('FUTURE_BIRTH_DATE');
-        const query: DuplicateQuery = {
-          entityType: 'PERSON',
-          name: input.name,
-          birthDate: input.birthDate ?? undefined,
-          cpf: input.cpf ?? undefined,
-        };
-        assertDuplicateReview(
-          identifyDuplicateCandidates(await tx.duplicateRecords(query), query),
-          input.duplicateReview,
+        const cpf = input.cpf ? Cpf.parse(input.cpf) : null;
+        assertCpfAvailable(
+          cpf,
+          cpf
+            ? await tx.duplicateRecords({
+                entityType: 'PERSON',
+                cpf: cpf.value,
+              })
+            : [],
         );
         const operationId = await tx.createOperation(
           type,
@@ -243,7 +244,10 @@ export class RegistrationService {
           actor.user.id,
           fingerprint,
         );
-        const person = await tx.createPerson(fields);
+        const person = await tx.createPerson({
+          ...fields,
+          cpf: cpf?.value ?? null,
+        });
         const membership = await tx.createMembership({
           personId: person.id,
           familyId,
@@ -266,14 +270,6 @@ export class RegistrationService {
           person.id,
           person,
         );
-        if (duplicateReview)
-          await tx.recordDuplicateReview(
-            operationId,
-            actor.user.id,
-            'PERSON',
-            person.id,
-            duplicateReview,
-          );
         await tx.appendMembershipAudit(operationId, actor.user.id, membership);
         await tx.appendFamilyUpdateAudit(
           operationId,
@@ -788,11 +784,27 @@ export class RegistrationService {
         }
         const before = await tx.findPerson(personId);
         if (!before) throw new ResourceNotFoundError();
-        const { expectedRevision, ...changes } = input;
+        const { expectedRevision, ...fields } = input;
         if (before.revision !== expectedRevision)
           throw new RegistrationRevisionConflictError(before.revision);
         if (input.birthDate && input.birthDate > this.today())
           throw new RegistrationRuleError('FUTURE_BIRTH_DATE');
+        const cpf = input.cpf ? Cpf.parse(input.cpf) : null;
+        if (input.cpf !== undefined)
+          assertCpfAvailable(
+            cpf,
+            cpf
+              ? await tx.duplicateRecords({
+                  entityType: 'PERSON',
+                  cpf: cpf.value,
+                })
+              : [],
+            personId,
+          );
+        const changes =
+          input.cpf === undefined
+            ? fields
+            : { ...fields, cpf: cpf?.value ?? null };
         const changed = (
           Object.keys(changes) as Array<keyof typeof changes>
         ).some((key) => before[key] !== changes[key]);
@@ -820,30 +832,6 @@ export class RegistrationService {
             before,
             person,
           );
-          if (
-            changes.name !== undefined ||
-            changes.birthDate !== undefined ||
-            changes.cpf !== undefined
-          ) {
-            const query: DuplicateQuery = {
-              entityType: 'PERSON',
-              name: person.name,
-              birthDate: person.birthDate ?? undefined,
-              cpf: person.cpf ?? undefined,
-            };
-            const candidates = identifyDuplicateCandidates(
-              await tx.duplicateRecords(query),
-              query,
-            ).filter((candidate) => candidate.id !== personId);
-            if (candidates.length)
-              await tx.recordPossibleDuplicates(
-                operationId,
-                actor.user.id,
-                'PERSON',
-                personId,
-                candidates.map((candidate) => candidate.id),
-              );
-          }
         }
         await tx.completeOperation(operationId, {
           entityType: 'Person',

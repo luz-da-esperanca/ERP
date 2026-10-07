@@ -164,7 +164,7 @@ end note
 
 **Invariantes e limites:**
 
-- `Family.code` é único. Pessoa assistida e primeiro vínculo são cadastrados juntos. CPF, RG e telefone não condicionam assistência; CPF informado participa da busca de duplicidade, sem impor uma política de unicidade ainda não validada.
+- `Family.code` é único. Pessoa assistida e primeiro vínculo são cadastrados juntos. CPF, RG e telefone não condicionam assistência. Pela decisão de produto comunicada em 07/10/2026, CPF informado é validado pelo value object imutável `Cpf` e único entre pessoas canônicas; criação e edição bloqueiam repetições. DTOs e persistência representam seu valor por 11 dígitos ou `null`; a máscara pertence à apresentação. Ver [SPEC-CAD, §3](specs/02-registration.md#3-busca-dados-ausentes-e-duplicidades).
 - A data de nascimento ausente é sinalizada, preservando RF-CAD-08. O mínimo de RF-CAD-11 e sua obrigatoriedade final precisam ser conciliados em LAC-02; não se inventa data para cadastrar alguém.
 - Um titular por família em cada instante é a proposta da ERS §3.4. Troca de titular ou parentesco encerra a versão temporal anterior e abre outra; `isReference` não é sobrescrito retroativamente. Cadastro incompleto sinaliza a pendência, sem inventar titular.
 - Número de membros conta pessoas distintas com vínculo vigente na data consultada. Pessoa com mais de um vínculo admissível no instante exige resolução explícita do contexto; nenhuma família é escolhida silenciosamente.

@@ -115,7 +115,7 @@ describe('Registration corrections and quality history', () => {
     });
     expect(family.id).toBe(membership.familyId);
   });
-  it('records a new duplicate occurrence after a relevant edit and resolves it without merging identities', async () => {
+  it('permits namesakes without creating a duplicate review issue and keeps quality history protected', async () => {
     const { actor, person, family } = await registeredPerson();
     const another = await fixture.runtime.app.inject({
       method: 'POST',
@@ -144,37 +144,8 @@ describe('Registration corrections and quality history', () => {
     };
     const issues = await fixture.runtime.app.inject(query);
     expect(issues.statusCode, issues.body).toBe(200);
-    expect(issues.json().data).toHaveLength(1);
-    const issue = issues.json().data[0];
-    expect(issue).toMatchObject({
-      entityId: other.id,
-      candidateIds: [person.id],
-      kind: 'POSSIBLE_DUPLICATE',
-      resolvedAt: null,
-    });
-    const request = {
-      method: 'POST' as const,
-      url: `/api/v1/data-quality-issues/${issue.id}/resolution`,
-      headers: fixture.headers(actor.cookie),
-      payload: {
-        expectedRevision: 1,
-        resolution: 'DISTINCT',
-        reason: 'Synthetic namesakes',
-      },
-    };
-    const resolution = await fixture.runtime.app.inject(request);
-    expect(resolution.statusCode, resolution.body).toBe(200);
-    expect(resolution.json().data).toMatchObject({
-      revision: 2,
-      resolution: 'DISTINCT',
-      resolvedBy: actor.user.id,
-    });
-    expect((await fixture.runtime.app.inject(request)).json()).toEqual(
-      resolution.json(),
-    );
-    expect(
-      (await fixture.runtime.app.inject(query)).json().pagination.total,
-    ).toBe(0);
+    expect(issues.json().data).toHaveLength(0);
+    expect(update.json().data.name).toBe(person.name);
     expect(await fixture.runtime.database.person.count()).toBe(2);
     const activity = await fixture.operator('synthetic.activity', [
       'ACTIVITY_MANAGER',

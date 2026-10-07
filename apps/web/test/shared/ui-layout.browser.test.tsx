@@ -87,7 +87,7 @@ describe.skipIf(!browserBinary)('Rendered shared control layout', () => {
           displayName="Conta sintética de coordenação"
           roles={['ADMINISTRATOR', 'COORDINATION']}
           capabilities={capabilitySchema.options}
-          showDataQuality
+          showManagement
           onLogout={() => {}}
           onSearch={() => {}}
           accountLabel="Dados sintéticos"
@@ -102,7 +102,7 @@ describe.skipIf(!browserBinary)('Rendered shared control layout', () => {
           displayName="Maria Clara"
           roles={['ADMINISTRATOR', 'COORDINATION']}
           capabilities={capabilitySchema.options}
-          showDataQuality
+          showManagement
           onLogout={() => {}}
           accountLabel="Dados sintéticos"
         >

@@ -47,7 +47,7 @@ describe('PersonPage', () => {
         name: 'Maria Exemplo',
         birthDate: '1990-08-20',
         sex: null,
-        cpf: null,
+        cpf: '12345678909',
         rg: 'Documento sintético',
         contactPhone: '(86) 90000-0000',
         occupation: 'Professora',
@@ -65,6 +65,7 @@ describe('PersonPage', () => {
     expect(within(header).getByText('20/08/1990')).toBeTruthy();
     expect(within(header).getByText('(86) 90000-0000')).toBeTruthy();
     const data = screen.getByLabelText('Dados atuais');
+    expect(within(data).getByText('123.456.789-09')).toBeTruthy();
     expect(within(data).getByText('Ocupação')).toBeTruthy();
     expect(within(data).getByText('Professora')).toBeTruthy();
     expect(within(data).getByText('Ensino superior')).toBeTruthy();

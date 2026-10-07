@@ -34,6 +34,7 @@ import {
 } from '@erp/contracts/registration-api';
 import { ResourceNotFoundError } from '../../../core/application/errors.js';
 import { normalizeSearch } from '../domain/duplicate-rules.js';
+import { RegistrationConflictError } from '../domain/registration-errors.js';
 import type {
   DuplicateQuery,
   DuplicateRecord,
@@ -1096,6 +1097,16 @@ export class PrismaRegistration
       if (familyIds.length)
         await tx.$queryRaw`SELECT id FROM "Family" WHERE id IN (${Prisma.join([...new Set(familyIds)].sort().map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR UPDATE`;
       return work(registrationTransactionPorts(tx));
+    }).catch((error: unknown) => {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002' &&
+        (error.meta?.target === 'Person_cpf_canonical_key' ||
+          (Array.isArray(error.meta?.target) &&
+            error.meta.target.includes('cpf')))
+      )
+        throw new RegistrationConflictError('CPF_ALREADY_REGISTERED');
+      throw error;
     });
   }
 }

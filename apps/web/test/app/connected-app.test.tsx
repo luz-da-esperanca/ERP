@@ -288,7 +288,7 @@ describe('Connected application authentication', () => {
 });
 
 it.each(['api', 'client'] as const)(
-  'opens the authenticated data quality route using the same session-aware %s client',
+  'removes the retired data quality route from the authenticated %s client',
   async (composition) => {
     const fetcher = vi.fn<typeof fetch>(async (input) =>
       String(input).endsWith('/auth/session')
@@ -309,17 +309,17 @@ it.each(['api', 'client'] as const)(
         />
       </MemoryRouter>,
     );
-    await screen.findByText('Nenhuma ocorrência encontrada.');
+    await screen.findByRole('heading', {
+      name: /Synthetic Operator\. Paz e bem\./,
+    });
     expect(
-      screen
-        .getByRole('link', { name: 'Duplicidades e qualidade' })
-        .getAttribute('href'),
-    ).toBe('/data-quality');
+      screen.queryByRole('link', { name: 'Duplicidades e qualidade' }),
+    ).toBeNull();
     expect(
       fetcher.mock.calls.some(([path]) =>
         String(path).includes('/data-quality-issues?'),
       ),
-    ).toBe(true);
+    ).toBe(false);
   },
 );
 

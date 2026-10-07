@@ -37,7 +37,7 @@ Os schemas e tipos públicos estão em [registration-api.ts](../../packages/cont
 
 `POST /families` aceita os campos cadastrais e `duplicateReview` quando houver candidatos. `{}` cria uma família sem membros, com revisão 1. `PATCH` exige `expectedRevision` e pelo menos um campo cadastral. Não aceita código, titular ou lista de membros.
 
-`PersonDto` contém `id`, `name`, `birthDate`, `sex`, `cpf`, `rg`, `occupation`, `educationLevel`, `contactPhone`, `revision`, `createdAt` e `updatedAt`. Nome é obrigatório; os demais dados podem ser desconhecidos. Nascimento informado não pode ser futuro no fuso institucional. CPF informado é normalizado em 11 dígitos, sem unicidade automática; RG admite 30 caracteres, sexo/ocupação/escolaridade 100 e telefone 50. CPF e CEP validam formato, sem afirmar autenticidade documental.
+`PersonDto` contém `id`, `name`, `birthDate`, `sex`, `cpf`, `rg`, `occupation`, `educationLevel`, `contactPhone`, `revision`, `createdAt` e `updatedAt`. Nome é obrigatório; os demais dados podem ser desconhecidos. Nascimento informado não pode ser futuro no fuso institucional. Novos CPFs informados são normalizados em 11 dígitos, validados pelos dígitos verificadores e únicos entre pessoas canônicas; RG admite 30 caracteres, sexo/ocupação/escolaridade 100 e telefone 50. Essa validação não afirma autenticidade documental.
 
 Para criar a pessoa, a família precisa existir. O cadastro da pessoa, seu primeiro vínculo, a nova revisão da família, a auditoria e a operação confirmam em uma transação:
 
@@ -54,7 +54,9 @@ Para criar a pessoa, a família precisa existir. O cadastro da pessoa, seu prime
 
 `POST /people` devolve `{ data: { person, membership, family } }`. Guarde os três IDs/revisões retornados; a família passa a revisão 2 neste exemplo. `isReference` omitido assume `false`, parentesco omitido permanece `null`; os demais dados desconhecidos também permanecem `null`. Família criada anteriormente continua válida e vazia se uma tentativa de criação de pessoa falhar.
 
-`PATCH /people/:personId` exige `expectedRevision` e pelo menos um campo cadastral. Altera somente a pessoa; endereço e composição pertencem à família. Edição relevante de nome/nascimento/CPF ou nome/endereço da família repete a busca de candidatos e registra nova ocorrência de possível duplicidade quando necessário, sem unificar ou bloquear automaticamente essa edição.
+`PATCH /people/:personId` exige `expectedRevision` e pelo menos um campo cadastral. Altera somente a pessoa; endereço e composição pertencem à família. CPF informado na criação ou edição é validado pelo value object `Cpf` e deve ter dígitos verificadores válidos. A API aceita 11 dígitos ou a máscara `000.000.000-00`, normalizando para dígitos. CPF de outra pessoa canônica retorna `409 DOMAIN_CONFLICT`, com regra `CPF_ALREADY_REGISTERED`; o CPF da própria pessoa pode ser mantido. `null` representa desconhecimento e não participa da unicidade. `POST /people` rejeita `duplicateReview` como chave desconhecida. Edição de nome/endereço da família mantém a consulta e o histórico de candidatos.
+
+DTOs e snapshots existentes continuam legíveis, incluindo documentos registrados antes da validação dos dígitos verificadores. Novas criações e alterações de CPF devem obedecer à validação atual.
 
 ## Consultas e projeção mínima
 
@@ -96,19 +98,25 @@ Com somente `participants.lookup`, lista e detalhe retornam exclusivamente:
 
 Razões: `CPF_MATCH`, `NAME_BIRTH_MATCH`, `NAME_SIMILAR`, `ADDRESS_SIMILAR`. A ordenação prioriza CPF, nome/nascimento e similaridade textual, com desempate por ID. São sinais de análise. Para comparar dados, consulte o detalhe autorizado do candidato.
 
-Se o operador concluir que os registros são distintos, acrescente à criação:
+Somente na criação de família, se o operador concluir que os núcleos são distintos, acrescente:
 
 ```json
 {
   "duplicateReview": {
     "candidateIds": ["00000000-0000-4000-8000-000000000002"],
     "decision": "DISTINCT",
-    "reason": "Cadastros sintéticos de pessoas distintas"
+    "reason": "Núcleos familiares sintéticos distintos"
   }
 }
 ```
 
-O backend repete a busca na transação e exige o mesmo conjunto de candidatos. Sem análise, retorna `409 DOMAIN_CONFLICT` com regra `DUPLICATE_REVIEW_REQUIRED`; conjunto alterado retorna `DUPLICATE_REVIEW_CHANGED`. A confirmação conserva candidatos, motivo, data e autor em uma ocorrência resolvida de `POSSIBLE_DUPLICATE`; CPF igual não provoca fusão nem constraint única.
+Para famílias, o backend repete a busca na transação e exige o mesmo conjunto de candidatos. Sem análise, retorna `409 DOMAIN_CONFLICT` com regra `DUPLICATE_REVIEW_REQUIRED`; conjunto alterado retorna `DUPLICATE_REVIEW_CHANGED`. A confirmação conserva candidatos, motivo, data e autor em uma ocorrência resolvida de `POSSIBLE_DUPLICATE`. Para pessoas, CPF repetido bloqueia o cadastro; não há fusão automática ou confirmação como distinto.
+
+### Migration de unicidade do CPF
+
+Execute `pnpm db:migrate` antes de usar a nova versão. A migration `202610070001_unique_canonical_cpf` cria o índice único parcial `Person_cpf_canonical_key`, cobrindo CPFs não nulos de pessoas canônicas. A API traduz conflitos desse índice, inclusive em escritas concorrentes, para `CPF_ALREADY_REGISTERED`. Ao unificar identidades históricas, a origem é marcada como unificada antes de adotar seu CPF no destino, na mesma transação.
+
+A migration é interrompida se já houver CPFs repetidos entre pessoas canônicas. Reconcilie esses registros pelo procedimento autorizado da versão anterior antes de reaplicá-la; não substitua CPF por valor fictício. Não há exclusão ou alteração automática de dados. Para reverter somente o índice, execute `DROP INDEX "Person_cpf_canonical_key";` em uma janela controlada e restaure a versão anterior da aplicação; a reversão permite novamente repetições e exige conciliar o estado das migrations antes de novas implantações.
 
 `GET /data-quality-issues` aceita `kind=MISSING_DATA|POSSIBLE_DUPLICATE`, `status=OPEN|RESOLVED`, `entityType=PERSON|FAMILY` e paginação. Ordem: identificação mais recente, depois ID decrescente. Cada ocorrência contém ID, entidade/ID, tipo, candidatos/campos, datas, revisão e dados da resolução.
 

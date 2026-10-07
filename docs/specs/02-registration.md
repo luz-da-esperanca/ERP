@@ -19,7 +19,7 @@ Reconhecer a pessoa e seu núcleo familiar, prevenir registros repetidos e conse
 | `DataQualityIssue` | `id`, `entityType`, `entityId`, `kind`, `candidateIds?`, `fieldKeys?`, `identifiedAt`, `resolvedAt?`, `resolution?`, `resolvedBy?`, `reason?`, `revision` |
 | `IdentityMerge` | `id`, `entityType`, `sourceId`, `targetId`, `recordedAt`, `recordedBy`, `reason`, `operationId`; origem única; destino canônico |
 
-`location`: `URBAN`, `RURAL` ou `null`. `sex`, parentesco, ocupação e escolaridade são textos opcionais, sem inventar um enum que a ficha não fornece; máximo 100 caracteres. CPF informado é normalizado para 11 dígitos e indexado, sem unicidade automática. RG é texto até 30; CEP normalizado em 8 dígitos; telefone é texto até 50, preservando código de área/país informado; endereço até 500. Ausência desses dados não impede cadastro nem participação.
+`location`: `URBAN`, `RURAL` ou `null`. `sex`, parentesco, ocupação e escolaridade são textos opcionais, sem inventar um enum que a ficha não fornece; máximo 100 caracteres. CPF informado é validado pelo value object `Cpf`, normalizado para 11 dígitos e único entre pessoas canônicas, conforme a decisão de 07/10/2026 descrita no §3. RG é texto até 30; CEP normalizado em 8 dígitos; telefone é texto até 50, preservando código de área/país informado; endereço até 500. Ausência desses dados não impede cadastro nem participação.
 
 Não derivar o nome de referência ou parentesco antigo do titular atual. Tamanho é texto até 30, sem supor escala numérica, tolerância ou recomendação de item. `informedOn` é obrigatório quando há algum tamanho informado e não é futuro. Inclusão de tamanhos para adultos continua condicionada a LAC-12; nas demonstrações podem ser usados dados sintéticos para validar a estrutura.
 
@@ -47,9 +47,13 @@ Recalcular o plano e validar o estado final completo antes de gravar: todos os i
 
 ## 3. Busca, dados ausentes e duplicidades
 
-Antes de cadastrar, a UI consulta pessoas/famílias com os dados disponíveis. Não exige que todos os filtros existam. Pesquisa por nome/endereço usa comparação sem distinção de caixa/acentos e trechos; nascimento/CPF/código usam igualdade. Ordenação de candidatos: CPF igual, depois nome+nascimento iguais, depois nome/endereço similares; desempate por ID. Esses critérios são sinais técnicos de análise, não um score institucional ou confirmação de duplicidade.
+Antes de cadastrar famílias, a UI consulta candidatos com os dados disponíveis. Pessoas são validadas pelo CPF na própria escrita da API. As consultas autorizadas existentes não exigem todos os filtros: nome/endereço usam comparação sem distinção de caixa/acentos e trechos; nascimento/CPF/código usam igualdade. Ordenação de candidatos: CPF igual, depois nome+nascimento iguais, depois nome/endereço similares; desempate por ID. Semelhança textual é um sinal de análise, não um score institucional ou confirmação de identidade.
 
-Criação com candidatos não é automaticamente bloqueada: exige `duplicateReview: { candidateIds, decision: "DISTINCT", reason }` quando o operador confirma que são pessoas/núcleos distintos. O backend repete a busca no estado transacional; se aparecer candidato novo, retorna conflito para revisão. Conservar o motivo e candidatos em `DataQualityIssue`; não fundir por CPF nem impor CPF único.
+**Decisão de produto comunicada em 07/10/2026, por exigência de Dário:** o CPF informado deve ser válido e único entre pessoas canônicas. A prevenção ocorre diretamente na criação e edição; `POST /people` não aceita `duplicateReview` nem justificativa para repetir CPF. CPF permanece opcional, e nome/nascimento semelhantes não impedem o cadastro de outra pessoa. A interface retira a central “Duplicidades e qualidade”, sua rota e seus atalhos.
+
+`Cpf` é um value object imutável compartilhado, com igualdade por dígitos, normalização e validação dos dígitos verificadores. A máscara `000.000.000-00` pertence à apresentação; API e persistência usam 11 dígitos ou `null`. O backend verifica a disponibilidade na transação; o índice parcial `Person_cpf_canonical_key` protege contra concorrência. Registros de origem já unificados permanecem históricos, sem representar uma segunda pessoa canônica. A migration recusa CPFs repetidos entre cadastros canônicos e não apaga nem altera dados para obter unicidade.
+
+A regra anterior de consulta/revisão permanece para famílias: `duplicateReview: { candidateIds, decision: "DISTINCT", reason }` registra a decisão de que núcleos semelhantes são distintos. Não foi definido um novo critério de identidade familiar por nome ou endereço na exigência de unicidade do CPF. Históricos de qualidade, auditoria e unificação existentes são preservados.
 
 Dados ausentes produzem issues de tipo `MISSING_DATA`, com os campos selecionados como relevantes em DEC-01/LAC-02. O cadastro mínimo funciona mesmo sem seleção institucional final; não chamar ausência de CPF de erro impeditivo. Complementar um campo resolve a issue correspondente com `COMPLETED`, data/autoria. A seleção global é uma versão imutável publicada pela Coordenação (`featureDecisions.manage`), com listas explícitas de campos opcionais de pessoa/família e referência da decisão. Antes da primeira versão, não há campos selecionados; a publicação reconcilia todos os cadastros canônicos. Retirar um campo encerra sua ocorrência com `NOT_TRACKED`, distinguindo desativação de complemento. Uma nova ausência cria outra ocorrência, preservando a resolvida. Unificação encerra ocorrências da origem com `MERGED` e reconcilia o destino. Seleção, ocorrências, autoria, auditoria e idempotência confirmam na mesma transação; configuração não bloqueia o cadastro mínimo. Os contratos e o procedimento de migration estão na [referência de CAD](../api/registration.md#seleção-de-campos-e-dados-ausentes). Issues de duplicidade são `POSSIBLE_DUPLICATE`; análise pode resolver como `DISTINCT` ou `MERGED`. Reaparecimento após alteração relevante cria nova ocorrência, preservando a anterior.
 
@@ -85,7 +89,7 @@ Confirmação grava mapeamento, reconciliações, destino, issues, revisões e a
 | `GET /families/:familyId` | `asOf?`; dados, membros, titular e pendências |
 | `PATCH /families/:familyId` | `expectedRevision` e campos cadastrais; composição não é alterada por PATCH |
 | `GET /people` | `q?`, `birthDate?`, `cpf?`, `familyId?`, paginação; filtros conforme perfil |
-| `POST /people` | `{ name, ...optionalFields, familyId, validFrom, relationshipToReference?, isReference?, expectedFamilyRevision, duplicateReview? }` |
+| `POST /people` | `{ name, ...optionalFields, familyId, validFrom, relationshipToReference?, isReference?, expectedFamilyRevision }`; CPF informado válido e único |
 | `GET /people/:personId` | `asOf?`; cadastro e vínculos; perfil de atividade recebe somente projeção mínima |
 | `PATCH /people/:personId` | `expectedRevision`, campos cadastrais opcionais |
 | `POST /people/:personId/membership-transfers` | Origem/destino, `effectiveAt`, revisões de vínculo/famílias, motivo; encerra/abre na mesma transação |
@@ -114,7 +118,7 @@ Confirmação grava mapeamento, reconciliações, destino, issues, revisões e a
 | CAD-AC03 | Transferência encerra e inicia vínculo no instante escolhido; presença antiga conserva família anterior |
 | CAD-AC04 | Troca de titular preserva titularidade anterior e não altera ficha publicada |
 | CAD-AC05 | Tentativas concorrentes de titularidade/vínculo incompatíveis não confirmam estado inválido |
-| CAD-AC06 | CPF igual identifica candidato, mas não produz fusão nem bloqueio documental automático |
+| CAD-AC06 | CPF informado válido é único entre pessoas canônicas; criação e edição rejeitam repetição, sem exceção por justificativa ou fusão automática; CPF desconhecido continua permitido |
 | CAD-AC07 | Unificação sem conflitos reúne históricos e aliases com motivo/autoria; repetição não duplica (ERS AC-15) |
 | CAD-AC08 | Duas marcações divergentes no mesmo encontro exigem resolução; após escolha, conta uma e preserva ambas |
 | CAD-AC09 | Uma família unificada conserva fichas das duas origens sem reescrever composição histórica |
