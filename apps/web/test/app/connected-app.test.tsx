@@ -45,18 +45,19 @@ afterEach(cleanup);
 describe('Connected application authentication', () => {
   it('keeps access when logout fails, returns to login after confirmed logout and expires the view on any unauthorized request', async () => {
     const user = userEvent.setup();
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockImplementation(async (value) =>
-        String(value).includes('/families?')
-          ? Response.json({
-              data: [],
-              pagination: { page: 1, pageSize: 1, total: 0 },
-            })
-          : Response.json({ data: session }),
-      );
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (value) =>
+      String(value).includes('/families?')
+        ? Response.json({
+            data: [],
+            pagination: { page: 1, pageSize: 1, total: 0 },
+          })
+        : Response.json({ data: session }),
+    );
     const api = renderApp(fetcher);
-    await screen.findByRole('heading', { name: 'Início', level: 1 });
+    await screen.findByRole('heading', {
+      name: /Synthetic Operator\. Paz e bem\./,
+      level: 1,
+    });
     fetcher.mockImplementation(async () =>
       Response.json(
         { error: { code: 'DEPENDENCY_UNAVAILABLE', requestId: 'request-id' } },
@@ -264,7 +265,10 @@ describe('Connected application authentication', () => {
     await user.type(screen.getByLabelText(/^Senha/), '  synthetic-password  ');
     await user.click(screen.getByRole('button', { name: 'Entrar' }));
     expect(
-      await screen.findByRole('heading', { name: 'Início', level: 1 }),
+      await screen.findByRole('heading', {
+        name: /Synthetic Operator\. Paz e bem\./,
+        level: 1,
+      }),
     ).toBeTruthy();
     expect(
       fetcher.mock.calls.findLast(([url]) =>

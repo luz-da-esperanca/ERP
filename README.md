@@ -139,6 +139,14 @@ Para showcase e testes manuais, execute `pnpm db:seed` **no lugar de `pnpm db:bo
 
 Disponibilidade: `GET http://127.0.0.1:3001/api/v1/health`. Essa rota verifica o processo HTTP; não é diagnóstico completo das dependências.
 
+Se a API não iniciar, o terminal informa a etapa da falha, com orientações e códigos conhecidos, sem imprimir credenciais ou mensagens brutas dos adaptadores:
+
+- `configuration`: confira o `.env` e os requisitos de configuração acima.
+- `database` ou `redis`: confira a dependência e sua URL. No desenvolvimento local, execute `docker compose up -d --wait` antes de `pnpm dev:api`.
+- `data-mode`: confira as migrations com `pnpm db:migrate` e a configuração do modo de dados.
+- `services`: confira a inicialização dos serviços e a geração do cliente Prisma com `pnpm db:generate`.
+- `listen`, com `EADDRINUSE`: outro processo ocupa a porta configurada; encerre a instância anterior ou ajuste `PORT` e o proxy do frontend.
+
 ### Executar o frontend conectado
 
 Com a API iniciada, execute em outro terminal:

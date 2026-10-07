@@ -28,7 +28,7 @@ export function Page({
         </div>
         {actions}
       </div>
-      {children}
+      <div className="page-content">{children}</div>
     </>
   );
 }
@@ -86,11 +86,26 @@ export function Field({
   label,
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & { label: string; name: string }) {
-  return (
-    <label className="field">
+  const isChoice = props.type === 'checkbox' || props.type === 'radio';
+  const caption = (
+    <span>
       {label}
       {props.required && <span aria-hidden="true"> *</span>}
-      <input {...props} />
+    </span>
+  );
+  return (
+    <label className={isChoice ? 'field choice-field' : 'field'}>
+      {isChoice ? (
+        <>
+          <input {...props} />
+          {caption}
+        </>
+      ) : (
+        <>
+          {caption}
+          <input {...props} />
+        </>
+      )}
     </label>
   );
 }
@@ -101,8 +116,10 @@ export function SelectField({
 }: SelectHTMLAttributes<HTMLSelectElement> & { label: string; name: string }) {
   return (
     <label className="field">
-      {label}
-      {props.required && <span aria-hidden="true"> *</span>}
+      <span>
+        {label}
+        {props.required && <span aria-hidden="true"> *</span>}
+      </span>
       <select {...props}>{children}</select>
     </label>
   );

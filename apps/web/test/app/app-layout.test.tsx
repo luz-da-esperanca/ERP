@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { AppLayout } from '../../src/app/app-layout';
+import { capabilitySchema } from '@erp/contracts/access';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AppLayout, AppShell } from '../../src/app/app-layout';
 import { ErpProvider } from '../../src/app/erp-provider';
 import { createDemoClient } from '../../src/demo/create-demo-client';
 import { ProjectsPage } from '../../src/projects';
@@ -42,8 +43,88 @@ function renderLayout(role = 'COORDINATION') {
 
 describe('AppLayout', () => {
   let dialog: ReturnType<typeof installNativeDialogDouble>;
-  beforeEach(() => { dialog = installNativeDialogDouble(); });
-  afterEach(() => { cleanup(); dialog.restore(); });
+  beforeEach(() => {
+    dialog = installNativeDialogDouble();
+  });
+  afterEach(() => {
+    cleanup();
+    dialog.restore();
+    vi.unstubAllGlobals();
+  });
+
+  it('distinguishes management destinations with different sidebar icons', () => {
+    render(
+      <MemoryRouter>
+        <AppShell
+          displayName="Conta sintética"
+          roles={['ADMINISTRATOR', 'COORDINATION']}
+          capabilities={capabilitySchema.options}
+          showDataQuality
+          onLogout={() => {}}
+          accountLabel="Dados sintéticos"
+        >
+          <h1>Início</h1>
+        </AppShell>
+      </MemoryRouter>,
+    );
+    const destinations = [
+      'Pessoas e famílias',
+      'Projetos e atividades',
+      'Políticas de aptidão',
+      'Relatórios',
+      'Auditoria',
+      'Configuração da ficha',
+      'Campos cadastrais',
+      'Usuários e perfis',
+    ];
+    const silhouettes = destinations.map((name) => {
+      const icon = screen.getByRole('link', { name }).querySelector('svg');
+      expect(icon).not.toBeNull();
+      return icon!.innerHTML;
+    });
+    expect(new Set(silhouettes).size).toBe(destinations.length);
+  });
+
+  it('focuses mobile navigation and closes it with Escape', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+    const trigger = screen.getByRole('button', { name: 'Abrir menu' });
+    await user.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Fechar menu' }),
+    );
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Sair da demonstração' }),
+    );
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Fechar menu' }),
+    );
+    await user.keyboard('{Escape}');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('releases the mobile menu when the viewport switches to desktop', async () => {
+    const media = new EventTarget();
+    vi.stubGlobal('matchMedia', () => media);
+    const user = userEvent.setup();
+    renderLayout();
+    const trigger = screen.getByRole('button', { name: 'Abrir menu' });
+    await user.click(trigger);
+    const change = new Event('change');
+    Object.defineProperty(change, 'matches', { value: true });
+    act(() => {
+      media.dispatchEvent(change);
+    });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.querySelector('.main-content')?.hasAttribute('inert')).toBe(
+      false,
+    );
+    expect(document.body.style.overflow).toBe('');
+  });
 
   it('opens global help and restores focus when dismissed with Escape', async () => {
     const user = userEvent.setup();

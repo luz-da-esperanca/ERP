@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate, NavLink, Outlet } from 'react-router';
 import {
@@ -8,8 +8,14 @@ import {
   X,
   LogOut,
   Search,
-  FolderOpen,
+  FolderKanban,
   CopyCheck,
+  BadgeCheck,
+  ChartColumnIncreasing,
+  History,
+  ClipboardPenLine,
+  ListChecks,
+  UserCog,
 } from 'lucide-react';
 import type { Capability, Role } from '@erp/contracts/access';
 import { useErp } from './erp-provider';
@@ -39,7 +45,7 @@ const navigation: Array<{
   {
     to: '/projects',
     label: 'Projetos e atividades',
-    icon: FolderOpen,
+    icon: FolderKanban,
     capability: 'projects.read',
   },
 ];
@@ -98,43 +104,85 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const navigationId = useId();
+  const navigationRef = useRef<HTMLElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const sidebar = navigationRef.current;
+    const trigger = menuTrigger.current;
+    const controls = sidebar?.querySelectorAll<HTMLElement>(
+      ':is(button, a[href]):not(:disabled)',
+    );
+    const first = controls?.[0];
+    const last = controls?.[controls.length - 1];
+    first?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const desktop = window.matchMedia?.('(min-width: 901px)');
+    function closeOnDesktop(event: MediaQueryListEvent) {
+      if (event.matches) setOpen(false);
+    }
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+      } else if (event.key === 'Tab') {
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    desktop?.addEventListener('change', closeOnDesktop);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      desktop?.removeEventListener('change', closeOnDesktop);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
+  }, [open]);
   const connectedNavigation: typeof navigation = showDataQuality
     ? [
         ...navigation,
         {
           to: '/eligibility-policies',
           label: 'Políticas de aptidão',
-          icon: FolderOpen,
+          icon: BadgeCheck,
           capability: 'eligibility.read',
         },
         {
           to: '/reports',
           label: 'Relatórios',
-          icon: FolderOpen,
+          icon: ChartColumnIncreasing,
           capability: 'reports.read',
         },
         {
           to: '/audit',
           label: 'Auditoria',
-          icon: FolderOpen,
+          icon: History,
           capability: 'audit.read',
         },
         {
           to: '/social-form-configuration',
           label: 'Configuração da ficha',
-          icon: FolderOpen,
+          icon: ClipboardPenLine,
           capability: 'featureDecisions.manage',
         },
         {
           to: '/registration-configuration',
           label: 'Campos cadastrais',
-          icon: FolderOpen,
+          icon: ListChecks,
           capability: 'featureDecisions.manage',
         },
         {
           to: '/users',
           label: 'Usuários e perfis',
-          icon: Users,
+          icon: UserCog,
           capability: 'accounts.manage',
         },
       ]
@@ -149,7 +197,14 @@ export function AppShell({
       <a className="skip-link" href="#main-content">
         Pular para o conteúdo
       </a>
-      <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
+      <aside
+        id={navigationId}
+        ref={navigationRef}
+        className={`sidebar ${open ? 'sidebar-open' : ''}`}
+        role={open ? 'dialog' : undefined}
+        aria-modal={open ? true : undefined}
+        aria-label={open ? 'Menu principal' : undefined}
+      >
         <div className="brand app-brand">
           <img src="/logo-le.jpeg" alt="Luz da Esperança" />
           <div>
@@ -197,14 +252,17 @@ export function AppShell({
         <button
           className="nav-scrim"
           aria-label="Fechar navegação"
+          tabIndex={-1}
           onClick={() => setOpen(false)}
         />
       )}
-      <div className="main-content">
+      <div className="main-content" inert={open}>
         <header className="topbar">
           <button
             className="mobile-menu icon-button"
+            ref={menuTrigger}
             aria-label="Abrir menu"
+            aria-controls={navigationId}
             aria-expanded={open}
             onClick={() => setOpen(true)}
           >

@@ -60,7 +60,9 @@ export function SignInPage() {
         )}
         <form onSubmit={submit} className="login-form" aria-busy={pending}>
           <label className="field" htmlFor="login">
-            Login <span aria-hidden="true">*</span>
+            <span>
+              Login <span aria-hidden="true">*</span>
+            </span>
             <input
               id="login"
               name="login"
@@ -73,11 +75,14 @@ export function SignInPage() {
             />
           </label>
           <label className="field" htmlFor="password">
-            Senha <span aria-hidden="true">*</span>
+            <span id="password-label">
+              Senha <span aria-hidden="true">*</span>
+            </span>
             <span className="password-field">
               <input
                 id="password"
                 name="password"
+                aria-labelledby="password-label"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required

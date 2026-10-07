@@ -12,6 +12,8 @@ const auditActionLabels = {
   DEACTIVATE: 'Conta desativada',
 } as const;
 
-export function auditDescription(entry: AuditEntry) {
+export function auditDescription(
+  entry: Pick<AuditEntry, 'action' | 'entityLabel'>,
+) {
   return `${auditActionLabels[entry.action]} — ${entry.entityLabel}`;
 }

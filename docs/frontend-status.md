@@ -6,17 +6,17 @@ em memória permanecem restritos ao protótipo e seus testes.
 
 ## Fluxos conectados
 
-| Área   | Telas e operações HTTP                                                                                                                                                                                                                                                           |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ACS    | Login, sessão por cookie, logout, troca obrigatória de senha e administração de contas, perfis, ativação e redefinição de senha.                                                                                                                                                 |
-| Início | Total de famílias e registros recentes autorizados, com acesso aos registros que compõem as consultas.                                                                                                                                                                           |
-| CAD    | Lista paginada, busca, criação/edição, composição por data, duplicidades, unificação, tamanhos, vinculação de pessoa existente, titularidade, transferência, correção e encerramento de vínculos; prévia e confirmação de reconciliação composta e seleção de campos cadastrais. |
-| ATV    | Catálogos, projetos, atividades, responsáveis e inscrições, incluindo criação, edição, encerramento e histórico.                                                                                                                                                                 |
-| FRQ    | Encontros, chamada, correções, cancelamento, frequência, cobertura e correção da data/contexto familiar com prévia e revisões capturadas.                                                                                                                                        |
-| FIC    | Versões da ficha, composição histórica, publicação/correção, ciência em papel, configuração explícita de campos, catálogos e decisões de habilitação.                                                                                                                            |
-| APT    | Prévia familiar, consulta solicitada para as famílias da página, avaliação persistida, evidências, políticas versionadas e consulta de avaliações/políticas históricas por identificador.                                                                                        |
-| REL    | Alcance, frequência, aptidão e qualidade, filtros e recuperação paginada dos registros pelo fingerprint do relatório; históricos de pessoa e família.                                                                                                                            |
-| AUD    | Consulta paginada por escopo autorizado, autor, registro e período, com valores anteriores/posteriores e motivos.                                                                                                                                                                |
+| Área   | Telas e operações HTTP                                                                                                                                                                                                                                                                   |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACS    | Login, sessão por cookie, logout, troca obrigatória de senha e administração de contas, perfis, ativação e redefinição de senha.                                                                                                                                                         |
+| Início | Composição do [protótipo do dashboard](design-prototype/00-initial-screen/dashboard/screen.png): saudação e data local, ações rápidas com ícones, rotinas do MVP em “Para hoje” e alterações familiares em “Atividade recente”. Total e registros vêm da API, respeitando as permissões. |
+| CAD    | Lista paginada, busca, criação/edição, composição por data, duplicidades, unificação, tamanhos, vinculação de pessoa existente, titularidade, transferência, correção e encerramento de vínculos; prévia e confirmação de reconciliação composta e seleção de campos cadastrais.         |
+| ATV    | Catálogos, projetos, atividades, responsáveis e inscrições, incluindo criação, edição, encerramento e histórico.                                                                                                                                                                         |
+| FRQ    | Encontros, chamada, correções, cancelamento, frequência, cobertura e correção da data/contexto familiar com prévia e revisões capturadas.                                                                                                                                                |
+| FIC    | Versões da ficha, composição histórica, publicação/correção, ciência em papel, configuração explícita de campos, catálogos e decisões de habilitação.                                                                                                                                    |
+| APT    | Prévia familiar, consulta solicitada para as famílias da página, avaliação persistida, evidências, políticas versionadas e consulta de avaliações/políticas históricas por identificador.                                                                                                |
+| REL    | Alcance, frequência, aptidão e qualidade, filtros e recuperação paginada dos registros pelo fingerprint do relatório; históricos de pessoa e família.                                                                                                                                    |
+| AUD    | Consulta paginada por escopo autorizado, autor, registro e período, com valores anteriores/posteriores e motivos.                                                                                                                                                                        |
 
 As rotas ficam em `apps/web/src/app/connected-app.tsx`; apresentação e
 adaptadores HTTP ficam em `apps/web/src/features/`, por módulo. A ficha social
@@ -50,3 +50,35 @@ composição histórica e dados desconhecidos. Tipos, lint e builds usam os scri
 do [README](../README.md#validar). A rota de configuração FIC foi validada
 com PostgreSQL/Redis de teste. A conferência no navegador foi amostral;
 não substitui uma homologação completa de todas as escritas.
+
+A revisão visual usa os protótipos de `docs/design-prototype/` como referência.
+Os controles compartilhados distinguem campos de texto de checkboxes/radios,
+mantêm o marcador obrigatório junto ao rótulo e evitam esticar botões no grid.
+Formulários lineares têm largura limitada; as ações de gestão ficam juntas e as
+seções da página têm espaçamento próprio. A navegação lateral permite rolagem
+sem ocultar a saída; no celular, o menu fechado fica fora da navegação por
+teclado e o menu aberto controla foco, Tab e Escape.
+
+`apps/web/src/index.css` importa `app.css` na camada `components` do Tailwind.
+Isso permite que as utilities de cada tela sobrescrevam os padrões
+compartilhados, incluindo largura mínima das tabelas, margens e tipografia.
+
+Os testes de layout renderizam os componentes reais com o CSS compilado em um
+servidor Vite isolado. Usam Chromium pelo CLI `agent-browser`, sem depender de
+contas, banco ou credenciais. Com o CLI e seu navegador instalados, execute:
+
+```bash
+AGENT_BROWSER_BIN=/caminho/para/agent-browser \
+pnpm test apps/web/test/shared/ui-layout.browser.test.tsx
+```
+
+Sem `AGENT_BROWSER_BIN`, essa suíte visual fica explicitamente ignorada; os
+testes de interação continuam na suíte normal. A revisão das telas conectadas
+também inclui larguras de 1440 e 390 px, com dados sintéticos.
+
+A adaptação do início ao print do dashboard cobre saudação/data, acessos
+autorizados e identificação das alterações familiares nos testes de componente.
+Há dois casos adicionais de navegador para proporções dos painéis e composição
+no celular. A execução final desses casos em 07/10/2026 ficou bloqueada por
+`listen EPERM` ao abrir o servidor Vite no ambiente restrito; a conferência visual
+final dessa adaptação permanece pendente em um ambiente com rede local permitida.

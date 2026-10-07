@@ -9,6 +9,8 @@ import { PrismaIdentityMerge } from './features/registration/infra/prisma-identi
 import { ReportsService } from './features/reports/application/reports-service.js';
 import { PrismaReports } from './features/reports/infra/prisma-reports.js';
 import type { ApiConfig } from './core/infra/config.js';
+import { StartupFailure } from './core/infra/startup-failure.js';
+import type { StartupStage } from './core/infra/startup-failure.js';
 import { randomUUID } from 'node:crypto';
 import { createDatabase, type Database } from './core/infra/database.js';
 import { DataModeGuard } from './core/application/data-mode.js';
@@ -58,14 +60,18 @@ export async function createRuntime(config: ApiConfig, logging = false) {
   redis.on('error', () => {
     /* Requests fail closed; connection errors never include credentials in logs. */
   });
+  let startupStage: StartupStage = 'database';
   try {
     await database.$connect();
+    startupStage = 'data-mode';
     const dataMode = new DataModeGuard(
       config.DATA_MODE,
       new PrismaFeatureDecisions(database),
     );
     await dataMode.assertEnabled();
+    startupStage = 'redis';
     await redis.connect();
+    startupStage = 'services';
     const passwords = await createPasswordHasher(config.BCRYPT_COST);
     const accounts = createAccounts(database, config);
     const sessions = new RedisSessions(redis, config);
@@ -199,11 +205,9 @@ export async function createRuntime(config: ApiConfig, logging = false) {
       reports,
       missingDataSelections,
     };
-  } catch {
+  } catch (error) {
     if (redis.isOpen) redis.destroy();
     await database.$disconnect();
-    throw new Error(
-      'API initialization failed; check dependencies, migrations and data mode',
-    );
+    throw new StartupFailure(startupStage, error);
   }
 }

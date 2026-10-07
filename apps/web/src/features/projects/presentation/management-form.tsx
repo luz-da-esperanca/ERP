@@ -132,25 +132,27 @@ export function ManagementForm({
           outra alteração.
         </p>
       )}
-      {stale ? (
-        <button type="button" className="button secondary" onClick={onCancel}>
-          Atualizar e revisar
-        </button>
-      ) : (
-        <Submit pending={action.pending}>
-          {command ? 'Repetir solicitação' : submitLabel}
-        </Submit>
-      )}
-      {!command && !stale && (
-        <button
-          type="button"
-          className="button secondary"
-          disabled={action.pending}
-          onClick={onCancel}
-        >
-          Cancelar
-        </button>
-      )}
+      <div className="form-actions">
+        {stale ? (
+          <button type="button" className="button secondary" onClick={onCancel}>
+            Atualizar e revisar
+          </button>
+        ) : (
+          <Submit pending={action.pending}>
+            {command ? 'Repetir solicitação' : submitLabel}
+          </Submit>
+        )}
+        {!command && !stale && (
+          <button
+            type="button"
+            className="button secondary"
+            disabled={action.pending}
+            onClick={onCancel}
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
     </form>
   );
 }
