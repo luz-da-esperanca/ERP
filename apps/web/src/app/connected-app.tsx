@@ -1,7 +1,6 @@
 import { LinkPersonPage } from '../features/registration/presentation/link-person-page';
 import { ConnectedDashboardPage } from '../features/home/presentation/connected-dashboard-page';
 import { CatalogsPage } from '../features/projects/presentation/catalogs-page';
-import { RegistrationConfigurationPage } from '../features/registration/presentation/configuration-page';
 import { ReconciliationPage } from '../features/registration/presentation/reconciliation-page';
 import { SessionCorrectionPage } from '../features/attendance/presentation/session-correction-page';
 import { ReportsPage } from '../features/reports/presentation/reports-page';
@@ -246,20 +245,6 @@ function ConnectedRoutes({
               <Route
                 path="catalogs"
                 element={<CatalogsPage gateway={client.projects} />}
-              />
-            </Route>
-          </Route>
-          <Route element={<RequireCapability capability="registration.read" />}>
-            <Route
-              element={
-                <RequireCapability capability="featureDecisions.manage" />
-              }
-            >
-              <Route
-                path="registration-configuration"
-                element={
-                  <RegistrationConfigurationPage gateway={client.composition} />
-                }
               />
             </Route>
           </Route>

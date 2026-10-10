@@ -1,5 +1,18 @@
 import { Link } from 'react-router';
+import { fieldLabels } from './field-labels';
 const labels: Record<string, string> = {
+  ...fieldLabels,
+  contactPhone: 'Telefone',
+  birthDate: 'Data de nascimento',
+  sex: 'Sexo',
+  cpf: 'CPF',
+  rg: 'RG',
+  occupation: 'Ocupação',
+  educationLevel: 'Escolaridade',
+  referenceName: 'Nome de referência',
+  address: 'Endereço',
+  neighborhood: 'Bairro',
+  postalCode: 'CEP',
   people: 'Pessoas únicas',
   families: 'Famílias únicas',
   sessions: 'Encontros',
@@ -82,6 +95,7 @@ const labels: Record<string, string> = {
   OPEN: 'Aberta',
   RESOLVED: 'Resolvida',
 };
+export const recordLabel = (key: string) => labels[key] ?? key;
 export function RecordValues({ value }: { value: unknown }) {
   if (value === null || value === undefined) return <>Não informado</>;
   if (typeof value === 'boolean') return <>{value ? 'Sim' : 'Não'}</>;

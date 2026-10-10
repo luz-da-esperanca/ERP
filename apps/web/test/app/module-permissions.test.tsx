@@ -23,7 +23,6 @@ it.each([
   '/families/id/eligibility',
   '/eligibility-policies',
   '/reports',
-  '/registration-configuration',
   '/people/id/memberships',
   '/people/id/sizes',
   '/people/id/reconciliation',
@@ -53,7 +52,7 @@ it.each([
   expect(fetcher).toHaveBeenCalledOnce();
 });
 
-it('keeps registration configuration available to coordination without a social form configuration link', async () => {
+it('does not expose the removed tracked-fields screen to coordination', async () => {
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
     Response.json({
       data: {
@@ -73,11 +72,10 @@ it('keeps registration configuration available to coordination without a social 
     </MemoryRouter>,
   );
 
+  await screen.findByRole('navigation');
   expect(
-    (
-      await screen.findByRole('link', { name: 'Campos cadastrais' })
-    ).getAttribute('href'),
-  ).toBe('/registration-configuration');
+    screen.queryByRole('link', { name: 'Campos cadastrais' }),
+  ).toBeNull();
   expect(
     screen.queryByRole('link', { name: 'Configuração da ficha' }),
   ).toBeNull();

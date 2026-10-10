@@ -1740,3 +1740,51 @@ dd {
     padding: 32px 24px 24px;
   }
 }
+.audit-entry > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.audit-entry > summary time {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.audit-entry-meta {
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 16px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+}
+.audit-diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.audit-diff th,
+.audit-diff td {
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+.audit-diff thead th {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.audit-diff tbody th {
+  width: 28%;
+  font-weight: 600;
+}
+.audit-diff dl {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.audit-diff dl > div {
+  display: grid;
+  gap: 0;
+}

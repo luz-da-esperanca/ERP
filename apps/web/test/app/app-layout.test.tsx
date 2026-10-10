@@ -73,11 +73,13 @@ describe('AppLayout', () => {
       'Políticas de aptidão',
       'Relatórios',
       'Auditoria',
-      'Campos cadastrais',
       'Usuários e perfis',
     ];
     expect(
       screen.queryByRole('link', { name: 'Duplicidades e qualidade' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: 'Campos cadastrais' }),
     ).toBeNull();
     const silhouettes = destinations.map((name) => {
       const icon = screen.getByRole('link', { name }).querySelector('svg');

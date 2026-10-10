@@ -12,7 +12,6 @@ import {
   BadgeCheck,
   ChartColumnIncreasing,
   History,
-  ListChecks,
   UserCog,
 } from 'lucide-react';
 import type { Capability, Role } from '@erp/contracts/access';
@@ -158,12 +157,6 @@ export function AppShell({
           label: 'Auditoria',
           icon: History,
           capability: 'audit.read',
-        },
-        {
-          to: '/registration-configuration',
-          label: 'Campos cadastrais',
-          icon: ListChecks,
-          capability: 'featureDecisions.manage',
         },
         {
           to: '/users',

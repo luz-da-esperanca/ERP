@@ -14,8 +14,8 @@ import {
   Alert,
   textValue,
 } from '../../../shared/ui';
-import { RecordValues } from '../../../shared/record-list';
-import { displayInstant, toInstant } from '../../../shared/time';
+import { toInstant } from '../../../shared/time';
+import { AuditEntry } from './audit-entry';
 const scopes: Array<{ entity: string; label: string; capability: Capability }> =
   [
     { entity: 'UserAccount', label: 'Contas', capability: 'accounts.manage' },
@@ -192,26 +192,9 @@ export function AuditPage({
               <p>Nenhuma alteração no filtro consultado.</p>
             )}
             {result.data.map((entry) => (
-              <details key={entry.id}>
-                <summary>
-                  {entry.action} · Revisão {entry.revision} ·{' '}
-                  {entry.actor?.displayName ?? 'Sistema'} ·{' '}
-                  {displayInstant(entry.recordedAt)}
-                </summary>
-                <p>
-                  Data do fato:{' '}
-                  {entry.occurredAt
-                    ? displayInstant(entry.occurredAt)
-                    : 'Não informada'}{' '}
-                  · Motivo: {entry.reason ?? 'Não informado'}
-                </p>
-                <h3>Valores anteriores</h3>
-                <RecordValues value={entry.before} />
-                <h3>Valores posteriores</h3>
-                <RecordValues value={entry.after} />
-              </details>
+              <AuditEntry key={entry.id} entry={entry} />
             ))}
-            <nav aria-label="Páginas da auditoria">
+            <nav className="pagination" aria-label="Páginas da auditoria">
               <button
                 className="button secondary"
                 disabled={Number(query.page ?? 1) === 1}
