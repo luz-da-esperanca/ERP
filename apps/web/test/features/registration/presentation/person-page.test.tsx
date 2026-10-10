@@ -52,7 +52,6 @@ describe('PersonPage', () => {
       name: 'Ações individuais',
     });
     for (const [name, path] of [
-      ['Editar tamanhos', 'sizes'],
       ['Gerenciar vínculos', 'memberships'],
       ['Histórico individual', 'history'],
     ]) {
@@ -63,6 +62,14 @@ describe('PersonPage', () => {
         'true',
       );
     }
+    const header = await screen.findByRole('banner', {
+      name: 'Identificação da pessoa',
+    });
+    const sizesLink = within(header).getByRole('link', {
+      name: 'Editar tamanhos',
+    });
+    expect(sizesLink.getAttribute('href')).toBe(`/people/${person.id}/sizes`);
+    expect(sizesLink.classList.contains('button')).toBe(true);
   });
   it('summarizes known identification data in the profile header and labels current values', async () => {
     const detail: PersonDetail = {

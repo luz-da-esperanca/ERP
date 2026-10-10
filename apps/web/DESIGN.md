@@ -27,23 +27,23 @@ compartilhados. Não introduza valores semelhantes por conveniência.
 
 ### Cores
 
-| Token | Valor | Uso |
-| --- | --- | --- |
-| `primary` | `#5B8C3E` | Assinatura institucional: navegação ativa, ícones e detalhes. |
-| `primary-action` | `#4F7A35` | Botões preenchidos com texto branco. |
-| `secondary` | `#8C6D46` | Acento secundário, usado com moderação. |
-| `background` | `#FAF7F2` | Fundo principal branco-osso. |
-| `surface` | `#FFFFFF` | Superfícies de trabalho. |
-| `text` | `#4A4A4A` | Texto padrão. |
-| `text-strong` | `#222222` | Títulos e conteúdos que exigem maior contraste. |
-| `text-muted` | `#6B6B6B` | Metadados e informações secundárias. |
-| `border` | `#DDD8CF` | Bordas e separadores discretos. |
-| `focus` | `#2F6F9F` | Foco visível. |
-| `coral` | `#E85D4C` | Acento funcional. |
-| `orange` | `#F2994A` | Acento funcional. |
-| `yellow` | `#F2C94C` | Acento funcional. |
-| `blue` | `#3D9BD1` | Acento funcional. |
-| `purple` | `#9B6FC4` | Acento funcional. |
+| Token            | Valor     | Uso                                                           |
+| ---------------- | --------- | ------------------------------------------------------------- |
+| `primary`        | `#5B8C3E` | Assinatura institucional: navegação ativa, ícones e detalhes. |
+| `primary-action` | `#4F7A35` | Botões preenchidos com texto branco.                          |
+| `secondary`      | `#8C6D46` | Acento secundário, usado com moderação.                       |
+| `background`     | `#FAF7F2` | Fundo principal branco-osso.                                  |
+| `surface`        | `#FFFFFF` | Superfícies de trabalho.                                      |
+| `text`           | `#4A4A4A` | Texto padrão.                                                 |
+| `text-strong`    | `#222222` | Títulos e conteúdos que exigem maior contraste.               |
+| `text-muted`     | `#6B6B6B` | Metadados e informações secundárias.                          |
+| `border`         | `#DDD8CF` | Bordas e separadores discretos.                               |
+| `focus`          | `#2F6F9F` | Foco visível.                                                 |
+| `coral`          | `#E85D4C` | Acento funcional.                                             |
+| `orange`         | `#F2994A` | Acento funcional.                                             |
+| `yellow`         | `#F2C94C` | Acento funcional.                                             |
+| `blue`           | `#3D9BD1` | Acento funcional.                                             |
+| `purple`         | `#9B6FC4` | Acento funcional.                                             |
 
 O verde `#5B8C3E` é a assinatura institucional. Para ações preenchidas com
 texto branco, use `#4F7A35`, que oferece contraste adequado. O dourado-terra é
@@ -55,14 +55,14 @@ pelos cards ou módulos como decoração.
 
 ### Tipografia
 
-| Token | Família | Tamanho | Peso | Entrelinha | Uso |
-| --- | --- | --- | --- | --- | --- |
-| `page-title` | Lora | `2rem` | 600 | 1.2 | Título da página. |
-| `section-title` | Lora | `1.25rem` | 600 | 1.3 | Título de seção. |
-| `body` | Nunito Sans | `1rem` | 400 | 1.5 | Texto padrão. |
-| `body-sm` | Nunito Sans | `0.875rem` | 400 | 1.45 | Texto auxiliar curto. |
-| `label` | Nunito Sans | `0.875rem` | 600 | 1.35 | Labels, botões e navegação. |
-| `metadata` | Nunito Sans | `0.75rem` | 400 | 1.35 | Metadados e tags. |
+| Token           | Família     | Tamanho    | Peso | Entrelinha | Uso                         |
+| --------------- | ----------- | ---------- | ---- | ---------- | --------------------------- |
+| `page-title`    | Lora        | `2rem`     | 600  | 1.2        | Título da página.           |
+| `section-title` | Lora        | `1.25rem`  | 600  | 1.3        | Título de seção.            |
+| `body`          | Nunito Sans | `1rem`     | 400  | 1.5        | Texto padrão.               |
+| `body-sm`       | Nunito Sans | `0.875rem` | 400  | 1.45       | Texto auxiliar curto.       |
+| `label`         | Nunito Sans | `0.875rem` | 600  | 1.35       | Labels, botões e navegação. |
+| `metadata`      | Nunito Sans | `0.75rem`  | 400  | 1.35       | Metadados e tags.           |
 
 Use Lora somente em títulos de página e de seção. Use Nunito Sans nos demais
 elementos, incluindo campos, tabelas, botões, navegação e metadados. Não use
@@ -71,17 +71,17 @@ layout já torna desnecessários; textos visíveis devem ser breves e contextuai
 
 ### Espaçamento e formas
 
-| Token | Valor |
-| --- | --- |
-| `spacing-xs` | `4px` |
-| `spacing-sm` | `8px` |
-| `spacing-md` | `16px` |
-| `spacing-lg` | `24px` |
-| `spacing-xl` | `32px` |
+| Token         | Valor  |
+| ------------- | ------ |
+| `spacing-xs`  | `4px`  |
+| `spacing-sm`  | `8px`  |
+| `spacing-md`  | `16px` |
+| `spacing-lg`  | `24px` |
+| `spacing-xl`  | `32px` |
 | `spacing-2xl` | `48px` |
-| `radius-sm` | `6px` |
-| `radius-md` | `10px` |
-| `radius-lg` | `14px` |
+| `radius-sm`   | `6px`  |
+| `radius-md`   | `10px` |
+| `radius-lg`   | `14px` |
 
 Use cantos suaves, sem aparência infantil: `radius-md` em controles e
 `radius-sm` em tags. Ícones são simples, de linha, consistentes e sempre têm
@@ -150,12 +150,12 @@ ações” e solicitam confirmação quando a regra de negócio exigir.
 
 Os componentes-base seguem estas medidas:
 
-| Componente | Regras |
-| --- | --- |
-| Botão primário | Fundo `primary-action`, texto branco, tipografia `label`, `radius-md`, `40px` de altura e padding `10px 16px`. |
+| Componente       | Regras                                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| Botão primário   | Fundo `primary-action`, texto branco, tipografia `label`, `radius-md`, `40px` de altura e padding `10px 16px`. |
 | Botão secundário | Fundo `surface`, texto `text-strong`, tipografia `label`, `radius-md`, `40px` de altura e padding `10px 16px`. |
-| Input | Fundo `surface`, texto `text`, tipografia `body`, `radius-md` e `44px` de altura. |
-| StatusTag | Fundo `background`, texto `text-strong`, tipografia `metadata`, `radius-sm` e padding `4px 8px`. |
+| Input            | Fundo `surface`, texto `text`, tipografia `body`, `radius-md` e `44px` de altura.                              |
+| StatusTag        | Fundo `background`, texto `text-strong`, tipografia `metadata`, `radius-sm` e padding `4px 8px`.               |
 
 Mostre alertas somente quando houver decisão, correção ou bloqueio. O primeiro
 nível da tela contém no máximo um alerta de destaque. Para retornos comuns,

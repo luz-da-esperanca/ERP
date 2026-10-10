@@ -23,32 +23,30 @@ it('loads authorized history on demand and shows previous status, new status, re
     revision: 2,
     supersededById: null,
   };
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockImplementation(async () =>
-      Response.json({
-        data: [
-          {
-            id,
-            operationId: id,
-            entityType: 'Attendance',
-            entityId: personId,
-            revision: 2,
-            action: 'CORRECT',
-            actorType: 'USER',
-            actorId: id,
-            actor: { id, displayName: 'Operador Sintético', active: false },
-            recordedAt: session.recordedAt,
-            occurredAt: session.occurredAt,
-            before: { ...attendance, status: 'ABSENT', revision: 1 },
-            after: attendance,
-            reason: 'Correção sintética',
-            classification: 'ATTENDANCE',
-          },
-        ],
-        pagination: { page: 1, pageSize: 20, total: 1 },
-      }),
-    );
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
+    Response.json({
+      data: [
+        {
+          id,
+          operationId: id,
+          entityType: 'Attendance',
+          entityId: personId,
+          revision: 2,
+          action: 'CORRECT',
+          actorType: 'USER',
+          actorId: id,
+          actor: { id, displayName: 'Operador Sintético', active: false },
+          recordedAt: session.recordedAt,
+          occurredAt: session.occurredAt,
+          before: { ...attendance, status: 'ABSENT', revision: 1 },
+          after: attendance,
+          reason: 'Correção sintética',
+          classification: 'ATTENDANCE',
+        },
+      ],
+      pagination: { page: 1, pageSize: 20, total: 1 },
+    }),
+  );
   render(
     <SessionHistory
       gateway={new HttpAttendance(new ApiClient(fetcher))}

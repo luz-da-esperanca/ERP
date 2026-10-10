@@ -8,22 +8,20 @@ afterEach(cleanup);
 it('edits a fixed institute without creating another institute or removing its history', async () => {
   const updateInstitute = vi.fn().mockResolvedValue({});
   const gateway = {
-    overview: vi
-      .fn()
-      .mockResolvedValue({
-        institutes: [
-          {
-            id: 'institute',
-            code: 'SYNTHETIC',
-            name: 'Synthetic Institute',
-            active: true,
-            revision: 4,
-          },
-        ],
-        serviceTypes: [],
-        projects: [],
-        activities: [],
-      }),
+    overview: vi.fn().mockResolvedValue({
+      institutes: [
+        {
+          id: 'institute',
+          code: 'SYNTHETIC',
+          name: 'Synthetic Institute',
+          active: true,
+          revision: 4,
+        },
+      ],
+      serviceTypes: [],
+      projects: [],
+      activities: [],
+    }),
     updateInstitute,
   } as unknown as HttpProjects;
   render(<CatalogsPage gateway={gateway} />);

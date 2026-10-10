@@ -223,14 +223,12 @@ it('updates catalogs with a reason and revision, and rejects incomplete server p
   });
 });
 it('rejects an empty final page that claims existing records instead of silently returning an incomplete list', async () => {
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockResolvedValue(
-      Response.json({
-        data: [],
-        pagination: { page: 1, pageSize: 100, total: 1 },
-      }),
-    );
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+    Response.json({
+      data: [],
+      pagination: { page: 1, pageSize: 100, total: 1 },
+    }),
+  );
   await expect(
     new HttpProjects(new ApiClient(fetcher)).enrollments(ids[1]!),
   ).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });

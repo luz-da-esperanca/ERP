@@ -24,33 +24,27 @@ it('requires a preview and explicit review before confirming the exact plan and 
     isReference: false,
     relationshipToReference: null,
   };
-  const preview = vi
-    .fn()
-    .mockResolvedValue({
-      sourceFingerprint: 'a'.repeat(64),
-      sourceVersions: [],
-      conflicts: [],
-      affectedAttendanceIds: [],
-      proposedMemberships: [membership],
-    });
+  const preview = vi.fn().mockResolvedValue({
+    sourceFingerprint: 'a'.repeat(64),
+    sourceVersions: [],
+    conflicts: [],
+    affectedAttendanceIds: [],
+    proposedMemberships: [membership],
+  });
   const reconcile = vi.fn().mockResolvedValue({});
   const gateway = {
-    person: vi
-      .fn()
-      .mockResolvedValue({
-        person: { id: personId, name: 'Synthetic', revision: 2 },
-        memberships: [membership],
-      }),
+    person: vi.fn().mockResolvedValue({
+      person: { id: personId, name: 'Synthetic', revision: 2 },
+      memberships: [membership],
+    }),
     preview,
     reconcile,
   } as unknown as HttpComposition;
   const registration = {
-    getFamily: vi
-      .fn()
-      .mockResolvedValue({
-        family: { id: familyId, code: '1', revision: 3 },
-        members: [],
-      }),
+    getFamily: vi.fn().mockResolvedValue({
+      family: { id: familyId, code: '1', revision: 3 },
+      members: [],
+    }),
   } as unknown as HttpRegistration;
   render(
     <MemoryRouter initialEntries={[`/people/${personId}/reconciliation`]}>

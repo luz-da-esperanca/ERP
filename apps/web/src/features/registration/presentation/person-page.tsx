@@ -210,9 +210,14 @@ function PersonProfile({
           ) : null}
         </div>
         {allowEdit && (
-          <ActionLink icon={Pencil} to={`/people/${detail.person.id}/edit`}>
-            Editar pessoa
-          </ActionLink>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <ActionLink icon={Ruler} to={`/people/${detail.person.id}/sizes`}>
+              Editar tamanhos
+            </ActionLink>
+            <ActionLink icon={Pencil} to={`/people/${detail.person.id}/edit`}>
+              Editar pessoa
+            </ActionLink>
+          </div>
         )}
       </header>
       <PersonRegistration person={detail.person} />
@@ -241,14 +246,9 @@ export function PersonPage({
       {connected && (
         <nav className="action-links" aria-label="Ações individuais">
           {session?.capabilities.includes('registration.write') && (
-            <>
-              <ActionLink icon={Ruler} to={`/people/${id}/sizes`}>
-                Editar tamanhos
-              </ActionLink>
-              <ActionLink icon={UsersRound} to={`/people/${id}/memberships`}>
-                Gerenciar vínculos
-              </ActionLink>
-            </>
+            <ActionLink icon={UsersRound} to={`/people/${id}/memberships`}>
+              Gerenciar vínculos
+            </ActionLink>
           )}
           {session?.capabilities.includes('reports.read') && (
             <ActionLink icon={History} to={`/people/${id}/history`}>

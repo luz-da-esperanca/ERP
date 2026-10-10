@@ -31,12 +31,17 @@ export async function seedShowcaseData(
   const at = (offset: number) => civilBoundary(day(offset), timeZone);
   const families: string[] = [];
   const people: string[][] = [];
-  const familyNames = ['Aurora', 'Girassol', 'Horizonte', 'Jacarandá'];
+  const familyNames = [
+    'Silva Santos',
+    'Oliveira Costa',
+    'Ferreira Lima',
+    'Alves Pereira',
+  ];
   const personNames = [
-    ['Helena Costa (demo)', 'Enzo Nascimento (demo)'],
-    ['Bruno Almeida (demo)', 'Lívia Rocha (demo)'],
-    ['Cecília Moura (demo)', 'Ravi Barbosa (demo)'],
-    ['Dalva Pereira (demo)', 'Otávio Fernandes (demo)'],
+    ['Maria da Silva Santos', 'João Miguel da Silva Santos'],
+    ['Ana Clara de Oliveira', 'Pedro Henrique Costa'],
+    ['Antônia Ferreira Lima', 'Lucas Ferreira Lima'],
+    ['Francisca Alves Pereira', 'Sofia Alves Pereira'],
   ];
   async function duplicateReview(query: URLSearchParams) {
     const candidates = await client.read(
@@ -49,14 +54,27 @@ export async function seedShowcaseData(
             candidateIds: candidates.map((row) => row.id),
             decision: 'DISTINCT',
             reason:
-              'Identidades fictícias distintas no cenário de demonstração.',
+              'Homônimos confirmados após triagem da assistência social. Pessoas distintas.',
           },
         }
       : {};
   }
+  const addresses = [
+    'Rua das Flores, 123, Casa 1',
+    'Av. Brasil, 456, Bloco B',
+    'Rua São José, 789',
+    'Rua do Sol, 101, Apto 202',
+  ];
+  const neighborhoods = [
+    'Centro',
+    'Bairro Novo',
+    'Vila Esperança',
+    'Bairro da Paz',
+  ];
+
   for (const [index, name] of familyNames.entries()) {
-    const referenceName = `${name} (demo)`;
-    const address = `Endereço fictício ${name}, ${index + 1}`;
+    const referenceName = `Família ${name}`;
+    const address = addresses[index]!;
     const familyId = await client.entity(
       `family:${index}`,
       'Family',
@@ -64,7 +82,7 @@ export async function seedShowcaseData(
         client.write(`family:${index}`, '/families', {
           referenceName,
           address,
-          neighborhood: `Bairro fictício ${name}`,
+          neighborhood: neighborhoods[index]!,
           location: 'URBAN',
           contactPhone: null,
           ...(await duplicateReview(
@@ -111,7 +129,7 @@ export async function seedShowcaseData(
       personFields: ['birthDate'],
       familyFields: ['contactPhone'],
       decisionReference:
-        'DEMO-SYNTHETIC: campos fictícios para demonstrar pendências.',
+        'ATA-2025-01: Atualização dos campos obrigatórios para cadastro assistencial.',
     }),
   );
   await client.once('quality:duplicate', async () => {
@@ -133,8 +151,8 @@ export async function seedShowcaseData(
   );
   const projects: string[] = [];
   for (const [index, name] of [
-    'Convivência e Família (demo)',
-    'Aprender em Comunidade (demo)',
+    'Fortalecimento de Vínculos',
+    'Projeto Semeando o Futuro',
   ].entries()) {
     const institute = institutes.find(
       (row) => row.code === (index === 0 ? 'EDUCATION_FAMILY' : 'CHILD'),
@@ -146,7 +164,8 @@ export async function seedShowcaseData(
         client.write(step, '/projects', {
           name,
           instituteId: institute.id,
-          description: 'Projeto fictício para apresentação e testes manuais.',
+          description:
+            'Acompanhamento de famílias e desenvolvimento infantojuvenil.',
           startsOn: day(-45),
           endsOn: null,
         }),
@@ -159,14 +178,14 @@ export async function seedShowcaseData(
     () =>
       client.write('catalog:service-type', '/service-types', {
         code: 'DEMO_ACTION',
-        name: 'Ação fictícia de demonstração',
+        name: 'Assistência Social',
       }),
   );
   const activities: string[] = [];
   for (const [index, name] of [
-    'Roda de convivência (demo)',
-    'Oficina de leitura (demo)',
-    'Ação pontual planejada (demo)',
+    'Oficina de Artesanato para Mães',
+    'Reforço Escolar - Turma Manhã',
+    'Entrega de Cestas Básicas',
   ].entries()) {
     const projectId = projects[index === 1 ? 1 : 0]!;
     const step = `activity:${index}`;
@@ -182,7 +201,8 @@ export async function seedShowcaseData(
           nature: index === 2 ? 'ONE_OFF' : 'PERIODIC',
           serviceTypeId: index === 2 ? serviceTypeId : null,
           responsibleId,
-          plannedSchedule: index === 2 ? null : 'Programação fictícia semanal',
+          plannedSchedule:
+            index === 2 ? null : 'Quartas e sextas, período da manhã',
         });
       }),
     );
@@ -265,7 +285,7 @@ export async function seedShowcaseData(
           {
             expectedSessionRevision: current.session.revision,
             reason:
-              'Encontro fictício cancelado para demonstrar a preservação do histórico.',
+              'Encontro cancelado devido à forte chuva na região, impossibilitando o acesso ao local.',
           },
         );
       });
@@ -287,7 +307,7 @@ export async function seedShowcaseData(
           expectedSourceFingerprint: coverage.sourceFingerprint,
           confirmed: true,
           reason:
-            'Cobertura conferida exclusivamente para os encontros fictícios da demonstração.',
+            'Diários de frequência conferidos e fechados pelo educador responsável no fim do mês.',
         },
       );
     });
@@ -295,8 +315,9 @@ export async function seedShowcaseData(
   await client.once('social:selection', () =>
     client.write('social:selection', '/social-form-field-selections', {
       expectedRevision: null,
-      decisionReference: 'DEMO-SYNTHETIC',
-      reason: 'Seleção fictícia para demonstração de versões da ficha.',
+      decisionReference: 'ATA-2025-02',
+      reason:
+        'Implementação do novo modelo de avaliação das condições de moradia.',
       fields: [
         {
           fieldKey: 'housing.roomCount',
@@ -305,8 +326,9 @@ export async function seedShowcaseData(
           appliesTo: 'FAMILY',
           allowedRoleCodes: ['COORDINATION', 'SOCIAL_ASSISTANCE'],
           cardinality: 'SINGLE',
-          purpose: 'Demonstração com dados fictícios.',
-          decisionReference: 'DEMO-SYNTHETIC',
+          purpose:
+            'Avaliar a adequação do espaço físico para a quantidade de moradores.',
+          decisionReference: 'ATA-2025-02',
         },
       ],
     }),
@@ -315,9 +337,9 @@ export async function seedShowcaseData(
     client.write('social:housing', '/feature-decisions/FIC_HOUSING', {
       enabled: true,
       expectedRevision: null,
-      decisionReference: 'DEMO-SYNTHETIC',
+      decisionReference: 'ATA-2025-02',
       reason:
-        'Bloco de moradia habilitado somente para dados fictícios da demonstração.',
+        'Acompanhamento das condições de moradia incorporado às entrevistas sociais deste ano.',
     }),
   );
   for (const [index, familyIndex] of [0, 0, 1].entries()) {
@@ -357,9 +379,9 @@ export async function seedShowcaseData(
       },
       effectiveFrom: day(-29),
       expectedLatestPolicyId: null,
-      decisionReference: 'DEMO-SYNTHETIC',
+      decisionReference: 'DIR-2025-03',
       reason:
-        'Critério fictício: duas presenças na janela fechada de 30 dias da demonstração. Não representa aprovação institucional.',
+        'Política emergencial de aptidão: exige participação mínima em duas atividades no último ciclo.',
       retroactive: true,
     }),
   );

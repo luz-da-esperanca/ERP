@@ -7,15 +7,23 @@ export function installNativeDialogDouble() {
   const showModal = vi.fn(function (this: HTMLDialogElement) {
     this.setAttribute('open', '');
   });
-  Object.defineProperty(prototype, 'showModal', { configurable: true, value: showModal });
+  Object.defineProperty(prototype, 'showModal', {
+    configurable: true,
+    value: showModal,
+  });
   Object.defineProperty(prototype, 'close', {
     configurable: true,
-    value: function (this: HTMLDialogElement) { this.removeAttribute('open'); },
+    value: function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    },
   });
   return {
     showModal,
     restore() {
-      for (const [name, descriptor] of [['showModal', previousShow], ['close', previousClose]] as const) {
+      for (const [name, descriptor] of [
+        ['showModal', previousShow],
+        ['close', previousClose],
+      ] as const) {
         if (descriptor) Object.defineProperty(prototype, name, descriptor);
         else Reflect.deleteProperty(prototype, name);
       }

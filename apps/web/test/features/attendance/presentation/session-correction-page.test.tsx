@@ -19,13 +19,11 @@ it('captures a fresh roster before correcting a session and preserves its origin
     .fn()
     .mockResolvedValue({ session, attendances: [] });
   const gateway = {
-    detail: vi
-      .fn()
-      .mockResolvedValue({
-        session: { ...session, revision: 4 },
-        attendances: [],
-        context,
-      }),
+    detail: vi.fn().mockResolvedValue({
+      session: { ...session, revision: 4 },
+      attendances: [],
+      context,
+    }),
     context: vi.fn().mockResolvedValue(freshContext),
     correctSession,
   } as unknown as HttpAttendance;
