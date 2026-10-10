@@ -60,7 +60,7 @@ export function ReportPartyFilter({
   }, [registration, projects, family, query, page]);
   const state = useApiQuery(load);
   return (
-    <div>
+    <div className="report-party-filter">
       <Field
         label={
           family
@@ -104,9 +104,13 @@ export function ReportPartyFilter({
               ))}
             </SelectField>
             {family && registration && result.total > result.pageSize && (
-              <nav aria-label="Páginas de famílias do filtro">
+              <nav
+                className="pagination"
+                aria-label="Páginas de famílias do filtro"
+              >
                 <button
                   type="button"
+                  className="button secondary"
                   disabled={page === 1}
                   onClick={() => setPage(page - 1)}
                 >
@@ -115,6 +119,7 @@ export function ReportPartyFilter({
                 <span>Página {page}</span>
                 <button
                   type="button"
+                  className="button secondary"
                   disabled={page * result.pageSize >= result.total}
                   onClick={() => setPage(page + 1)}
                 >

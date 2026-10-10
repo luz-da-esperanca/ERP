@@ -6,17 +6,13 @@ import type {
 import type { HttpProjects } from '../infra/http-projects';
 import { localDateTime } from '../../../shared/time';
 import { useApiQuery } from '../../../shared/use-query';
-import {
-  Alert,
-  AsyncView,
-  Field,
-  Panel,
-  SelectField,
-  textValue,
-} from '../../../shared/ui';
+import { Alert, AsyncView, Field, Panel, textValue } from '../../../shared/ui';
 import { ManagementForm } from './management-form';
 import { instantValue } from './project-forms';
 import { EnrollmentList } from './enrollment-list';
+import { PersonSelection } from './person-selection';
+
+export { PersonSelection };
 
 type EnrollmentItem = EnrollmentsPageDto['data'][number];
 export const localInstant = (value: string | null) => {
@@ -144,68 +140,6 @@ export function EnrollmentManagement({
     </>
   );
 }
-export function PersonSelection({
-  gateway,
-  label = 'Participante',
-}: {
-  gateway: HttpProjects;
-  label?: string;
-}) {
-  const [query, setQuery] = useState('');
-  const [search, setSearch] = useState('');
-  const load = useCallback(
-    () => (search.length >= 2 ? gateway.people(search) : Promise.resolve([])),
-    [gateway, search],
-  );
-  const state = useApiQuery(load);
-  return (
-    <>
-      <Field
-        autoFocus
-        label="Buscar pessoa"
-        name="search"
-        value={query}
-        minLength={2}
-        maxLength={200}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-      <button
-        type="button"
-        className="button secondary"
-        disabled={query.trim().length < 2}
-        onClick={() => setSearch(query.trim())}
-      >
-        Buscar
-      </button>
-      <AsyncView state={state}>
-        {(people) => (
-          <>
-            <SelectField
-              key={search}
-              label={label}
-              name="personId"
-              required
-              defaultValue=""
-            >
-              <option value="">Selecione</option>
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                  {'family' in person && person.family
-                    ? ` · Família ${person.family.code}`
-                    : 'birthDate' in person && person.birthDate
-                      ? ` · Nascimento ${person.birthDate.split('-').reverse().join('/')}`
-                      : ''}
-                </option>
-              ))}
-            </SelectField>
-            {search && !people.length && <p>Nenhuma pessoa encontrada.</p>}
-          </>
-        )}
-      </AsyncView>
-    </>
-  );
-}
 function EnrollmentForm({
   gateway,
   activity,
@@ -230,14 +164,13 @@ function EnrollmentForm({
         const validUntil = textValue(data, 'validUntil')
           ? instantValue(data, 'validUntil')
           : null;
+        // The server stamps the start of a new enrollment with its own clock.
         if (mode === 'new')
           return gateway.enroll(
             activity.id,
             {
               expectedActivityRevision: activity.revision,
               personId: textValue(data, 'personId'),
-              validFrom: instantValue(data, 'validFrom'),
-              validUntil,
             },
             key,
           );
@@ -260,9 +193,9 @@ function EnrollmentForm({
       }}
     >
       {mode === 'new' && <PersonSelection gateway={gateway} />}
-      {mode !== 'close' && (
+      {mode === 'correct' && (
         <Field
-          autoFocus={mode !== 'new'}
+          autoFocus
           label="Início da inscrição (Fortaleza)"
           name="validFrom"
           type="datetime-local"
@@ -271,15 +204,17 @@ function EnrollmentForm({
           defaultValue={localInstant(item?.enrollment.validFrom ?? null)}
         />
       )}
-      <Field
-        autoFocus={mode === 'close'}
-        label="Fim da inscrição (exclusivo, Fortaleza)"
-        name="validUntil"
-        type="datetime-local"
-        step="0.001"
-        required={mode === 'close' || activity.status === 'CLOSED'}
-        defaultValue={localInstant(item?.enrollment.validUntil ?? null)}
-      />
+      {mode !== 'new' && (
+        <Field
+          autoFocus={mode === 'close'}
+          label="Fim da inscrição (exclusivo, Fortaleza)"
+          name="validUntil"
+          type="datetime-local"
+          step="0.001"
+          required={mode === 'close' || activity.status === 'CLOSED'}
+          defaultValue={localInstant(item?.enrollment.validUntil ?? null)}
+        />
+      )}
       {mode !== 'new' && (
         <Field label="Motivo" name="reason" required maxLength={1000} />
       )}

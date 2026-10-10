@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -226,4 +232,66 @@ it('retrieves an exact historical policy even when it is absent from the first p
       .getByRole('link', { name: 'Consultar atividade utilizada' })
       .getAttribute('href'),
   ).toBe('/activities/activity');
+});
+
+it('presents published policy versions as structured entries with a styled pager', async () => {
+  const { EligibilityPoliciesPage } =
+    await import('../../../../src/eligibility');
+  const gateway = {
+    listPolicies: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 'policy',
+          effectiveFrom: '2026-09-09',
+          effectiveUntilExclusive: null,
+          decisionReference: 'DEMO-SYNTHETIC',
+          recordedAt: '2026-09-09T12:00:00Z',
+          reason: 'Synthetic reason',
+          definition: {
+            period: { type: 'ROLLING_DAYS', length: 90 },
+            minimum: { type: 'PRESENCE_COUNT', value: 8 },
+            activityIds: ['activity'],
+          },
+        },
+      ],
+      pagination: { page: 1, pageSize: 20, total: 1 },
+    }),
+  } as unknown as HttpEligibility;
+  const projects = {
+    overview: vi.fn().mockResolvedValue({
+      activities: [{ id: 'activity', name: 'Synthetic activity' }],
+    }),
+  };
+  render(
+    <MemoryRouter>
+      <EligibilityPoliciesPage
+        gateway={gateway}
+        projects={projects as never}
+        canWrite
+      />
+    </MemoryRouter>,
+  );
+  const entry = (await screen.findByText(/^Vigência/)).closest('details')!;
+  expect(entry.classList.contains('disclosure')).toBe(true);
+  expect(entry.querySelector('summary')?.textContent).toContain('Vigência');
+  expect(entry.querySelector('summary')?.textContent).toContain('Em aberto');
+  expect(entry.querySelector('summary')?.textContent).toContain(
+    'DEMO-SYNTHETIC',
+  );
+  const terms = [...entry.querySelectorAll('dt')].map((dt) => dt.textContent);
+  expect(terms).toEqual([
+    'Registrada em',
+    'Motivo',
+    'Período',
+    'Mínimo',
+    'Atividades válidas',
+  ]);
+  expect(within(entry).getByRole('listitem').textContent).toBe(
+    'Synthetic activity',
+  );
+  expect(
+    screen
+      .getByRole('navigation', { name: 'Páginas de políticas' })
+      .classList.contains('pagination'),
+  ).toBe(true);
 });

@@ -35,12 +35,11 @@ it('routes an existing person into explicit reconciliation without creating a se
     </MemoryRouter>,
   );
   const user = userEvent.setup();
-  await user.type(screen.getByLabelText('Buscar pessoa'), 'Synthetic');
-  await user.click(screen.getByRole('button', { name: 'Buscar' }));
-  await user.selectOptions(
-    await screen.findByLabelText(/^Pessoa cadastrada/),
-    'person',
+  await user.type(
+    screen.getByRole('combobox', { name: /^Pessoa cadastrada/ }),
+    'Synthetic',
   );
+  await user.click(await screen.findByRole('option', { name: /Synthetic/ }));
   await user.click(
     screen.getByRole('button', {
       name: 'Conferir vínculos da pessoa existente',

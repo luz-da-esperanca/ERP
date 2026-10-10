@@ -289,11 +289,12 @@ it('renews the server preview for a guest and submits the first marking without 
   await user.click(
     await screen.findByRole('button', { name: 'Adicionar pessoa avulsa' }),
   );
-  await user.type(screen.getByLabelText('Buscar pessoa'), 'Pessoa');
-  await user.click(screen.getByRole('button', { name: 'Buscar' }));
-  await user.selectOptions(
-    await screen.findByLabelText(/^Participante/),
-    guestId,
+  await user.type(
+    screen.getByRole('combobox', { name: /^Participante/ }),
+    'Pessoa',
+  );
+  await user.click(
+    await screen.findByRole('option', { name: /Pessoa Avulsa Sintética/ }),
   );
   await user.click(screen.getByRole('button', { name: 'Incluir na prévia' }));
   await user.selectOptions(

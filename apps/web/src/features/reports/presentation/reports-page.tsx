@@ -187,7 +187,7 @@ export function ReportsPage({
     <Page title="Consultas e relatórios">
       <Panel>
         <form
-          className="form-grid"
+          className="form-stack"
           onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
@@ -216,7 +216,10 @@ export function ReportsPage({
             });
           }}
         >
-          <fieldset disabled={action.pending} className="form-grid">
+          <fieldset
+            disabled={action.pending}
+            className="form-grid report-filters"
+          >
             <SelectField
               label="Relatório"
               name="kind"
@@ -351,12 +354,14 @@ export function ReportsPage({
               </SelectField>
             )}
           </fieldset>
-          <button
-            className="button primary"
-            disabled={action.pending || !kinds.length}
-          >
-            {action.pending ? 'Consultando…' : 'Consultar relatório'}
-          </button>
+          <div className="form-actions">
+            <button
+              className="button primary"
+              disabled={action.pending || !kinds.length}
+            >
+              {action.pending ? 'Consultando…' : 'Consultar relatório'}
+            </button>
+          </div>
         </form>
       </Panel>
       {action.error && <Alert error>{action.error}</Alert>}

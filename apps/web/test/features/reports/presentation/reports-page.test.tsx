@@ -48,29 +48,23 @@ it('uses the total fingerprint for drilldown and discards both totals and detail
   ).toBeNull();
 });
 it('keeps institute and project filters identical between reach totals and their contributing records', async () => {
-  const reach = vi
-    .fn()
-    .mockResolvedValue({
-      generatedAt: '2026-10-05T12:00:00Z',
-      filters: {},
-      queryFingerprint: 'b'.repeat(64),
-      totals: {},
-    });
-  const reachRecords = vi
-    .fn()
-    .mockResolvedValue({
-      data: [],
-      pagination: { page: 1, pageSize: 20, total: 0 },
-    });
+  const reach = vi.fn().mockResolvedValue({
+    generatedAt: '2026-10-05T12:00:00Z',
+    filters: {},
+    queryFingerprint: 'b'.repeat(64),
+    totals: {},
+  });
+  const reachRecords = vi.fn().mockResolvedValue({
+    data: [],
+    pagination: { page: 1, pageSize: 20, total: 0 },
+  });
   const gateway = { reach, reachRecords } as unknown as HttpReports;
   const projects = {
-    overview: vi
-      .fn()
-      .mockResolvedValue({
-        institutes: [{ id: 'institute', name: 'Synthetic Institute' }],
-        projects: [{ id: 'project', name: 'Synthetic Project' }],
-        activities: [],
-      }),
+    overview: vi.fn().mockResolvedValue({
+      institutes: [{ id: 'institute', name: 'Synthetic Institute' }],
+      projects: [{ id: 'project', name: 'Synthetic Project' }],
+      activities: [],
+    }),
   };
   render(
     <MemoryRouter>
@@ -102,4 +96,44 @@ it('keeps institute and project filters identical between reach totals and their
     unit: 'FAMILY',
     expectedQueryFingerprint: 'b'.repeat(64),
   });
+});
+
+it('keeps the submit button out of the filter grid so it keeps its natural size', () => {
+  render(
+    <MemoryRouter>
+      <ReportsPage
+        gateway={{} as unknown as HttpReports}
+        capabilities={['reports.read', 'attendance.read']}
+      />
+    </MemoryRouter>,
+  );
+  const submit = screen.getByRole('button', { name: 'Consultar relatório' });
+  const form = submit.closest('form')!;
+  expect(form.classList.contains('form-grid')).toBe(false);
+  expect(submit.parentElement?.classList.contains('form-actions')).toBe(true);
+  expect(form.querySelector('fieldset')?.classList.contains('form-grid')).toBe(
+    true,
+  );
+});
+
+it('groups the person search into a dedicated filter block with styled controls', async () => {
+  render(
+    <MemoryRouter>
+      <ReportsPage
+        gateway={{} as unknown as HttpReports}
+        capabilities={['reports.read', 'attendance.read']}
+      />
+    </MemoryRouter>,
+  );
+  await userEvent
+    .setup()
+    .selectOptions(screen.getByLabelText('Relatório'), 'frequency');
+  const searches = screen.getAllByRole('button', {
+    name: /^Buscar (pessoa|família) no relatório$/,
+  });
+  expect(searches.length).toBeGreaterThan(0);
+  for (const search of searches) {
+    expect(search.classList.contains('button')).toBe(true);
+    expect(search.closest('.report-party-filter')).not.toBeNull();
+  }
 });

@@ -35,10 +35,10 @@ export class HttpProjects {
     ]);
     return { projects, activities, institutes, serviceTypes };
   };
-  async activity(id: string, asOf: string) {
+  async activity(id: string, asOf?: string) {
     return (
       await this.api.request(
-        `/activities/${z.uuid().parse(id)}?asOf=${encodeURIComponent(asOf)}`,
+        `/activities/${z.uuid().parse(id)}${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`,
         z.object({ data: contracts.activityDetailSchema }),
       )
     ).data;

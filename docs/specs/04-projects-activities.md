@@ -39,7 +39,7 @@ Tipos pontuais candidatos: doação de itens, médico, psicológico, fisioterapi
 - Atividade encerrada admite consulta e correção de fatos anteriores. Novo lançamento tardio só é aceito se `occurredAt < closedAt` e dentro da vigência conhecida do projeto; o lançamento atual permanece identificado.
 - Não há reabertura, suspensão, geração automática de encontros nem cancelamento em cascata de fatos realizados no MVP. Mudar datas do projeto não pode tornar fatos existentes inválidos sem reconciliação explícita; retorna conflito com os IDs afetados.
 
-Inscrição exige pessoa cadastrada com vínculo familiar conhecido no instante inicial; vale em `[validFrom, validUntil)`. Mesmo par canônico pessoa/atividade não pode ter inscrições efetivas sobrepostas. Reinscrição posterior é novo intervalo. Encerrar inscrição não exclui encontros/presenças passados nem cria ausência futura; ao encerrar atividade/projeto, intervalos de inscrição vigentes são encerrados no mesmo instante, com auditoria.
+Inscrição exige pessoa cadastrada com vínculo familiar conhecido no instante inicial; vale em `[validFrom, validUntil)`. Na criação, `validFrom` é opcional: quando omitido, o servidor usa o próprio instante de lançamento (a interface de cadastro de participante não pergunta datas); a correção e o encerramento continuam informando os instantes explicitamente. Mesmo par canônico pessoa/atividade não pode ter inscrições efetivas sobrepostas. Reinscrição posterior é novo intervalo. Encerrar inscrição não exclui encontros/presenças passados nem cria ausência futura; ao encerrar atividade/projeto, intervalos de inscrição vigentes são encerrados no mesmo instante, com auditoria.
 
 Antes de encerrar, validar transacionalmente encontros válidos e inscrições efetivas de todo o conjunto afetado. Encontro com `occurredAt >= effectiveAt`, inscrição com início a partir do corte, ou atividade já encerrada depois do novo corte do projeto produz `409 DOMAIN_CONFLICT` com IDs autorizados para revisar data ou corrigir o registro pertinente. Truncar somente inscrições com `validFrom < effectiveAt` e fim aberto/posterior; intervalos já encerrados permanecem iguais. Não inverter intervalos, apagar ou cancelar fatos automaticamente para permitir o encerramento. O corte exclusivo é o mesmo usado para novos lançamentos tardios.
 
@@ -65,7 +65,7 @@ Uma visita avulsa na chamada não cria inscrição automaticamente. Número de p
 | `PATCH /activities/:activityId`            | Revisão, campos permitidos; natureza/projeto obedecem bloqueio de histórico                                  |
 | `POST /activities/:activityId/closure`     | Revisão, `effectiveAt`, motivo; valida encontros/intervalos posteriores ao corte                             |
 | `GET /activities/:activityId/enrollments`  | `asOf?`, `personId?`, paginação                                                                              |
-| `POST /activities/:activityId/enrollments` | Pessoa, `validFrom`, `validUntil?`, revisão da atividade; natureza periódica                                 |
+| `POST /activities/:activityId/enrollments` | Pessoa, `validFrom?` (padrão: agora), `validUntil?`, revisão da atividade; natureza periódica                |
 | `PATCH /enrollments/:enrollmentId`         | Revisão, correção de datas, motivo; conflitos com chamada/cobertura são expostos                             |
 | `POST /enrollments/:enrollmentId/closure`  | Revisão, `validUntil`, motivo                                                                                |
 

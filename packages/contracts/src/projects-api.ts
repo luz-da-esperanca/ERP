@@ -138,7 +138,8 @@ export const createEnrollmentSchema = z
   .object({
     expectedActivityRevision: revisionSchema,
     personId: idSchema,
-    validFrom: instantInput,
+    // Omitted means "starting now"; the server stamps it from its own clock.
+    validFrom: instantInput.optional(),
     validUntil: instantInput.nullable().default(null),
   })
   .strict();

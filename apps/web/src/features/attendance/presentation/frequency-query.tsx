@@ -34,15 +34,15 @@ export function FrequencyQuery({
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
-          const select = event.currentTarget.elements.namedItem('personId');
-          if (!(select instanceof HTMLSelectElement) || !select.value) {
+          const personId = textValue(data, 'personId');
+          if (!personId) {
             setError('Selecione uma pessoa para consultar a frequência.');
             return;
           }
           setError('');
           setSelection({
-            personId: textValue(data, 'personId'),
-            name: select.selectedOptions[0]?.textContent ?? '',
+            personId,
+            name: textValue(data, 'personSearch'),
             from: textValue(data, 'from'),
             toExclusive: textValue(data, 'toExclusive'),
           });

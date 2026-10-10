@@ -105,4 +105,38 @@ describe('Projects command authorization', () => {
     ).toThrow('Operation not permitted');
     expect(reader.catalogs).not.toHaveBeenCalled();
   });
+  it('starts an enrollment at the server clock when the client omits validFrom', async () => {
+    const { service, ports, context } = fixture();
+    const extra = {
+      findOperation: vi.fn().mockResolvedValue(null),
+      createOperation: vi.fn().mockResolvedValue('operation'),
+      findActivity: vi.fn().mockResolvedValue({
+        id: 'activity',
+        projectId: 'project',
+        revision: 3,
+        nature: 'PERIODIC',
+        closedAt: null,
+      }),
+      findProject: vi.fn().mockResolvedValue({
+        startsOn: null,
+        endsOn: null,
+        closedAt: null,
+      }),
+      personExists: vi.fn().mockResolvedValue(true),
+      // Stops the use case right after the date-dependent rule under test.
+      hasFamilyMembership: vi.fn().mockResolvedValue(false),
+    };
+    Object.assign(ports, extra);
+    await expect(
+      service.createEnrollment(context, 'activity', {
+        expectedActivityRevision: 3,
+        personId: 'person',
+        validUntil: null,
+      }),
+    ).rejects.toMatchObject({ rule: 'PERSON_WITHOUT_MEMBERSHIP' });
+    expect(extra.hasFamilyMembership).toHaveBeenCalledWith(
+      'person',
+      '2026-10-05T12:00:00.000Z',
+    );
+  });
 });

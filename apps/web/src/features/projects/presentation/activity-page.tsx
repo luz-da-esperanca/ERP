@@ -230,7 +230,7 @@ function ManagedActivityContent({
   capabilities: Capability[];
   id: string;
 }) {
-  const [asOf, setAsOf] = useState(() => new Date().toISOString());
+  const [asOf, setAsOf] = useState<string>();
   const [revision, setRevision] = useState(0);
   const [mode, setMode] = useState<'edit' | 'closure' | null>(null);
   const [enrollmentEditing, setEnrollmentEditing] = useState(false);
@@ -248,6 +248,7 @@ function ManagedActivityContent({
   }
   function completed() {
     setMessage('Alteração salva.');
+    setAsOf(undefined);
     refresh();
   }
   return (
@@ -319,6 +320,7 @@ function ManagedActivityContent({
           enrollments={
             <>
               <form
+                key={asOf ?? detail.asOf}
                 className="mb-4 flex flex-wrap items-end gap-2"
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -333,7 +335,7 @@ function ManagedActivityContent({
                   type="datetime-local"
                   step="0.001"
                   required
-                  defaultValue={localInstant(asOf)}
+                  defaultValue={localInstant(asOf ?? detail.asOf)}
                 />
                 <button
                   disabled={enrollmentEditing}

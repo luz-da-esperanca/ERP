@@ -109,10 +109,13 @@ it('shows known counts, unknown percentage, unrecorded opportunities and invalid
     </MemoryRouter>,
   );
   expect(fetcher).not.toHaveBeenCalled();
-  await user.type(screen.getByLabelText('Buscar pessoa'), 'Ana');
-  await user.click(screen.getByRole('button', { name: 'Buscar' }));
-  await screen.findByRole('option', { name: /Ana Sintética/ });
-  await user.selectOptions(screen.getByLabelText(/^Participante/), personId);
+  await user.type(
+    screen.getByRole('combobox', { name: /^Participante/ }),
+    'Ana',
+  );
+  await user.click(
+    await screen.findByRole('option', { name: /Ana Sintética/ }),
+  );
   fireEvent.change(screen.getByLabelText(/^Início do período/), {
     target: { value: '2026-01-01' },
   });

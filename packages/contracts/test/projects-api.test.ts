@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   catalogQuerySchema,
   createActivitySchema,
+  createEnrollmentSchema,
   updateProjectSchema,
   updateActivitySchema,
   createProjectSchema,
@@ -60,5 +61,21 @@ describe('Projects HTTP contracts', () => {
         instituteId: '00000000-0000-4000-8000-000000000001',
       }).success,
     ).toBe(false);
+  });
+  it('lets the server stamp the start of a new enrollment', () => {
+    const base = {
+      expectedActivityRevision: 1,
+      personId: '00000000-0000-4000-8000-000000000001',
+    };
+    expect(createEnrollmentSchema.parse(base)).toEqual({
+      ...base,
+      validUntil: null,
+    });
+    expect(
+      createEnrollmentSchema.parse({
+        ...base,
+        validFrom: '2026-01-01T12:00:00.000Z',
+      }).validFrom,
+    ).toBe('2026-01-01T12:00:00.000Z');
   });
 });

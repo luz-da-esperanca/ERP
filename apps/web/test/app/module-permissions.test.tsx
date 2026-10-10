@@ -73,9 +73,7 @@ it('does not expose the removed tracked-fields screen to coordination', async ()
   );
 
   await screen.findByRole('navigation');
-  expect(
-    screen.queryByRole('link', { name: 'Campos cadastrais' }),
-  ).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Campos cadastrais' })).toBeNull();
   expect(
     screen.queryByRole('link', { name: 'Configuração da ficha' }),
   ).toBeNull();

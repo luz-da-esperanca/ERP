@@ -109,12 +109,12 @@ O detalhe usa `asOf` informado ou o instante atual do servidor. `participantCoun
 
 ## Inscrições
 
-| Método / caminho                           | Entrada                                                            | Saída                              |
-| ------------------------------------------ | ------------------------------------------------------------------ | ---------------------------------- |
-| GET `/activities/:activityId/enrollments`  | `asOf?`, `personId?`, paginação                                    | Página de `{ enrollment, person }` |
-| POST `/activities/:activityId/enrollments` | `expectedActivityRevision`, `personId`, `validFrom`, `validUntil?` | 201, `{ data: EnrollmentDto }`     |
-| PATCH `/enrollments/:enrollmentId`         | `expectedRevision`, `validFrom?`, `validUntil?`, `reason`          | `{ data: EnrollmentDto }`          |
-| POST `/enrollments/:enrollmentId/closure`  | `expectedRevision`, `validUntil`, `reason`                         | `{ data: EnrollmentDto }`          |
+| Método / caminho                           | Entrada                                                             | Saída                              |
+| ------------------------------------------ | ------------------------------------------------------------------- | ---------------------------------- |
+| GET `/activities/:activityId/enrollments`  | `asOf?`, `personId?`, paginação                                     | Página de `{ enrollment, person }` |
+| POST `/activities/:activityId/enrollments` | `expectedActivityRevision`, `personId`, `validFrom?`, `validUntil?` | 201, `{ data: EnrollmentDto }`     |
+| PATCH `/enrollments/:enrollmentId`         | `expectedRevision`, `validFrom?`, `validUntil?`, `reason`           | `{ data: EnrollmentDto }`          |
+| POST `/enrollments/:enrollmentId/closure`  | `expectedRevision`, `validUntil`, `reason`                          | `{ data: EnrollmentDto }`          |
 
 ```json
 {
@@ -128,6 +128,8 @@ O detalhe usa `asOf` informado ou o instante atual do servidor. `participantCoun
 Somente atividades periódicas aceitam inscrição. A pessoa precisa estar cadastrada e ter vínculo familiar conhecido no início do intervalo. Início futuro é rejeitado. Fim conhecido deve ser estritamente posterior ao início; deve respeitar o limite civil conhecido do projeto. Para atividade/projeto encerrado, o intervalo tardio precisa começar antes do corte e terminar até o corte; fim aberto é rejeitado nesse caso.
 
 Mesmo par pessoa/atividade não aceita intervalos efetivos sobrepostos. Reinscrição adjacente é permitida e cria outro registro. Correção preserva o ID e grava antes/depois na auditoria. Mudar o início revalida o vínculo familiar. Encerramento exige fim não futuro e não amplia um intervalo já encerrado; ampliação exige correção explícita, respeitando os demais limites.
+
+Na criação, `validFrom` omitido equivale ao instante do servidor.
 
 Com `asOf`, a lista seleciona inscrições vigentes naquele instante. Sem `asOf`, lista todos os intervalos efetivos, inclusive encerrados; exclui supersedidos. Ordenação: `validFrom`, depois ID. A revisão de cada inscrição representa seu estado atual; para valores anteriores, consulte a auditoria.
 

@@ -7,3 +7,4 @@ export { ManagedProjectsPage } from './features/projects/presentation/projects-p
 export { ManagedActivityPage } from './features/projects/presentation/activity-page';
 export { EnrollmentManagement } from './features/projects/presentation/enrollment-management';
 export { CatalogsPage } from './features/projects/presentation/catalogs-page';
+export { PersonSelection } from './features/projects/presentation/person-selection';

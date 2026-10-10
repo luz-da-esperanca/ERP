@@ -48,17 +48,22 @@ export function EligibilityPoliciesPage({
             <Panel title="Versões publicadas">
               {!policies.data.length && <p>Sem política configurada.</p>}
               {policies.data.map((policy) => (
-                <details key={policy.id}>
+                <details key={policy.id} className="disclosure policy-entry">
                   <summary>
-                    Vigência: {policy.effectiveFrom} até{' '}
-                    {policy.effectiveUntilExclusive ?? 'aberta'} ·{' '}
-                    {policy.decisionReference}
+                    <span>
+                      Vigência: {policy.effectiveFrom} até{' '}
+                      {policy.effectiveUntilExclusive ?? 'em aberto'}
+                    </span>
+                    {!policy.effectiveUntilExclusive && (
+                      <span className="status-badge">Em aberto</span>
+                    )}
+                    <small>{policy.decisionReference}</small>
                   </summary>
-                  <p>
-                    Registrada em {displayInstant(policy.recordedAt)} · Motivo:{' '}
-                    {policy.reason}
-                  </p>
-                  <dl>
+                  <dl className="policy-entry-details">
+                    <dt>Registrada em</dt>
+                    <dd>{displayInstant(policy.recordedAt)}</dd>
+                    <dt>Motivo</dt>
+                    <dd>{policy.reason}</dd>
                     <dt>Período</dt>
                     <dd>
                       {policy.definition.period.type === 'FIXED_PERIOD'
@@ -71,18 +76,22 @@ export function EligibilityPoliciesPage({
                         ? `${policy.definition.minimum.value} presenças`
                         : `${policy.definition.minimum.basisPoints / 100}%`}
                     </dd>
+                    <dt>Atividades válidas</dt>
+                    <dd>
+                      <ul>
+                        {policy.definition.activityIds.map((id) => (
+                          <li key={id}>
+                            {overview?.activities.find(
+                              (activity) => activity.id === id,
+                            )?.name ?? id}
+                          </li>
+                        ))}
+                      </ul>
+                    </dd>
                   </dl>
-                  {policy.definition.activityIds.map((id) => (
-                    <p key={id}>
-                      Atividade:{' '}
-                      {overview?.activities.find(
-                        (activity) => activity.id === id,
-                      )?.name ?? id}
-                    </p>
-                  ))}
                 </details>
               ))}
-              <nav aria-label="Páginas de políticas">
+              <nav className="pagination" aria-label="Páginas de políticas">
                 <button
                   className="button secondary"
                   disabled={page === 1}

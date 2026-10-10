@@ -433,7 +433,10 @@ it('selects an existing person, creates a dated enrollment and closes it without
           id,
           activityId: id,
           personId: id,
-          validFrom: input.validFrom ?? interval!.validFrom,
+          validFrom:
+            input.validFrom ??
+            interval?.validFrom ??
+            '2026-01-01T12:00:00.000Z',
           validUntil: input.validUntil ?? null,
           supersededById: null,
           revision: interval ? 2 : 1,
@@ -467,13 +470,16 @@ it('selects an existing person, creates a dated enrollment and closes it without
   await user.click(
     screen.getByRole('button', { name: 'Cadastrar participante' }),
   );
-  await user.type(screen.getByLabelText(/^Buscar pessoa/), 'Pessoa');
-  await user.click(screen.getByRole('button', { name: 'Buscar' }));
-  await screen.findByRole('option', { name: /Pessoa sintética/ });
-  await user.selectOptions(screen.getByLabelText(/^Participante/), id);
-  fireEvent.change(screen.getByLabelText(/^Início da inscrição/), {
-    target: { value: '2026-01-01T09:00' },
-  });
+  await user.type(
+    screen.getByRole('combobox', { name: /^Participante/ }),
+    'Pessoa',
+  );
+  await user.click(
+    await screen.findByRole('option', { name: /Pessoa sintética/ }),
+  );
+  // A new enrollment starts when it is registered, so no dates are asked.
+  expect(screen.queryByLabelText(/^Início da inscrição/)).toBeNull();
+  expect(screen.queryByLabelText(/^Fim da inscrição/)).toBeNull();
   await user.click(screen.getByRole('button', { name: 'Salvar' }));
   await user.click(
     await screen.findByRole('button', {
@@ -497,7 +503,6 @@ it('selects an existing person, creates a dated enrollment and closes it without
   expect(JSON.parse(String(writes[0]?.[1]?.body))).toEqual({
     expectedActivityRevision: 3,
     personId: id,
-    validFrom: '2026-01-01T12:00:00.000Z',
     validUntil: null,
   });
   expect(JSON.parse(String(writes[1]?.[1]?.body))).toEqual({
@@ -533,7 +538,7 @@ it('creates and edits an activity using project and activity revisions', async (
         activity = { ...activity, name: 'Oficina corrigida', revision: 2 };
         return Response.json({ data: activity });
       }
-      if (String(path).includes('/activities/' + id + '?'))
+      if (String(path).includes('/activities/' + id))
         return Response.json({
           data: {
             activity,

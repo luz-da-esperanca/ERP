@@ -574,10 +574,13 @@ export class ProjectsService {
     input: {
       expectedActivityRevision: number;
       personId: string;
-      validFrom: string;
+      validFrom?: string;
       validUntil: string | null;
     },
   ) {
+    // The resolved instant stays out of the fingerprint, so retrying the same
+    // request with its key replays the stored result instead of conflicting.
+    const validFrom = input.validFrom ?? this.now();
     return this.command(
       'ParticipantEnrollment',
       'projects.enrollments.create',
@@ -591,26 +594,26 @@ export class ProjectsService {
         assertEnrollmentInterval(
           activity,
           project,
-          input.validFrom,
+          validFrom,
           input.validUntil,
           this.now(),
           this.timeZone,
         );
         if (!(await tx.personExists(input.personId)))
           throw new ResourceNotFoundError();
-        if (!(await tx.hasFamilyMembership(input.personId, input.validFrom)))
+        if (!(await tx.hasFamilyMembership(input.personId, validFrom)))
           throw new ProjectsRuleError('PERSON_WITHOUT_MEMBERSHIP');
         assertEnrollmentAvailability(
           await tx.activityEnrollments(activityId),
           input.personId,
-          input.validFrom,
+          validFrom,
           input.validUntil,
         );
         const after = await tx.createEnrollment(
           {
             activityId,
             personId: input.personId,
-            validFrom: input.validFrom,
+            validFrom,
             validUntil: input.validUntil,
           },
           context.actor.user.id,
@@ -622,7 +625,7 @@ export class ProjectsService {
           before: null,
           after,
           action: 'CREATE',
-          occurredAt: input.validFrom,
+          occurredAt: validFrom,
         });
         await this.reviseActivity(
           tx,
@@ -630,7 +633,7 @@ export class ProjectsService {
           context.actor.user.id,
           activity,
           undefined,
-          input.validFrom,
+          validFrom,
         );
         await this.invalidateEnrollmentCoverage(
           tx,
