@@ -1,17 +1,17 @@
 # Como integrar a publicação da ficha social
 
-Guia para conectar a frente de frontend ao backend FIC. Pressupõe autenticação por cookie, mesma origem, conta com acesso social e família/pessoas sintéticas em CAD. Consulte a [referência HTTP](social-forms.md) para configuração, DTOs e erros. As telas existentes ainda usam memória.
+Guia da integração da UI com o backend FIC. Pressupõe autenticação por cookie, mesma origem, conta com acesso social e família/pessoas sintéticas em CAD. Consulte a [referência HTTP](social-forms.md) para configuração, DTOs e erros. A entrada web conectada usa HTTP; os adaptadores em memória são restritos ao protótipo.
 
 ## Preparar os campos
 
-Coordenação publica uma seleção completa e habilita explicitamente os blocos necessários, conforme a referência. Use somente campos de finalidade aprovada; a avaliação sintética não libera dados reais. Instalação inicial não possui seleção nem flags habilitadas. Não substitua ausência de configuração por um formulário genérico que aceite dados arbitrários.
+Para novas fichas, use `POST /social-form-template` com corpo `{}` e chave UUID antes de carregar o contexto. Essa escrita explícita prepara o modelo `FAMILY_REGISTRATION_2025`; abrir a lista e consultar contexto via GET não altera configuração. Em modo sintético, registra os blocos da avaliação. Para dados reais, a Coordenação precisa ter registrado previamente as decisões institucionais pertinentes. A instalação inicial não possui seleção nem flags habilitadas.
 
-Para montar a tela, leia `/social-form-fields` ou a seleção/catálogos do contexto. Mostre apenas campos permitidos, com sua cardinalidade e aplicação por membro. Opções inativas podem identificar escolhas históricas; não devem ser oferecidas para nova seleção. Não acrescente saúde/religião a observações livres para contornar uma flag.
+Monte as seções da ficha de 2025 com a seleção/catálogos do contexto. Todos os campos aplicáveis são obrigatórios; Sim revela e exige o detalhe, Não o omite. Não predefina respostas negativas nem renda zero. Confira a identificação de CAD e use seus fluxos de edição para completar dados faltantes, consultando depois novamente a composição. Opções inativas permanecem históricas; não ofereça códigos extras no formulário fixo. Não acrescente saúde/religião a observações livres para contornar uma flag.
 
 ## Publicar a versão
 
 1. Selecione família e data do fato; abrir a tela não publica ficha.
-2. Consulte `/families/:id/social-form-context?occurredAt=...`. Use os membros dessa data e as revisões fornecidas.
+2. Prepare o modelo fixo e consulte `/families/:id/social-form-context?occurredAt=...`. Use os membros dessa data e as revisões fornecidas.
 3. Revise valores copiados de `latestForm`, removendo pessoas que não pertencem à nova composição. Confirme dados desconhecidos, zero e coleções vazias separadamente.
 4. Capture corpo e uma chave UUID para a intenção. Envie a publicação completa, com a seleção/revisões do contexto e valores sociais permitidos.
 5. Em timeout, repita o mesmo corpo/chave. Em conflito, recarregue o contexto, compare mudanças e gere outra intenção após revisão explícita.

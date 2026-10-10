@@ -58,6 +58,12 @@ import type {
   SocialConfiguration,
 } from './social-forms-ports.js';
 import type { AuditEntry } from '../../audit/domain/audit-entry.js';
+import {
+  familyFormFields,
+  familyFormTemplateCode,
+  validateFamilyFormSource,
+} from '../domain/family-form-template.js';
+import { initialSocialOptions } from '../domain/initial-social-options.js';
 
 export class SocialFormsService {
   constructor(
@@ -165,7 +171,8 @@ export class SocialFormsService {
         allowsField(current, actor.user.roleCodes, enabled) &&
         (!memberValues ||
           (memberApplies(old, memberValues) &&
-            memberApplies(current, memberValues)))
+            (config.selection?.decisionReference === familyFormTemplateCode ||
+              memberApplies(current, memberValues))))
       );
     };
     let complete = true;
@@ -271,6 +278,15 @@ export class SocialFormsService {
             birthDate: row.person.birthDate,
             sex: row.person.sex,
             revision: row.person.revision,
+            ...(config.selection?.decisionReference === familyFormTemplateCode
+              ? {
+                  cpf: row.person.cpf,
+                  rg: row.person.rg,
+                  occupation: row.person.occupation,
+                  educationLevel: row.person.educationLevel,
+                  contactPhone: row.person.contactPhone,
+                }
+              : {}),
           },
           membership: row.membership,
           sizeProfile: row.sizeProfile,
@@ -278,9 +294,7 @@ export class SocialFormsService {
         fieldSelection: config.selection
           ? { ...config.selection, fields }
           : null,
-        options: config.options.filter((option) =>
-          fields.some((field) => field.fieldKey === option.fieldKey),
-        ),
+        options: this.availableOptions(config, fields),
         latestForm: source.latestPublishedFormId
           ? await this.projectForm(
               tx,
@@ -389,6 +403,26 @@ export class SocialFormsService {
           !source.members.some((member) => member.person.id === referenceId)
         )
           throw new SocialFormRuleError('INVALID_REFERENCE_MEMBER');
+        if (config.selection.decisionReference === familyFormTemplateCode) {
+          const enabled = this.enabled(config);
+          if (
+            familyFormFields().some(
+              (field) =>
+                !enabled.includes(blockDecision(fieldBlock(field.fieldKey))),
+            )
+          )
+            throw new SocialFormRuleError('BLOCK_DISABLED');
+          validateFamilyFormSource(source, input, referenceId);
+          const observations = input.blocks.situation?.observations;
+          if (
+            Array.isArray(observations) &&
+            observations.some(
+              (row) =>
+                'occurredOn' in row && row.occurredOn > this.now().slice(0, 10),
+            )
+          )
+            throw new SocialFormRuleError('FUTURE_FACT');
+        }
         if (input.correctionOfFormId) {
           const correction = this.require(
             await tx.form(input.correctionOfFormId),
@@ -464,6 +498,15 @@ export class SocialFormsService {
               birthDate,
               sex,
               revision: personRevision,
+              ...(config.selection?.decisionReference === familyFormTemplateCode
+                ? {
+                    cpf: row.person.cpf,
+                    rg: row.person.rg,
+                    occupation: row.person.occupation,
+                    educationLevel: row.person.educationLevel,
+                    contactPhone: row.person.contactPhone,
+                  }
+                : {}),
             },
             relationshipSnapshot: {
               isReference: row.membership.isReference,
@@ -560,6 +603,14 @@ export class SocialFormsService {
       'featureDecisions.manage',
       async (tx, actor, operationId) => {
         const current = (await tx.configuration()).selection;
+        if (
+          current?.decisionReference === familyFormTemplateCode ||
+          input.decisionReference === familyFormTemplateCode ||
+          input.fields.some(
+            (field) => field.decisionReference === familyFormTemplateCode,
+          )
+        )
+          throw new SocialFormRuleError('INVALID_FIELD_SELECTION');
         if ((current?.version ?? null) !== input.expectedRevision)
           throw new SocialFormRevisionConflictError(current?.version ?? null);
         validateFieldSelection(input.fields);
@@ -585,6 +636,105 @@ export class SocialFormsService {
       },
     );
   }
+  prepareTemplate(context: CommandContext) {
+    return this.command<FieldSelection>(
+      context,
+      'FieldSelectionVersion',
+      'socialForms.template.prepare',
+      { template: familyFormTemplateCode },
+      'socialForms.write',
+      async (tx, actor, operationId) => {
+        const config = await tx.configuration();
+        const fields = familyFormFields();
+        const codes = [
+          ...new Set(
+            fields.map((field) => blockDecision(fieldBlock(field.fieldKey))),
+          ),
+        ];
+        if (
+          !this.protection.available() ||
+          ((this.mode === 'REAL' ||
+            config.selection?.decisionReference === familyFormTemplateCode) &&
+            codes.some((code) => !this.enabled(config).includes(code)))
+        )
+          throw new SocialFormRuleError('DECISION_DEPENDENCY');
+        if (config.selection?.decisionReference === familyFormTemplateCode)
+          return config.selection;
+        const selection: FieldSelection = {
+          id: this.newId(),
+          version: (config.selection?.version ?? 0) + 1,
+          recordedAt: this.now(),
+          recordedBy: actor.user.id,
+          fields,
+          decisionReference: familyFormTemplateCode,
+        };
+        await tx.saveSelection(selection);
+        await tx.audit({
+          operationId,
+          actorId: actor.user.id,
+          entityType: 'FieldSelectionVersion',
+          before: null,
+          after: selection,
+          action: 'CREATE',
+          reason: 'Adoção do formulário fixo de cadastro de famílias de 2025',
+        });
+        for (const option of initialSocialOptions) {
+          const before = config.options.find(
+            (current) =>
+              current.fieldKey === option.fieldKey &&
+              current.code === option.code,
+          );
+          if (
+            before?.active &&
+            before.label === option.label &&
+            before.isOther === option.isOther
+          )
+            continue;
+          const after: SocialOption = {
+            ...option,
+            id: before?.id ?? this.newId(),
+            revision: (before?.revision ?? 0) + 1,
+          };
+          await tx.saveOption(after);
+          await tx.audit({
+            operationId,
+            actorId: actor.user.id,
+            entityType: 'SocialFormOption',
+            before: before ?? null,
+            after,
+            action: before ? 'UPDATE' : 'CREATE',
+            reason: 'Opções do formulário fixo de 2025',
+          });
+        }
+        if (this.mode === 'SYNTHETIC')
+          for (const code of codes) {
+            const before = config.decisions.find(
+              (decision) => decision.code === code,
+            );
+            const after: FeatureDecision = {
+              id: before?.id ?? this.newId(),
+              code,
+              enabled: true,
+              revision: (before?.revision ?? 0) + 1,
+              decidedAt: this.now(),
+              decidedBy: actor.user.id,
+              decisionReference: 'SYNTHETIC-FAMILY-REGISTRATION-2025',
+            };
+            await tx.saveDecision(after);
+            await tx.audit({
+              operationId,
+              actorId: actor.user.id,
+              entityType: 'FeatureDecision',
+              before: before ?? null,
+              after,
+              action: before ? 'UPDATE' : 'CREATE',
+              reason: 'Formulário fixo para dados sintéticos',
+            });
+          }
+        return selection;
+      },
+    );
+  }
   private enabled(configuration: SocialConfiguration): FeatureDecisionCode[] {
     if (
       this.mode === 'REAL' &&
@@ -601,6 +751,21 @@ export class SocialFormsService {
         (decision) => decision.enabled && !!decision.decisionReference.trim(),
       )
       .map((decision) => decision.code);
+  }
+  private availableOptions(
+    config: SocialConfiguration,
+    fields: FieldDefinition[],
+  ) {
+    return config.options.filter(
+      (option) =>
+        fields.some((field) => field.fieldKey === option.fieldKey) &&
+        (config.selection?.decisionReference !== familyFormTemplateCode ||
+          initialSocialOptions.some(
+            (candidate) =>
+              candidate.fieldKey === option.fieldKey &&
+              candidate.code === option.code,
+          )),
+    );
   }
   configuration(actor: Principal) {
     assertPermission(
@@ -626,9 +791,7 @@ export class SocialFormsService {
         ) ?? [];
       return {
         selection: config.selection ? { ...config.selection, fields } : null,
-        options: config.options.filter((option) =>
-          fields.some((field) => field.fieldKey === option.fieldKey),
-        ),
+        options: this.availableOptions(config, fields),
         decisions: capabilitiesFor(actor.user.roleCodes).includes(
           'featureDecisions.manage',
         )
@@ -722,6 +885,8 @@ export class SocialFormsService {
         if (!catalogFields.has(input.fieldKey))
           throw new SocialFormRuleError('INVALID_OPTION');
         const config = await tx.configuration();
+        if (config.selection?.decisionReference === familyFormTemplateCode)
+          throw new SocialFormRuleError('INVALID_OPTION');
         if (
           config.options.some(
             (option) =>
@@ -770,10 +935,11 @@ export class SocialFormsService {
       { id, ...input },
       'featureDecisions.manage',
       async (tx, actor, operationId) => {
+        const config = await tx.configuration();
+        if (config.selection?.decisionReference === familyFormTemplateCode)
+          throw new SocialFormRuleError('INVALID_OPTION');
         const before = this.require(
-          (await tx.configuration()).options.find(
-            (option) => option.id === id,
-          ) ?? null,
+          config.options.find((option) => option.id === id) ?? null,
         );
         if (before.revision !== input.expectedRevision)
           throw new SocialFormRevisionConflictError(before.revision);

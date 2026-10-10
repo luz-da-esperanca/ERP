@@ -3,12 +3,20 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
+import { BadgeCheck, ClipboardList, History } from 'lucide-react';
 import { capabilitySchema } from '@erp/contracts/access';
 import tailwindcss from '@tailwindcss/vite';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Field, Page, Panel, SelectField, Submit } from '../../src/shared/ui';
+import {
+  ActionLink,
+  Field,
+  Page,
+  Panel,
+  SelectField,
+  Submit,
+} from '../../src/shared/ui';
 import { AppShell } from '../../src/app/app-layout';
 import { HttpProjects, ProjectForm } from '../../src/projects';
 import { ConnectedApp } from '../../src/app/connected-app';
@@ -45,6 +53,19 @@ describe.skipIf(!browserBinary)('Rendered shared control layout', () => {
   beforeAll(async () => {
     const content = renderToStaticMarkup(
       <main className="page-wrap">
+        <MemoryRouter>
+          <nav className="action-links" aria-label="Consultas da família">
+            <ActionLink icon={History} to="/families/family/history">
+              Histórico consolidado
+            </ActionLink>
+            <ActionLink icon={ClipboardList} to="/families/family/social-forms">
+              Ficha social
+            </ActionLink>
+            <ActionLink icon={BadgeCheck} to="/families/family/eligibility">
+              Aptidão familiar
+            </ActionLink>
+          </nav>
+        </MemoryRouter>
         <section className="panel">
           <form className="form-stack">
             <div className="form-grid">
@@ -233,6 +254,57 @@ describe.skipIf(!browserBinary)('Rendered shared control layout', () => {
     for (const button of buttons) {
       expect(button.width).toBeLessThan(240);
       expect(button.height).toBe(40);
+    }
+  });
+
+  it('keeps family actions visible, focusable and within the viewport on desktop and mobile', async () => {
+    await browser('open', baseUrl);
+    try {
+      for (const width of [1440, 390]) {
+        await browser('set', 'viewport', String(width), '1000');
+        const actions = await evaluate<
+          {
+            left: number;
+            right: number;
+            top: number;
+            bottom: number;
+            height: number;
+            iconWidth: number;
+            borderWidth: number;
+          }[]
+        >(`
+          [...document.querySelectorAll('.action-links a')].map(link => {
+            const bounds = link.getBoundingClientRect();
+            return {
+              left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom,
+              height: bounds.height,
+              iconWidth: link.querySelector('svg').getBoundingClientRect().width,
+              borderWidth: parseFloat(getComputedStyle(link).borderTopWidth)
+            };
+          })
+        `);
+        expect(actions).toHaveLength(3);
+        for (const action of actions) {
+          expect(action.left).toBeGreaterThanOrEqual(0);
+          expect(action.right).toBeLessThanOrEqual(width);
+          expect(action.height).toBeGreaterThanOrEqual(width === 390 ? 44 : 40);
+          expect(action.iconWidth).toBe(18);
+          expect(action.borderWidth).toBe(1);
+        }
+        if (width === 390) {
+          expect(actions[1]!.top).toBeGreaterThanOrEqual(actions[0]!.bottom);
+          expect(actions[2]!.top).toBeGreaterThanOrEqual(actions[1]!.bottom);
+        }
+      }
+      await browser('press', 'Tab');
+      const focus = await evaluate<{ isAction: boolean; outline: number }>(`
+        ({ isAction: document.activeElement.matches('.action-links a'),
+           outline: parseFloat(getComputedStyle(document.activeElement).outlineWidth) })
+      `);
+      expect(focus.isAction).toBe(true);
+      expect(focus.outline).toBe(2);
+    } finally {
+      await browser('set', 'viewport', '1440', '1000');
     }
   });
 

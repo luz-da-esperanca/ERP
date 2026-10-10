@@ -27,6 +27,50 @@ const input = {
 };
 
 describe('Social form publication contract', () => {
+  it('accepts explicit applicability, dated paper observations and signature declarations', () => {
+    const publication = {
+      ...input,
+      blocks: {
+        needs: { hasNeeds: false, declaredNeeds: [] },
+        situation: {
+          text: 'Synthetic situation',
+          hasObservations: true,
+          observations: [
+            {
+              occurredOn: '2026-10-01',
+              description: 'Synthetic paper annotation',
+            },
+          ],
+          beneficiarySigned: false,
+          registrationResponsibleName: 'Synthetic operator',
+          registrationResponsibleSigned: false,
+        },
+      },
+      members: [
+        {
+          personId: id,
+          health: {
+            hasPhysicalHealthProblems: false,
+            hasHealthUnit: false,
+            hasCommunityHealthAgent: false,
+          },
+        },
+      ],
+    };
+    expect(publishSocialFormSchema.safeParse(publication).success).toBe(true);
+    expect(
+      publishSocialFormSchema.safeParse({
+        ...publication,
+        blocks: {
+          situation: {
+            observations: [
+              { occurredOn: '2026-02-30', description: 'Invalid date' },
+            ],
+          },
+        },
+      }).success,
+    ).toBe(false);
+  });
   it('normalizes optional blank text to unknown without changing declared false or zero', () => {
     expect(
       publishSocialFormSchema.parse({
@@ -145,7 +189,7 @@ describe('Social form publication contract', () => {
       }).success,
     ).toBe(false);
   });
-  it('does not expose ciphertext envelopes or unselected identity documents in member DTOs', () => {
+  it('preserves legacy snapshots, accepts fixed-form identification and never exposes ciphertext', () => {
     const member = {
       id,
       socialFormId: id,
@@ -176,6 +220,19 @@ describe('Social form publication contract', () => {
         protectedBlocks: { health: { ciphertext: 'private' } },
       }).success,
     ).toBe(false);
+    expect(
+      socialFormMemberDtoSchema.safeParse({
+        ...member,
+        personSnapshot: {
+          ...member.personSnapshot,
+          cpf: '12345678909',
+          rg: 'Synthetic RG',
+          occupation: 'Synthetic occupation',
+          educationLevel: 'Synthetic level',
+          contactPhone: '8632221234',
+        },
+      }).success,
+    ).toBe(true);
     expect(
       socialFormMemberDtoSchema.safeParse({
         ...member,

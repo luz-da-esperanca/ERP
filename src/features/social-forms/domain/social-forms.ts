@@ -118,7 +118,13 @@ export interface FormMember {
   personSnapshot: Pick<
     RegisteredPerson,
     'id' | 'name' | 'birthDate' | 'sex' | 'revision'
-  >;
+  > &
+    Partial<
+      Pick<
+        RegisteredPerson,
+        'cpf' | 'rg' | 'occupation' | 'educationLevel' | 'contactPhone'
+      >
+    >;
   relationshipSnapshot: {
     isReference: boolean;
     relationshipToReference: string | null;

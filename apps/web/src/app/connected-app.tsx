@@ -7,7 +7,6 @@ import { SessionCorrectionPage } from '../features/attendance/presentation/sessi
 import { ReportsPage } from '../features/reports/presentation/reports-page';
 import { HistoryPage } from '../features/reports/presentation/history-page';
 import { AuditPage } from '../features/audit/presentation/audit-page';
-import { SocialConfigurationPage } from '../features/social-forms/presentation/configuration-page';
 import { SizesPage } from '../features/registration/presentation/sizes-page';
 import { MembershipsPage } from '../features/registration/presentation/memberships-page';
 import { CoveragePage } from '../features/attendance/presentation/coverage-page';
@@ -317,14 +316,6 @@ function ConnectedRoutes({
                   capabilities={state.session.capabilities}
                 />
               }
-            />
-          </Route>
-          <Route
-            element={<RequireCapability capability="featureDecisions.manage" />}
-          >
-            <Route
-              path="social-form-configuration"
-              element={<SocialConfigurationPage gateway={client.socialForms} />}
             />
           </Route>
           <Route element={<RequireCapability capability="attendance.read" />}>

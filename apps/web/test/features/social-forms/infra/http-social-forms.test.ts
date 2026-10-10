@@ -206,6 +206,30 @@ describe('HTTP social forms', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('prepares the fixed form with an empty request body and its operation key, then notifies one change', async () => {
+    const template = {
+      ...selection,
+      decisionReference: 'FAMILY_REGISTRATION_2025',
+      fields: [{ ...field, required: true }],
+    };
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ data: template }, { status: 201 }));
+    const onChange = vi.fn();
+    const client = new HttpSocialForms(new ApiClient(fetcher), onChange);
+
+    expect(await client.prepareTemplate(key)).toEqual(template);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.lastCall?.[0]).toBe('/api/v1/social-form-template');
+    expect(fetcher.mock.lastCall?.[1]).toMatchObject({
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-ERP-Request': '1', 'Idempotency-Key': key },
+      body: '{}',
+    });
+    expect(onChange).toHaveBeenCalledOnce();
+  });
+
   it('publishes the complete explicit selection and records a known paper acknowledgement without creating another form', async () => {
     const selectionInput = {
       expectedRevision: 1,

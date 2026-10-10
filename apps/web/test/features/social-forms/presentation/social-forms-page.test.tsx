@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -29,6 +35,7 @@ it('publishes only selected fields with unknown values and the captured composit
   };
   const publish = vi.fn().mockResolvedValue({ id: 'saved' });
   const gateway = {
+    prepareTemplate: vi.fn().mockResolvedValue({}),
     list: vi.fn().mockResolvedValue({
       data: [],
       pagination: { page: 1, pageSize: 20, total: 0 },
@@ -52,7 +59,18 @@ it('publishes only selected fields with unknown values and the captured composit
     screen.getByRole('button', { name: 'Consultar composição' }),
   );
   await screen.findByLabelText('Quantidade de cômodos');
+  expect(gateway.prepareTemplate).toHaveBeenCalledOnce();
   expect(screen.queryByText('Saúde física')).toBeNull();
+  await user.type(screen.getByLabelText('Quantidade de cômodos'), '3');
+  await user.click(screen.getByRole('button', { name: 'Atualizar fichas' }));
+  expect(
+    (screen.getByLabelText('Quantidade de cômodos') as HTMLInputElement).value,
+  ).toBe('3');
+  await user.click(
+    screen.getByRole('button', { name: 'Consultar composição' }),
+  );
+  await waitFor(() => expect(gateway.context).toHaveBeenCalledTimes(2));
+  await screen.findByLabelText('Quantidade de cômodos');
   await user.click(screen.getByRole('button', { name: 'Publicar ficha' }));
   await waitFor(() => expect(publish).toHaveBeenCalledOnce());
   expect(publish.mock.calls[0]?.[1]).toMatchObject({
@@ -62,6 +80,72 @@ it('publishes only selected fields with unknown values and the captured composit
     blocks: { housing: { roomCount: null } },
     members: [],
   });
+});
+
+it('opens a published version from a readable list and marks the selected version', async () => {
+  const form = {
+    id: 'form',
+    version: 2,
+    occurredAt: '2026-10-01T12:00:00Z',
+    recordedAt: '2026-10-02T12:00:00Z',
+    familySnapshot: { referenceName: 'Família sintética', code: '1' },
+    blocks: {
+      housing: { roomCount: 3 },
+      situation: {
+        observations: [
+          { occurredOn: '2026-10-01', description: 'Observação sintética' },
+        ],
+      },
+    },
+    members: [
+      {
+        id: 'member',
+        personSnapshot: { name: 'Membro sintético', birthDate: '2000-01-02' },
+        relationshipSnapshot: { isReference: true },
+        sizeSnapshot: null,
+        blocks: { economy: { incomeAmount: '1234.50' } },
+      },
+    ],
+    acknowledgement: { acknowledgedOn: '2026-10-02' },
+  };
+  const get = vi.fn().mockResolvedValue(form);
+  const gateway = {
+    list: vi.fn().mockResolvedValue({
+      data: [form],
+      pagination: { page: 1, pageSize: 20, total: 1 },
+    }),
+    get,
+  } as unknown as HttpSocialForms;
+  render(
+    <MemoryRouter initialEntries={['/families/family/social-forms']}>
+      <Routes>
+        <Route
+          path="/families/:id/social-forms"
+          element={<FamilySocialFormsPage gateway={gateway} canWrite={false} />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+  const versions = await screen.findByRole('list', {
+    name: 'Versões publicadas',
+  });
+  const row = within(versions).getByRole('button', { name: /Versão 2/ });
+  expect(row.getAttribute('aria-pressed')).toBe('false');
+  await userEvent.setup().click(row);
+  expect(
+    await screen.findByRole('heading', { name: 'Ficha social — versão 2' }),
+  ).toBeTruthy();
+  expect(get).toHaveBeenCalledWith('form');
+  expect(row.getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByText('01/10/2026: Observação sintética')).toBeTruthy();
+  expect(screen.getByText('Ciência em papel: 02/10/2026')).toBeTruthy();
+  const member = screen
+    .getByText('Membro sintético · Titular')
+    .closest('details')!;
+  expect(member.open).toBe(false);
+  await userEvent.setup().click(screen.getByText('Membro sintético · Titular'));
+  expect(screen.getByText(/Nascimento: 02\/01\/2000/)).toBeTruthy();
+  expect(screen.getByText('R$ 1.234,50')).toBeTruthy();
 });
 it('loads the full management selection and never enables decisions by opening configuration', async () => {
   const { SocialConfigurationPage } =
@@ -112,12 +196,11 @@ it('sends individual blocks at the public member boundary and preserves explicit
   };
   const publish = vi.fn().mockResolvedValue({ id: 'saved' });
   const gateway = {
-    list: vi
-      .fn()
-      .mockResolvedValue({
-        data: [],
-        pagination: { page: 1, pageSize: 20, total: 0 },
-      }),
+    list: vi.fn().mockResolvedValue({
+      data: [],
+      pagination: { page: 1, pageSize: 20, total: 0 },
+    }),
+    prepareTemplate: vi.fn().mockResolvedValue({}),
     context: vi.fn().mockResolvedValue(context),
     publish,
   } as unknown as HttpSocialForms;

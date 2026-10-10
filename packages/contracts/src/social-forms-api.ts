@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nullableCpfSchema } from './cpf-schema';
 import {
   idSchema,
   instantSchema,
@@ -67,11 +68,33 @@ export const socialBlocksSchema = z
       .strict()
       .optional(),
     needs: z
-      .object({ declaredNeeds: choices, otherNeed: text(1000) })
+      .object({
+        hasNeeds: boolean,
+        declaredNeeds: choices,
+        otherNeed: text(1000),
+      })
       .strict()
       .optional(),
     situation: z
-      .object({ text: text(4000) })
+      .object({
+        text: text(4000),
+        hasObservations: boolean,
+        observations: z
+          .array(
+            z
+              .object({
+                occurredOn: civilDateSchema,
+                description: z.string().trim().min(1).max(2000),
+              })
+              .strict(),
+          )
+          .max(100)
+          .nullable()
+          .optional(),
+        beneficiarySigned: boolean,
+        registrationResponsibleName: text(200),
+        registrationResponsibleSigned: boolean,
+      })
       .strict()
       .optional(),
   })
@@ -110,9 +133,12 @@ export const socialMemberBlocksSchema = z
           .nullable()
           .optional(),
         physicalHealthProblems: text(1000),
+        hasPhysicalHealthProblems: boolean,
         generalCondition: text(1000),
         healthUnit: text(200),
+        hasHealthUnit: boolean,
         communityHealthAgent: text(200),
+        hasCommunityHealthAgent: boolean,
       })
       .strict()
       .optional(),
@@ -301,6 +327,11 @@ export const socialPersonSnapshotSchema = z
     name: z.string(),
     birthDate: civilDateSchema.nullable(),
     sex: z.string().nullable(),
+    cpf: nullableCpfSchema.optional(),
+    rg: z.string().nullable().optional(),
+    occupation: z.string().nullable().optional(),
+    educationLevel: z.string().nullable().optional(),
+    contactPhone: z.string().nullable().optional(),
     revision: revisionSchema,
   })
   .strict();

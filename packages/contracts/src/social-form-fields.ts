@@ -21,8 +21,14 @@ export const socialFieldKeys = [
   'economy.receivesGovernmentBenefit',
   'economy.governmentBenefitName',
   'needs.declaredNeeds',
+  'needs.hasNeeds',
   'needs.otherNeed',
   'situation.text',
+  'situation.hasObservations',
+  'situation.observations',
+  'situation.beneficiarySigned',
+  'situation.registrationResponsibleName',
+  'situation.registrationResponsibleSigned',
   'members[].economy.worksCurrently',
   'members[].economy.occupationOrIncomeSource',
   'members[].economy.incomeAmount',
@@ -33,9 +39,12 @@ export const socialFieldKeys = [
   'members[].health.otherSpiritualHealth',
   'members[].health.physicalHealth',
   'members[].health.physicalHealthProblems',
+  'members[].health.hasPhysicalHealthProblems',
   'members[].health.generalCondition',
   'members[].health.healthUnit',
+  'members[].health.hasHealthUnit',
   'members[].health.communityHealthAgent',
+  'members[].health.hasCommunityHealthAgent',
   'members[].medications',
   'members[].religion.participatesInEvangelization',
 ] as const;
@@ -75,6 +84,7 @@ export type SocialValue =
   | boolean
   | null
   | SocialChoice[]
+  | { occurredOn: string; description: string }[]
   | { medicationName: string; providedByGovernment?: boolean | null }[];
 export type SocialValues = Record<string, SocialValue>;
 export type SocialFormBlocks = Partial<

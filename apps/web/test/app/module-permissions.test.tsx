@@ -23,24 +23,21 @@ it.each([
   '/families/id/eligibility',
   '/eligibility-policies',
   '/reports',
-  '/social-form-configuration',
   '/registration-configuration',
   '/people/id/memberships',
   '/people/id/sizes',
   '/people/id/reconciliation',
   '/activities/id/attendance/session/correction',
 ])('blocks %s before querying its protected data', async (path) => {
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockImplementation(async () =>
-      Response.json({
-        data: {
-          user,
-          roles: ['ADMINISTRATOR'],
-          capabilities: ['accounts.manage'],
-        },
-      }),
-    );
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
+    Response.json({
+      data: {
+        user,
+        roles: ['ADMINISTRATOR'],
+        capabilities: ['accounts.manage'],
+      },
+    }),
+  );
   const api = new ApiClient(fetcher);
   render(
     <MemoryRouter initialEntries={[path]}>
@@ -53,5 +50,36 @@ it.each([
   expect(
     await screen.findByText('Seu perfil não permite acessar esta área.'),
   ).toBeTruthy();
+  expect(fetcher).toHaveBeenCalledOnce();
+});
+
+it('keeps registration configuration available to coordination without a social form configuration link', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
+    Response.json({
+      data: {
+        user: { ...user, roleCodes: ['COORDINATION'] },
+        roles: ['COORDINATION'],
+        capabilities: ['featureDecisions.manage'],
+      },
+    }),
+  );
+  const api = new ApiClient(fetcher);
+  render(
+    <MemoryRouter>
+      <ConnectedApp
+        client={new HttpErpClient(api)}
+        authentication={new HttpAuthentication(api)}
+      />
+    </MemoryRouter>,
+  );
+
+  expect(
+    (
+      await screen.findByRole('link', { name: 'Campos cadastrais' })
+    ).getAttribute('href'),
+  ).toBe('/registration-configuration');
+  expect(
+    screen.queryByRole('link', { name: 'Configuração da ficha' }),
+  ).toBeNull();
   expect(fetcher).toHaveBeenCalledOnce();
 });

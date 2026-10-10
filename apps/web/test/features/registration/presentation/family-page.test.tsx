@@ -39,7 +39,7 @@ function renderFamilyMembersPage(client = createDemoClient()) {
   });
 }
 
-function renderFamilyPage(client = createDemoClient()) {
+function renderFamilyPage(client = createDemoClient(), connected = false) {
   const socialAccount = client.access
     .demoAccounts()
     .find((account) => account.roles.includes('SOCIAL_ASSISTANCE'));
@@ -56,7 +56,10 @@ function renderFamilyPage(client = createDemoClient()) {
       <ErpProvider client={client}>
         <MemoryRouter initialEntries={[`/families/${family.id}`]}>
           <Routes>
-            <Route path="families/:id" element={<FamilyPage />} />
+            <Route
+              path="families/:id"
+              element={<FamilyPage connected={connected} />}
+            />
           </Routes>
         </MemoryRouter>
       </ErpProvider>,
@@ -67,6 +70,26 @@ function renderFamilyPage(client = createDemoClient()) {
 }
 
 describe('FamilyPage', () => {
+  it('presents authorized family consultations as distinct actions with icons and correct destinations', async () => {
+    const family = await renderFamilyPage(createDemoClient(), true);
+    const actions = await screen.findByRole('navigation', {
+      name: 'Consultas da família',
+    });
+    for (const [name, destination] of [
+      ['Histórico consolidado', 'history'],
+      ['Ficha social', 'social-forms'],
+      ['Aptidão familiar', 'eligibility'],
+    ]) {
+      const link = within(actions).getByRole('link', { name });
+      expect(link.getAttribute('href')).toBe(
+        `/families/${family.id}/${destination}`,
+      );
+      expect(link.classList.contains('button')).toBe(true);
+      expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe(
+        'true',
+      );
+    }
+  });
   it('keeps family destinations in the persistent navigation without duplicate or unavailable links', async () => {
     await renderFamilyPage();
 

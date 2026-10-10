@@ -10,7 +10,10 @@ import { PersonPage } from '../../../../src/registration';
 
 afterEach(cleanup);
 
-async function renderPersonPage(detail?: Promise<PersonDetail>) {
+async function renderPersonPage(
+  detail?: Promise<PersonDetail>,
+  connected = false,
+) {
   const client = createDemoClient();
   const account = client.access
     .demoAccounts()
@@ -30,7 +33,10 @@ async function renderPersonPage(detail?: Promise<PersonDetail>) {
     <ErpProvider client={client}>
       <MemoryRouter initialEntries={[`/people/${person.id}`]}>
         <Routes>
-          <Route path="people/:id" element={<PersonPage />} />
+          <Route
+            path="people/:id"
+            element={<PersonPage connected={connected} allowEdit={connected} />}
+          />
         </Routes>
       </MemoryRouter>
     </ErpProvider>,
@@ -40,6 +46,24 @@ async function renderPersonPage(detail?: Promise<PersonDetail>) {
 }
 
 describe('PersonPage', () => {
+  it('presents individual actions as labeled links with icons and keeps their destinations', async () => {
+    const { person } = await renderPersonPage(undefined, true);
+    const actions = await screen.findByRole('navigation', {
+      name: 'Ações individuais',
+    });
+    for (const [name, path] of [
+      ['Editar tamanhos', 'sizes'],
+      ['Gerenciar vínculos', 'memberships'],
+      ['Histórico individual', 'history'],
+    ]) {
+      const link = within(actions).getByRole('link', { name });
+      expect(link.getAttribute('href')).toBe(`/people/${person.id}/${path}`);
+      expect(link.classList.contains('button')).toBe(true);
+      expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe(
+        'true',
+      );
+    }
+  });
   it('summarizes known identification data in the profile header and labels current values', async () => {
     const detail: PersonDetail = {
       person: {

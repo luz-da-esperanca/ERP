@@ -96,6 +96,16 @@ export class HttpSocialForms {
     return data;
   }
 
+  async prepareTemplate(key: string) {
+    const { data } = await this.api.request(
+      '/social-form-template',
+      z.object({ data: fieldSelectionDtoSchema }),
+      { method: 'POST', body: {}, idempotencyKey: key },
+    );
+    this.onChange();
+    return data;
+  }
+
   async selectFields(
     input: z.input<typeof fieldSelectionInputSchema>,
     key: string,

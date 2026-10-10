@@ -17,6 +17,47 @@ import {
   SocialFormRuleError,
   SocialFormConflictError,
 } from './social-form-errors.js';
+import { familyFormTemplateCode } from './family-form-template.js';
+import { initialSocialOptions } from './initial-social-options.js';
+
+function isApplicable(
+  path: string,
+  blocks: SocialFormBlocks | SocialMemberBlocks,
+) {
+  const values = (block: string, key: string) => {
+    const group = Object.entries(blocks).find(([name]) => name === block)?.[1];
+    return group && !Array.isArray(group) ? group[key] : undefined;
+  };
+  switch (path) {
+    case 'economy.governmentBenefitName':
+      return values('economy', 'receivesGovernmentBenefit') === true;
+    case 'needs.declaredNeeds':
+      return values('needs', 'hasNeeds') === true;
+    case 'needs.otherNeed': {
+      const choices = values('needs', 'declaredNeeds');
+      return (
+        values('needs', 'hasNeeds') === true &&
+        Array.isArray(choices) &&
+        choices.some((choice) => 'code' in choice && choice.code === 'OTHER')
+      );
+    }
+    case 'health.otherSpiritualHealth':
+      return values('health', 'spiritualHealth') === 'OTHER';
+    case 'health.physicalHealthProblems':
+      return values('health', 'hasPhysicalHealthProblems') === true;
+    case 'health.healthUnit':
+      return values('health', 'hasHealthUnit') === true;
+    case 'health.communityHealthAgent':
+      return values('health', 'hasCommunityHealthAgent') === true;
+    case 'education.schoolLevelOrGrade':
+    case 'education.studyMode':
+      return values('education', 'attendsSchool') === true;
+    case 'situation.observations':
+      return values('situation', 'hasObservations') === true;
+    default:
+      return true;
+  }
+}
 
 export function resolveSizeProfileId(
   canonicalPersonId: string,
@@ -68,7 +109,8 @@ export function validateFieldSelection(fields: readonly FieldDefinition[]) {
         field.appliesTo !== 'REFERENCE_MEMBER') ||
       (field.cardinality === 'MULTIPLE' &&
         !catalogFields.has(field.fieldKey) &&
-        block !== 'medications')
+        block !== 'medications' &&
+        field.fieldKey !== 'situation.observations')
     )
       throw new SocialFormRuleError('INVALID_FIELD_SELECTION');
     keys.add(field.fieldKey);
@@ -154,7 +196,24 @@ function normalize(
       continue;
     const path = field.fieldKey.replace('members[].', '');
     let value = supplied(blocks).find(([key]) => key === path)?.[1] ?? null;
-    if (field.required && (value === null || value === ''))
+    const fixed = field.decisionReference === familyFormTemplateCode;
+    const applicable = !fixed || isApplicable(path, blocks);
+    if (
+      !applicable &&
+      value !== null &&
+      value !== '' &&
+      !(Array.isArray(value) && value.length === 0)
+    )
+      throw new SocialFormRuleError('FIELD_NOT_ALLOWED');
+    if (field.required && applicable && (value === null || value === ''))
+      throw new SocialFormRuleError('REQUIRED_FIELD_MISSING');
+    if (
+      fixed &&
+      applicable &&
+      catalogFields.has(field.fieldKey) &&
+      Array.isArray(value) &&
+      !value.length
+    )
       throw new SocialFormRuleError('REQUIRED_FIELD_MISSING');
     if (Array.isArray(value)) {
       if (field.cardinality === 'SINGLE' && value.length > 1)
@@ -171,8 +230,24 @@ function normalize(
               option.code === item.code &&
               option.active,
           );
-          if (!option || (!option.isOther && item.otherText))
+          if (
+            !option ||
+            (!option.isOther && item.otherText) ||
+            (fixed &&
+              !initialSocialOptions.some(
+                (candidate) =>
+                  candidate.fieldKey === field.fieldKey &&
+                  candidate.code === item.code,
+              ))
+          )
             throw new SocialFormRuleError('INVALID_OPTION');
+          if (
+            fixed &&
+            option.isOther &&
+            field.fieldKey !== 'needs.declaredNeeds' &&
+            !item.otherText?.trim()
+          )
+            throw new SocialFormRuleError('REQUIRED_FIELD_MISSING');
           return {
             code: option.code,
             label: option.label,
@@ -181,6 +256,25 @@ function normalize(
         });
       }
     }
+    if (
+      fixed &&
+      path === 'medications' &&
+      Array.isArray(value) &&
+      value.some(
+        (item) =>
+          !('providedByGovernment' in item) ||
+          typeof item.providedByGovernment !== 'boolean',
+      )
+    )
+      throw new SocialFormRuleError('REQUIRED_FIELD_MISSING');
+    if (
+      fixed &&
+      path === 'situation.observations' &&
+      applicable &&
+      Array.isArray(value) &&
+      !value.length
+    )
+      throw new SocialFormRuleError('REQUIRED_FIELD_MISSING');
     const [block, key] = path.split('.');
     if (key) {
       const target = (result[block!] ??= {}) as SocialValues;

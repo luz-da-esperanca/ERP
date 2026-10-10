@@ -4,6 +4,9 @@ import type {
   SelectHTMLAttributes,
 } from 'react';
 import { Link } from 'react-router';
+import type { LinkProps } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { QueryState } from './use-query';
 import { errorMessage } from './use-action';
 
@@ -154,6 +157,19 @@ export function StatusBadge({
     </span>
   );
 }
+export function ActionLink({
+  icon: Icon,
+  children,
+  className = '',
+  ...props
+}: LinkProps & { icon: LucideIcon }) {
+  return (
+    <Link {...props} className={`button secondary ${className}`.trim()}>
+      <Icon size={18} aria-hidden="true" focusable="false" />
+      <span>{children}</span>
+    </Link>
+  );
+}
 export function BackLink({
   to,
   children = 'Voltar',
@@ -162,9 +178,9 @@ export function BackLink({
   children?: ReactNode;
 }) {
   return (
-    <Link className="text-link back-link" to={to}>
-      ← {children}
-    </Link>
+    <ActionLink className="back-link" to={to} icon={ArrowLeft}>
+      {children}
+    </ActionLink>
   );
 }
 export const textValue = (data: FormData, key: string) =>

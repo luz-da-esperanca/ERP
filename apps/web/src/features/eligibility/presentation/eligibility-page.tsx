@@ -1,5 +1,15 @@
 import { useCallback, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
+import {
+  BadgeCheck,
+  CircleCheck,
+  CircleHelp,
+  CircleX,
+  RefreshCw,
+  SlidersHorizontal,
+  UserRound,
+  CalendarDays,
+} from 'lucide-react';
 import type {
   EligibilityPreviewDto,
   AssessmentDto,
@@ -8,7 +18,12 @@ import type { HttpEligibility } from '../infra/http-eligibility';
 import { useApiQuery } from '../../../shared/use-query';
 import { useAction } from '../../../shared/use-action';
 import { useOperationKey } from '../../../shared/use-operation-key';
-import { civilToday, displayInstant } from '../../../shared/time';
+import {
+  civilToday,
+  displayInstant,
+  displayDate,
+  addDays,
+} from '../../../shared/time';
 import {
   Page,
   Panel,
@@ -16,6 +31,7 @@ import {
   Alert,
   AsyncView,
   BackLink,
+  ActionLink,
 } from '../../../shared/ui';
 
 export const eligibilityLabels = {
@@ -31,49 +47,86 @@ const reasonLabels = {
   COVERAGE_INCOMPLETE: 'Cobertura incompleta',
   MARKINGS_INCOMPLETE: 'Marcações incompletas',
 };
+const statusIcons = {
+  ELIGIBLE: CircleCheck,
+  INELIGIBLE: CircleX,
+  PENDING: CircleHelp,
+};
 
 export function EligibilityEvidence({
   result,
 }: {
   result: EligibilityPreviewDto;
 }) {
+  const StatusIcon = statusIcons[result.status];
   return (
-    <Panel title={`Situação: ${eligibilityLabels[result.status]}`}>
-      <p>
-        Referência: {result.referenceDate} · Consulta:{' '}
-        {displayInstant(result.evaluatedAt)}
+    <Panel title="Resultado da consulta">
+      <div className="eligibility-summary">
+        <p className="eligibility-status" data-status={result.status}>
+          <StatusIcon size={24} aria-hidden="true" />
+          <strong>{eligibilityLabels[result.status]}</strong>
+        </p>
+        <dl className="profile-details">
+          <dt>Data de referência</dt>
+          <dd>{displayDate(result.referenceDate)}</dd>
+          <dt>Consultada em</dt>
+          <dd>{displayInstant(result.evaluatedAt)}</dd>
+        </dl>
+      </div>
+      <p className="muted">
+        Aptidão não implica prioridade nem garantia de benefício.
       </p>
-      <p>Aptidão não implica prioridade nem garantia de benefício.</p>
       {result.policyId ? (
-        <Link to={`/eligibility-policies/${result.policyId}`}>
+        <ActionLink
+          icon={SlidersHorizontal}
+          to={`/eligibility-policies/${result.policyId}`}
+        >
           Consultar política utilizada
-        </Link>
+        </ActionLink>
       ) : null}
-      {result.pendingReasons.map((reason) => (
-        <p key={reason}>{reasonLabels[reason]}</p>
-      ))}
+      {!!result.pendingReasons.length && (
+        <ul className="pending-reasons">
+          {result.pendingReasons.map((reason) => (
+            <li key={reason}>{reasonLabels[reason]}</li>
+          ))}
+        </ul>
+      )}
       {result.explanation.period && (
-        <p>
-          Período: {result.explanation.period.from} até{' '}
-          {result.explanation.period.toExclusive} (fim exclusivo).
+        <p className="period-caption">
+          <CalendarDays size={18} aria-hidden="true" /> Período:{' '}
+          {displayDate(result.explanation.period.from)} a{' '}
+          {displayDate(addDays(result.explanation.period.toExclusive, -1))}.
         </p>
       )}
       {result.evidences.map((evidence, index) => (
-        <details key={`${evidence.personId}:${index}`}>
+        <details className="disclosure" key={`${evidence.personId}:${index}`}>
           <summary>
             Membro {index + 1}: {eligibilityLabels[evidence.status]}
           </summary>
-          <Link to={`/people/${evidence.personId}`}>Consultar membro</Link>
+          <ActionLink icon={UserRound} to={`/people/${evidence.personId}`}>
+            Consultar membro
+          </ActionLink>
+          <dl className="evidence-metrics">
+            {[
+              ['Presenças', evidence.presenceCount],
+              ['Ausências', evidence.absenceCount],
+              ['Sem marcação', evidence.unrecordedCount],
+              ['Encontros', evidence.sessionCount],
+            ].map(([label, count]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{count}</dd>
+              </div>
+            ))}
+          </dl>
           <p>
-            {evidence.presenceCount} presenças · {evidence.absenceCount}{' '}
-            ausências · {evidence.unrecordedCount} sem marcação ·{' '}
-            {evidence.sessionCount} encontros.
-          </p>
-          <p>
-            Período: {evidence.periodStart} até {evidence.periodEndExclusive}{' '}
-            (fim exclusivo). Cobertura{' '}
+            Período: {displayDate(evidence.periodStart)} a{' '}
+            {displayDate(addDays(evidence.periodEndExclusive, -1))}. Cobertura{' '}
             {evidence.coverageComplete ? 'completa' : 'incompleta'}.
           </p>
+          {evidence.pendingReason && (
+            <p>{reasonLabels[evidence.pendingReason]}</p>
+          )}
           <p>
             Faixa de frequência:{' '}
             {evidence.rateLowerBasisPoints === null
@@ -87,14 +140,14 @@ export function EligibilityEvidence({
           </p>
           {evidence.activityIds.map((id) => (
             <p key={id}>
-              <Link to={`/activities/${id}`}>
+              <ActionLink icon={CalendarDays} to={`/activities/${id}`}>
                 Consultar atividade utilizada
-              </Link>
+              </ActionLink>
             </p>
           ))}
-          <details>
+          <details className="disclosure">
             <summary>Revisões das fontes utilizadas</summary>
-            <pre className="overflow-auto">
+            <pre className="technical-details">
               {JSON.stringify(evidence.sourceVersions, null, 2)}
             </pre>
           </details>
@@ -131,32 +184,39 @@ export function FamilyEligibilityPage({
       <BackLink to={`/families/${id}`} />
       <Page
         title="Aptidão familiar"
-        actions={<Link to="/eligibility-policies">Políticas</Link>}
+        actions={
+          <ActionLink icon={SlidersHorizontal} to="/eligibility-policies">
+            Políticas
+          </ActionLink>
+        }
       >
         <Panel>
-          <Field
-            label="Data de referência"
-            name="referenceDate"
-            type="date"
-            required
-            max={today}
-            value={referenceDate}
-            onChange={(event) => {
-              if (event.target.value) {
-                setReferenceDate(event.target.value);
+          <div className="query-toolbar">
+            <Field
+              label="Data de referência"
+              name="referenceDate"
+              type="date"
+              required
+              max={today}
+              value={referenceDate}
+              onChange={(event) => {
+                if (event.target.value) {
+                  setReferenceDate(event.target.value);
+                  setSaved(null);
+                }
+              }}
+            />
+            <button
+              className="button secondary"
+              onClick={() => {
+                setRefresh((value) => value + 1);
                 setSaved(null);
-              }
-            }}
-          />
-          <button
-            className="button secondary"
-            onClick={() => {
-              setRefresh((value) => value + 1);
-              setSaved(null);
-            }}
-          >
-            Atualizar prévia
-          </button>
+              }}
+            >
+              <RefreshCw size={18} aria-hidden="true" />
+              Atualizar prévia
+            </button>
+          </div>
         </Panel>
         <AsyncView state={state}>
           {(result) => (
@@ -179,6 +239,7 @@ export function FamilyEligibilityPage({
                     });
                   }}
                 >
+                  <BadgeCheck size={18} aria-hidden="true" />
                   {action.pending ? 'Registrando…' : 'Registrar avaliação'}
                 </button>
               )}

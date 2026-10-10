@@ -10,6 +10,78 @@ import {
 
 describe('Social form PostgreSQL integrity', () => {
   const fixture = setupIntegrationFixture();
+  it('prepares the fixed template once under concurrency and keeps institutional release disabled', async () => {
+    const operator = await fixture.operator('synthetic.social', [
+      'SOCIAL_ASSISTANCE',
+    ]);
+    const request = () =>
+      fixture.runtime.app.inject({
+        method: 'POST',
+        url: '/api/v1/social-form-template',
+        headers: fixture.headers(operator.cookie),
+        payload: {},
+      });
+    const [first, second] = await Promise.all([request(), request()]);
+    expect(first.statusCode, first.body).toBe(201);
+    expect(second.statusCode, second.body).toBe(201);
+    expect(first.json().data.id).toBe(second.json().data.id);
+    const db = fixture.runtime.database;
+    expect(await db.fieldSelectionVersion.count()).toBe(1);
+    expect(
+      first
+        .json()
+        .data.fields.every((field: { required: boolean }) => field.required),
+    ).toBe(true);
+    expect(
+      await db.featureDecision.count({
+        where: { code: 'REAL_PERSONAL_DATA', enabled: true },
+      }),
+    ).toBe(0);
+    expect(
+      await db.auditEntry.count({
+        where: { entityType: 'FieldSelectionVersion' },
+      }),
+    ).toBe(1);
+  });
+  it('rolls back template options, decisions and operations when template audit fails', async () => {
+    const operator = await fixture.operator('synthetic.coordinator', [
+      'COORDINATION',
+    ]);
+    const db = fixture.runtime.database;
+    const optionsBefore = await db.socialFormOption.findMany({
+      orderBy: { id: 'asc' },
+    });
+    const operationCount = await db.operationRecord.count();
+    const request = {
+      method: 'POST' as const,
+      url: '/api/v1/social-form-template',
+      headers: fixture.headers(operator.cookie),
+      payload: {},
+    };
+    await db.$executeRawUnsafe(
+      `CREATE FUNCTION fail_template_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."entityType" = 'FeatureDecision' THEN RAISE EXCEPTION 'Synthetic template audit failure'; END IF; RETURN NEW; END $$`,
+    );
+    await db.$executeRawUnsafe(
+      'CREATE TRIGGER fail_template_audit BEFORE INSERT ON "AuditEntry" FOR EACH ROW EXECUTE FUNCTION fail_template_audit()',
+    );
+    try {
+      const failed = await fixture.runtime.app.inject(request);
+      expect(failed.statusCode, failed.body).toBe(500);
+      expect(await db.fieldSelectionVersion.count()).toBe(0);
+      expect(await db.featureDecision.count()).toBe(0);
+      expect(
+        await db.socialFormOption.findMany({ orderBy: { id: 'asc' } }),
+      ).toEqual(optionsBefore);
+      expect(await db.operationRecord.count()).toBe(operationCount);
+    } finally {
+      await db.$executeRawUnsafe(
+        'DROP TRIGGER fail_template_audit ON "AuditEntry"',
+      );
+      await db.$executeRawUnsafe('DROP FUNCTION fail_template_audit()');
+    }
+    const retried = await fixture.runtime.app.inject(request);
+    expect(retried.statusCode, retried.body).toBe(201);
+  });
   it('publishes once for the same base and preserves immutable rows', async () => {
     const operator = await fixture.operator('synthetic.coordinator', [
       'COORDINATION',

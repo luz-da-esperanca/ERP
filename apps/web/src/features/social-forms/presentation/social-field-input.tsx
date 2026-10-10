@@ -5,6 +5,7 @@ import type {
 } from '@erp/contracts/social-forms-api';
 import type { SocialFieldKey } from '@erp/contracts/social-form-fields';
 import { MaskedField } from '../../../shared/masked-field';
+import { YesNoField } from '../../../shared/yes-no-field';
 import {
   Field,
   SelectField,
@@ -36,8 +37,15 @@ export const socialFieldLabels: Record<SocialFieldKey, string> = {
   'economy.receivesGovernmentBenefit': 'Recebe benefício do governo',
   'economy.governmentBenefitName': 'Nome do benefício do governo',
   'needs.declaredNeeds': 'Necessidades declaradas',
+  'needs.hasNeeds': 'Há necessidades de acompanhamento?',
   'needs.otherNeed': 'Outra necessidade',
   'situation.text': 'Situação familiar',
+  'situation.hasObservations': 'Há observações para registrar?',
+  'situation.observations': 'Doação / Ação / Visita Domiciliar',
+  'situation.beneficiarySigned': 'Beneficiário assinou a ficha em papel?',
+  'situation.registrationResponsibleName': 'Responsável pelo cadastro',
+  'situation.registrationResponsibleSigned':
+    'Responsável pelo cadastro assinou a ficha em papel?',
   'members[].economy.worksCurrently': 'Trabalha atualmente',
   'members[].economy.occupationOrIncomeSource': 'Ocupação ou origem da renda',
   'members[].economy.incomeAmount': 'Renda declarada (R$)',
@@ -48,14 +56,26 @@ export const socialFieldLabels: Record<SocialFieldKey, string> = {
   'members[].health.otherSpiritualHealth': 'Outra condição espiritual',
   'members[].health.physicalHealth': 'Saúde física',
   'members[].health.physicalHealthProblems': 'Problemas de saúde física',
+  'members[].health.hasPhysicalHealthProblems':
+    'Há problemas de saúde física a informar?',
   'members[].health.generalCondition': 'Estado geral',
   'members[].health.healthUnit': 'Unidade de saúde',
+  'members[].health.hasHealthUnit': 'Possui posto de saúde de referência?',
   'members[].health.communityHealthAgent': 'Agente comunitário de saúde',
+  'members[].health.hasCommunityHealthAgent':
+    'Possui agente comunitário de saúde (ACS)?',
   'members[].medications': 'Medicamentos utilizados',
   'members[].religion.participatesInEvangelization':
     'Participa da evangelização',
 };
 const booleanKeys: SocialFieldKey[] = [
+  'needs.hasNeeds',
+  'situation.hasObservations',
+  'situation.beneficiarySigned',
+  'situation.registrationResponsibleSigned',
+  'members[].health.hasPhysicalHealthProblems',
+  'members[].health.hasHealthUnit',
+  'members[].health.hasCommunityHealthAgent',
   'housing.riskArea',
   'economy.receivesGovernmentBenefit',
   'members[].economy.worksCurrently',
@@ -93,16 +113,30 @@ export function SocialFieldInput({
   field,
   options,
   prefix,
+  label: labelOverride,
 }: {
   field: Definition;
   options: SocialFormContextDto['options'];
   prefix: string;
+  label?: string;
 }) {
   const key = field.fieldKey;
   const name = `${prefix}${key}`;
+  const label = labelOverride ?? socialFieldLabels[key];
   const [known, setKnown] = useState(false);
   if (key === 'members[].medications')
     return <MedicationInput field={field} name={name} />;
+  if (catalogKeys.includes(key) && field.required)
+    return (
+      <RequiredCatalogInput
+        field={field}
+        options={options}
+        name={name}
+        label={label}
+      />
+    );
+  if (booleanKeys.includes(key) && field.required)
+    return <YesNoField label={label} name={name} />;
   if (catalogKeys.includes(key))
     return (
       <div>
@@ -143,7 +177,7 @@ export function SocialFieldInput({
   if (booleanKeys.includes(key) || enumChoices[key])
     return (
       <SelectField
-        label={socialFieldLabels[key]}
+        label={label}
         name={name}
         required={field.required}
         defaultValue=""
@@ -168,20 +202,35 @@ export function SocialFieldInput({
     return (
       <MaskedField
         mask="currency"
-        label={socialFieldLabels[key]}
+        label={label}
         name={name}
         required={field.required}
       />
     );
+  if (key === 'situation.text' || key === 'members[].health.generalCondition')
+    return (
+      <label className="field">
+        <span>
+          {label}
+          {field.required && <span aria-hidden="true"> *</span>}
+        </span>
+        <textarea
+          name={name}
+          required={field.required}
+          rows={4}
+          maxLength={key === 'situation.text' ? 4000 : 1000}
+        />
+      </label>
+    );
   return (
     <Field
-      label={socialFieldLabels[key]}
+      label={label}
       name={name}
       required={field.required}
       type={count ? 'number' : 'text'}
       min={count ? 0 : undefined}
       step={count ? 1 : undefined}
-      maxLength={key === 'situation.text' ? 4000 : 1000}
+      maxLength={1000}
     />
   );
 }
@@ -203,7 +252,7 @@ export function collectSocialFields(
     else if (key.endsWith('Count')) value = text === '' ? null : Number(text);
     else if (catalogKeys.includes(key))
       value =
-        data.get(`${name}:known`) === 'on'
+        field.required || data.get(`${name}:known`) === 'on'
           ? data
               .getAll(name)
               .map(String)
@@ -217,9 +266,33 @@ export function collectSocialFields(
                   : {}),
               }))
           : null;
-    else if (key === 'members[].medications')
+    else if (key === 'situation.observations') {
+      const hasObservations = textValue(
+        data,
+        `${prefix}situation.hasObservations`,
+      );
       value =
-        data.get(`${name}:known`) === 'on'
+        hasObservations === 'false'
+          ? []
+          : hasObservations === 'true'
+            ? [...data.keys()]
+                .filter((key) => key.startsWith(`${name}:date:`))
+                .map((key) => ({
+                  occurredOn: textValue(data, key),
+                  description: textValue(
+                    data,
+                    `${name}:description:${key.slice(`${name}:date:`.length)}`,
+                  ),
+                }))
+            : null;
+    } else if (key === 'members[].medications') {
+      const medicationUse = textValue(data, `${name}:uses`);
+      const medicationListKnown = field.required
+        ? medicationUse === 'true'
+        : data.get(`${name}:known`) === 'on';
+      if (field.required && medicationUse === 'false') value = [];
+      else
+        value = medicationListKnown
           ? [...data.keys()]
               .filter((key) => key.startsWith(`${name}:medication:`))
               .map((key) => {
@@ -232,6 +305,7 @@ export function collectSocialFields(
                 };
               })
           : null;
+    }
     const path = key.replace('members[].', '').split('.');
     if (path.length === 1) blocks[path[0]!] = value;
     else {
@@ -242,26 +316,103 @@ export function collectSocialFields(
   return blocks;
 }
 
+function RequiredCatalogInput({
+  field,
+  options,
+  name,
+  label,
+}: {
+  field: Definition;
+  options: SocialFormContextDto['options'];
+  name: string;
+  label: string;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const available = options.filter(
+    (option) => option.fieldKey === field.fieldKey && option.active,
+  );
+  const hasOther = available.some(
+    (option) => option.isOther && selected.includes(option.code),
+  );
+  return (
+    <div className="field">
+      <SelectField
+        label={label}
+        name={name}
+        required
+        multiple={field.cardinality === 'MULTIPLE'}
+        defaultValue={field.cardinality === 'MULTIPLE' ? [] : ''}
+        onChange={(event) =>
+          setSelected(
+            [...event.target.selectedOptions].map((option) => option.value),
+          )
+        }
+      >
+        {field.cardinality === 'SINGLE' && <option value="">Selecione</option>}
+        {available.map((option) => (
+          <option key={option.id} value={option.code}>
+            {option.label}
+          </option>
+        ))}
+      </SelectField>
+      {hasOther && field.fieldKey !== 'needs.declaredNeeds' && (
+        <Field
+          label={`Outros: ${label}`}
+          name={`${name}:other`}
+          required
+          maxLength={1000}
+        />
+      )}
+    </div>
+  );
+}
+
 function MedicationInput({ field, name }: { field: Definition; name: string }) {
   const [known, setKnown] = useState(false);
-  const [rows, setRows] = useState<number[]>([]);
-  const [sequence, setSequence] = useState(0);
+  const [usesMedication, setUsesMedication] = useState<boolean | null>(null);
+  const [rows, setRows] = useState<number[]>(field.required ? [0] : []);
+  const [sequence, setSequence] = useState(field.required ? 1 : 0);
   return (
     <div>
-      <Field
-        label="Medicamentos conhecidos"
-        name={`${name}:known`}
-        type="checkbox"
-        required={field.required}
-        checked={known}
-        onChange={(event) => setKnown(event.target.checked)}
-      />
-      {known && (
+      {field.required ? (
+        <fieldset>
+          <legend>Faz uso de medicamentos?</legend>
+          <Field
+            label="Sim"
+            name={`${name}:uses`}
+            type="radio"
+            value="true"
+            required
+            checked={usesMedication === true}
+            onChange={() => setUsesMedication(true)}
+          />
+          <Field
+            label="Não"
+            name={`${name}:uses`}
+            type="radio"
+            value="false"
+            required
+            checked={usesMedication === false}
+            onChange={() => setUsesMedication(false)}
+          />
+        </fieldset>
+      ) : (
+        <Field
+          label="Medicamentos conhecidos"
+          name={`${name}:known`}
+          type="checkbox"
+          checked={known}
+          onChange={(event) => setKnown(event.target.checked)}
+        />
+      )}
+      {(field.required ? usesMedication === true : known) && (
         <>
-          <p>
-            Sem linhas significa nenhum medicamento declarado. Medicamento
-            desconhecido permanece não informado.
-          </p>
+          {!field.required && (
+            <p>
+              Sem linhas significa nenhum medicamento declarado. Medicamento
+              desconhecido permanece não informado.
+            </p>
+          )}
           {rows.map((row, index) => (
             <fieldset key={row}>
               <legend>Medicamento {index + 1}</legend>
@@ -275,14 +426,18 @@ function MedicationInput({ field, name }: { field: Definition; name: string }) {
                 label={`Fornecido pelo governo — medicamento ${index + 1}`}
                 name={`${name}:government:${row}`}
                 defaultValue=""
+                required={field.required}
               >
-                <option value="">Não informado</option>
+                <option value="">
+                  {field.required ? 'Selecione' : 'Não informado'}
+                </option>
                 <option value="true">Sim</option>
                 <option value="false">Não</option>
               </SelectField>
               <button
                 type="button"
                 className="button secondary"
+                disabled={field.required && rows.length === 1}
                 onClick={() => setRows(rows.filter((value) => value !== row))}
               >
                 Retirar medicamento {index + 1}

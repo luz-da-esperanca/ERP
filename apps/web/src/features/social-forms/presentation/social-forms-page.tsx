@@ -14,6 +14,7 @@ import {
   localDateTime,
   toInstant,
   displayInstant,
+  displayDate,
 } from '../../../shared/time';
 import {
   Page,
@@ -25,6 +26,7 @@ import {
   Submit,
   BackLink,
   textValue,
+  Empty,
 } from '../../../shared/ui';
 import {
   SocialFieldInput,
@@ -32,6 +34,16 @@ import {
   socialFieldLabels,
 } from './social-field-input';
 import type { SocialFieldKey } from '@erp/contracts/social-form-fields';
+import { FamilyRegistrationForm } from './family-registration-form';
+import {
+  Plus,
+  RefreshCw,
+  X,
+  ClipboardList,
+  ChevronRight,
+  ChevronLeft,
+  Pencil,
+} from 'lucide-react';
 
 function SocialBlocksView({
   blocks,
@@ -41,7 +53,7 @@ function SocialBlocksView({
   member?: boolean;
 }) {
   return (
-    <dl>
+    <dl className="record-fields">
       {Object.entries(blocks)
         .flatMap(([block, values]) =>
           block === 'medications'
@@ -72,12 +84,20 @@ function SocialBlocksView({
                       ? value
                           .map((item) =>
                             'medicationName' in item
-                              ? item.medicationName
-                              : `${item.label ?? item.code}${item.otherText ? `: ${item.otherText}` : ''}`,
+                              ? `${item.medicationName} (governo: ${item.providedByGovernment === true ? 'Sim' : item.providedByGovernment === false ? 'Não' : 'Não informado'})`
+                              : 'occurredOn' in item
+                                ? `${displayDate(item.occurredOn)}: ${item.description}`
+                                : `${item.label ?? item.code}${item.otherText ? `: ${item.otherText}` : ''}`,
                           )
                           .join(' · ')
                       : 'Nenhum declarado'
-                    : String(value)}
+                    : path === 'economy.incomeAmount' &&
+                        typeof value === 'string'
+                      ? new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(Number(value))
+                      : String(value)}
             </dd>
           </div>
         ))}
@@ -185,7 +205,7 @@ function VersionView({
           {form.reason && <p>Motivo: {form.reason}</p>}
           <SocialBlocksView blocks={form.blocks} />
           {form.members.map((member) => (
-            <details key={member.id}>
+            <details className="disclosure" key={member.id}>
               <summary>
                 {member.personSnapshot.name} ·{' '}
                 {member.relationshipSnapshot.isReference
@@ -194,8 +214,8 @@ function VersionView({
                     'Parentesco desconhecido')}
               </summary>
               <p>
-                Nascimento: {member.personSnapshot.birthDate ?? 'Não informado'}{' '}
-                · Calçado: {member.sizeSnapshot?.shoeSize ?? 'Não informado'} ·
+                Nascimento: {displayDate(member.personSnapshot.birthDate)} ·
+                Calçado: {member.sizeSnapshot?.shoeSize ?? 'Não informado'} ·
                 Roupa: {member.sizeSnapshot?.clothingSize ?? 'Não informado'}
               </p>
               <SocialBlocksView blocks={member.blocks} member />
@@ -204,21 +224,25 @@ function VersionView({
           <p>
             Ciência em papel:{' '}
             {form.acknowledgement
-              ? form.acknowledgement.acknowledgedOn
+              ? displayDate(form.acknowledgement.acknowledgedOn)
               : 'Não informada'}
           </p>
           {canWrite && (
-            <>
-              <AcknowledgementForm
-                key={refresh}
-                gateway={gateway}
-                form={form}
-                onSaved={() => setRefresh(refresh + 1)}
-              />
+            <div className="form-stack">
+              <details className="disclosure">
+                <summary>Registrar ou corrigir ciência em papel</summary>
+                <AcknowledgementForm
+                  key={refresh}
+                  gateway={gateway}
+                  form={form}
+                  onSaved={() => setRefresh(refresh + 1)}
+                />
+              </details>
               <button className="button secondary" onClick={onCorrect}>
+                <Pencil size={18} aria-hidden="true" />
                 Publicar correção desta versão
               </button>
-            </>
+            </div>
           )}
         </Panel>
       )}
@@ -250,6 +274,15 @@ function PublishDraft({
           context.referencePersonId === personId) ||
         (field.appliesTo === 'SELECTED_MEMBERS' &&
           selected[`${personId}:${field.fieldKey}`]),
+    );
+  if (context.fieldSelection?.decisionReference === 'FAMILY_REGISTRATION_2025')
+    return (
+      <FamilyRegistrationForm
+        gateway={gateway}
+        context={context}
+        correctionId={correctionId}
+        onSaved={onSaved}
+      />
     );
   if (!context.fieldSelectionVersionId || !fields.length)
     return (
@@ -382,6 +415,9 @@ function NewVersion({
 }) {
   const [now] = useState(() => new Date().toISOString());
   const [occurredAt, setOccurredAt] = useState<string | null>(null);
+  const [compositionRevision, setCompositionRevision] = useState(0);
+  const action = useAction();
+  const keyFor = useOperationKey();
   const load = useCallback(
     () =>
       occurredAt
@@ -389,7 +425,7 @@ function NewVersion({
         : Promise.resolve(null),
     [gateway, familyId, occurredAt],
   );
-  const state = useApiQuery(load);
+  const state = useApiQuery(load, compositionRevision);
   return (
     <Panel
       title={correctionId ? 'Correção por nova versão' : 'Nova versão da ficha'}
@@ -398,11 +434,14 @@ function NewVersion({
         className="form-grid"
         onSubmit={(event) => {
           event.preventDefault();
-          setOccurredAt(
-            toInstant(
-              textValue(new FormData(event.currentTarget), 'occurredAt'),
-            ),
+          const instant = toInstant(
+            textValue(new FormData(event.currentTarget), 'occurredAt'),
           );
+          void action.run(async () => {
+            await gateway.prepareTemplate(keyFor('familyForm/template', {}));
+            setOccurredAt(instant);
+            setCompositionRevision((revision) => revision + 1);
+          });
         }}
       >
         <Field
@@ -413,13 +452,17 @@ function NewVersion({
           defaultValue={localDateTime(now)}
           max={localDateTime(now)}
         />
-        <button className="button secondary">Consultar composição</button>
+        <button className="button secondary" disabled={action.pending}>
+          <ClipboardList size={18} aria-hidden="true" />
+          Consultar composição
+        </button>
       </form>
+      {action.error && <Alert error>{action.error}</Alert>}
       <AsyncView state={state}>
         {(context) =>
           context ? (
             <PublishDraft
-              key={`${context.occurredAt}:${context.fieldSelectionVersionId}:${context.expectedFamilyRevision}:${context.expectedPreviousVersionId}`}
+              key={`${compositionRevision}:${context.occurredAt}:${context.fieldSelectionVersionId}:${context.expectedFamilyRevision}:${context.expectedPreviousVersionId}`}
               gateway={gateway}
               context={context}
               correctionId={correctionId}
@@ -454,44 +497,75 @@ export function FamilySocialFormsPage({
       <Page
         title="Ficha social"
         actions={
-          canWrite && (
+          <div className="form-actions">
+            {canWrite && !draft && (
+              <button
+                className="button primary"
+                onClick={() => {
+                  setDraft({});
+                  setSelected(null);
+                }}
+              >
+                <Plus size={18} aria-hidden="true" />
+                Nova versão
+              </button>
+            )}
+            {draft && (
+              <button
+                className="button secondary"
+                onClick={() => setDraft(null)}
+              >
+                <X size={18} aria-hidden="true" />
+                Cancelar preenchimento
+              </button>
+            )}
             <button
-              className="button primary"
-              onClick={() => {
-                setDraft({});
-                setSelected(null);
-              }}
+              className="button secondary"
+              onClick={() => setRefresh((value) => value + 1)}
             >
-              Nova versão
+              <RefreshCw size={18} aria-hidden="true" />
+              Atualizar fichas
             </button>
-          )
+          </div>
         }
       >
         <AsyncView state={state}>
           {(result) => (
             <Panel title="Versões da ficha">
-              {!result.data.length && <p>Nenhuma versão publicada.</p>}
-              {result.data.map((form) => (
-                <p key={form.id}>
-                  <button
-                    className="text-link"
-                    onClick={() => {
-                      setSelected(form.id);
-                      setDraft(null);
-                    }}
-                  >
-                    Versão {form.version} · Fato:{' '}
-                    {displayInstant(form.occurredAt)} · Lançamento:{' '}
-                    {displayInstant(form.recordedAt)}
-                  </button>
-                </p>
-              ))}
-              <nav aria-label="Páginas de fichas">
+              {!result.data.length && <Empty>Nenhuma versão publicada.</Empty>}
+              {!!result.data.length && (
+                <ul className="version-list" aria-label="Versões publicadas">
+                  {result.data.map((form) => (
+                    <li key={form.id}>
+                      <button
+                        className="version-row"
+                        aria-pressed={selected === form.id}
+                        onClick={() => {
+                          setSelected(form.id);
+                          setDraft(null);
+                        }}
+                      >
+                        <ClipboardList size={20} aria-hidden="true" />
+                        <span>
+                          <strong>Versão {form.version}</strong>
+                          <small>Fato: {displayInstant(form.occurredAt)}</small>
+                          <small>
+                            Publicada: {displayInstant(form.recordedAt)}
+                          </small>
+                        </span>
+                        <ChevronRight size={18} aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <nav className="pagination" aria-label="Páginas de fichas">
                 <button
                   className="button secondary"
                   disabled={page === 1}
                   onClick={() => setPage(page - 1)}
                 >
+                  <ChevronLeft size={18} aria-hidden="true" />
                   Anterior
                 </button>
                 <span>
@@ -505,6 +579,7 @@ export function FamilySocialFormsPage({
                   onClick={() => setPage(page + 1)}
                 >
                   Próxima
+                  <ChevronRight size={18} aria-hidden="true" />
                 </button>
               </nav>
             </Panel>
@@ -512,7 +587,7 @@ export function FamilySocialFormsPage({
         </AsyncView>
         {selected && (
           <VersionView
-            key={selected}
+            key={`${selected}:${refresh}`}
             gateway={gateway}
             id={selected}
             canWrite={canWrite}
@@ -524,26 +599,16 @@ export function FamilySocialFormsPage({
         )}
         {draft && canWrite && (
           <NewVersion
-            key={`${id}:${draft.correctionId ?? 'new'}:${refresh}`}
+            key={`${id}:${draft.correctionId ?? 'new'}`}
             gateway={gateway}
             familyId={id}
             correctionId={draft.correctionId}
             onSaved={() => {
               setDraft(null);
-              setRefresh(refresh + 1);
+              setRefresh((value) => value + 1);
             }}
           />
         )}
-        <button
-          className="button secondary"
-          onClick={() => {
-            setDraft(null);
-            setSelected(null);
-            setRefresh(refresh + 1);
-          }}
-        >
-          Atualizar fichas
-        </button>
       </Page>
     </>
   );

@@ -18,12 +18,18 @@ import type { Principal } from '../../../../src/features/access/application/port
 import type {
   StoredSocialForm,
   Acknowledgement,
+  SocialFormPublication,
+  SocialFormSource,
 } from '../../../../src/features/social-forms/domain/social-forms.js';
 import { randomBytes } from 'node:crypto';
 import type { AuditEntry } from '../../../../src/features/audit/domain/audit-entry.js';
 import type { SocialSnapshot } from '../../../../src/features/social-forms/domain/social-forms.js';
 import type { SocialOperationReference } from '../../../../src/features/social-forms/application/social-forms-ports.js';
 import { SocialFormRevisionConflictError } from '../../../../src/features/social-forms/domain/social-form-errors.js';
+import {
+  fixedFamilyBlocks,
+  fixedReferenceBlocks,
+} from '../../../support/family-form-fixture.js';
 
 function fixture(
   protection = createSensitivePayloads('', {}),
@@ -42,7 +48,7 @@ function fixture(
     decisions: [],
     options: [],
   };
-  const source = {
+  const source: SocialFormSource = {
     family: {
       id: 'family',
       code: '1',
@@ -92,6 +98,7 @@ function fixture(
   };
   const forms = new Map<string, StoredSocialForm>();
   const snapshots = new Map<string, SocialSnapshot>();
+  const selections = new Map<string, FieldSelection>();
   const findOperation = vi
     .fn<SocialFormsTransaction['findOperation']>()
     .mockResolvedValue(null);
@@ -115,6 +122,7 @@ function fixture(
       ),
     saveSelection: async (value: FieldSelection) => {
       configuration.selection = structuredClone(value);
+      selections.set(value.id, structuredClone(value));
     },
     saveDecision: async (value: FeatureDecision) => {
       configuration.decisions = [
@@ -129,7 +137,8 @@ function fixture(
       ];
     },
     context: async () => structuredClone(source),
-    selection: async () => configuration.selection,
+    selection: async (id: string) =>
+      selections.get(id) ?? configuration.selection,
     form: async (id: string) => structuredClone(forms.get(id) ?? null),
     createForm: async (value: StoredSocialForm) => {
       forms.set(value.id, structuredClone(value));
@@ -187,6 +196,354 @@ function fixture(
   };
 }
 describe('Social form command authorization', () => {
+  it('prevents replacing fixed fields or editing fixed options through legacy management commands', async () => {
+    const f = fixture(
+      createSensitivePayloads('test', { test: randomBytes(32) }),
+    );
+    const selection = await f.service.prepareTemplate(f.context);
+    await expect(
+      f.service.configureSelection(f.context, {
+        expectedRevision: selection.version,
+        fields: [],
+        decisionReference: 'CUSTOM',
+        reason: 'Synthetic override',
+      }),
+    ).rejects.toMatchObject({ rule: 'INVALID_FIELD_SELECTION' });
+    const option = f.configuration.options[0]!;
+    await expect(
+      f.service.updateOption(f.context, option.id, {
+        expectedRevision: option.revision,
+        label: 'Custom label',
+        decisionReference: 'CUSTOM',
+        reason: 'Synthetic override',
+      }),
+    ).rejects.toMatchObject({ rule: 'INVALID_OPTION' });
+  });
+  it('publishes a complete fixed form with historical identification snapshots and rejects disabled blocks and future observations', async () => {
+    const f = fixture(
+      createSensitivePayloads('test', { test: randomBytes(32) }),
+    );
+    Object.assign(f.source.family, {
+      neighborhood: 'Centro',
+      postalCode: '64000000',
+      contactPhone: '8632221234',
+    });
+    Object.assign(f.source.members[0]!.person, {
+      birthDate: '1990-01-01',
+      cpf: '12345678909',
+      rg: 'Synthetic RG',
+      educationLevel: 'Ensino fundamental',
+    });
+    const selection = await f.service.prepareTemplate(f.context);
+    const input: SocialFormPublication = {
+      occurredAt: '2026-10-01T12:00:00Z',
+      expectedFamilyRevision: 1,
+      expectedPreviousVersionId: null,
+      fieldSelectionVersionId: selection.id,
+      memberRevisions: [
+        {
+          personId: 'person',
+          expectedPersonRevision: 1,
+          membershipId: 'membership',
+          expectedMembershipRevision: 1,
+        },
+      ],
+      blocks: structuredClone(fixedFamilyBlocks),
+      members: [
+        { personId: 'person', ...structuredClone(fixedReferenceBlocks) },
+      ],
+    };
+    const form = await f.service.publish(
+      { ...f.context, key: 'complete' },
+      'family',
+      input,
+    );
+    expect(form.members[0]?.personSnapshot).toMatchObject({
+      cpf: '12345678909',
+      rg: 'Synthetic RG',
+    });
+    f.source.members[0]!.person.rg = 'Changed RG';
+    expect(
+      (await f.service.get(f.principal, form.id)).members[0]?.personSnapshot.rg,
+    ).toBe('Synthetic RG');
+    input.expectedPreviousVersionId = form.id;
+    const housing = f.configuration.decisions.find(
+      (row) => row.code === 'FIC_HOUSING',
+    )!;
+    housing.enabled = false;
+    const withoutHousing = {
+      ...input,
+      blocks: {
+        economy: input.blocks.economy,
+        needs: input.blocks.needs,
+        situation: input.blocks.situation,
+      },
+    };
+    await expect(
+      f.service.publish(
+        { ...f.context, key: 'disabled' },
+        'family',
+        withoutHousing,
+      ),
+    ).rejects.toMatchObject({ rule: 'BLOCK_DISABLED' });
+    housing.enabled = true;
+    const future = {
+      ...input,
+      blocks: {
+        ...input.blocks,
+        situation: {
+          ...input.blocks.situation,
+          hasObservations: true,
+          observations: [
+            { occurredOn: '2026-10-06', description: 'Future observation' },
+          ],
+        },
+      },
+    };
+    await expect(
+      f.service.publish({ ...f.context, key: 'future' }, 'family', future),
+    ).rejects.toMatchObject({ rule: 'FUTURE_FACT' });
+    expect(f.forms.size).toBe(1);
+  });
+  it('keeps school values from legacy all-member selections readable after adopting the fixed template', async () => {
+    const f = fixture(
+      createSensitivePayloads('test', { test: randomBytes(32) }),
+    );
+    const selection = await f.service.configureSelection(f.context, {
+      expectedRevision: null,
+      decisionReference: 'SYNTHETIC-TEST',
+      reason: 'Synthetic setup',
+      fields: [
+        {
+          fieldKey: 'members[].education.attendsSchool',
+          included: true,
+          required: false,
+          appliesTo: 'ALL_MEMBERS',
+          allowedRoleCodes: ['COORDINATION'],
+          cardinality: 'SINGLE',
+          purpose: 'Synthetic evaluation',
+          decisionReference: 'SYNTHETIC-TEST',
+        },
+      ],
+    });
+    await f.service.configureDecision(f.context, 'FIC_EDUCATION', {
+      expectedRevision: null,
+      enabled: true,
+      decisionReference: 'SYNTHETIC-TEST',
+      reason: 'Synthetic setup',
+    });
+    const form = await f.service.publish(f.context, 'family', {
+      occurredAt: '2026-10-01T12:00:00Z',
+      expectedFamilyRevision: 1,
+      expectedPreviousVersionId: null,
+      fieldSelectionVersionId: selection.id,
+      memberRevisions: [
+        {
+          personId: 'person',
+          expectedPersonRevision: 1,
+          membershipId: 'membership',
+          expectedMembershipRevision: 1,
+        },
+      ],
+      blocks: {},
+      members: [{ personId: 'person', education: { attendsSchool: false } }],
+    });
+    await f.service.prepareTemplate({ ...f.context, key: 'adoption' });
+    expect(
+      (await f.service.get(f.principal, form.id)).members[0]?.blocks.education,
+    ).toEqual({ attendsSchool: false });
+  });
+  it('requires known sizes and identified school rows for declared children without requiring school details after No', async () => {
+    const f = fixture(
+      createSensitivePayloads('test', { test: randomBytes(32) }),
+    );
+    Object.assign(f.source.family, {
+      neighborhood: 'Centro',
+      postalCode: '64000000',
+      contactPhone: '8632221234',
+    });
+    Object.assign(f.source.members[0]!.person, {
+      birthDate: '1990-01-01',
+      cpf: '12345678909',
+      rg: 'Synthetic RG',
+      educationLevel: 'Ensino fundamental',
+    });
+    const child = structuredClone(f.source.members[0]!);
+    Object.assign(child.person, {
+      id: 'child',
+      name: 'Synthetic child',
+      birthDate: '2015-01-01',
+      sex: 'Feminino',
+      cpf: null,
+    });
+    Object.assign(child.membership, {
+      id: 'child-membership',
+      personId: 'child',
+      isReference: false,
+      relationshipToReference: 'Filha',
+    });
+    f.source.members.push(child);
+    const selection = await f.service.prepareTemplate(f.context);
+    const input: SocialFormPublication = {
+      occurredAt: '2026-10-01T12:00:00Z',
+      expectedFamilyRevision: 1,
+      expectedPreviousVersionId: null,
+      fieldSelectionVersionId: selection.id,
+      memberRevisions: f.source.members.map(({ person, membership }) => ({
+        personId: person.id,
+        expectedPersonRevision: 1,
+        membershipId: membership.id,
+        expectedMembershipRevision: 1,
+      })),
+      blocks: {
+        ...structuredClone(fixedFamilyBlocks),
+        economy: { ...fixedFamilyBlocks.economy, declaredChildCount: 1 },
+      },
+      members: [
+        { personId: 'person', ...structuredClone(fixedReferenceBlocks) },
+        {
+          personId: 'child',
+          economy: {
+            occupationOrIncomeSource: 'Sem renda',
+            incomeAmount: '0.00',
+          },
+          education: {
+            attendsSchool: false,
+            schoolLevelOrGrade: null,
+            studyMode: null,
+          },
+          religion: { participatesInEvangelization: false },
+          selectedFieldKeys: [
+            'members[].education.attendsSchool',
+            'members[].education.schoolLevelOrGrade',
+            'members[].education.studyMode',
+            'members[].religion.participatesInEvangelization',
+          ],
+        },
+      ],
+    };
+    await expect(
+      f.service.publish(
+        { ...f.context, key: 'missing-sizes' },
+        'family',
+        input,
+      ),
+    ).rejects.toMatchObject({ rule: 'REQUIRED_FIELD_MISSING' });
+    child.sizeProfile = {
+      personId: 'child',
+      shoeSize: '30',
+      clothingSize: 'P',
+      revision: 1,
+      informedOn: '2026-10-01',
+    };
+    await expect(
+      f.service.publish(
+        { ...f.context, key: 'missing-size-revision' },
+        'family',
+        input,
+      ),
+    ).rejects.toMatchObject({ rule: 'REQUIRED_FIELD_MISSING' });
+    Object.assign(
+      input.memberRevisions.find((row) => row.personId === 'child')!,
+      { sizeProfilePersonId: 'child', expectedSizeRevision: 1 },
+    );
+    await expect(
+      f.service.publish(
+        { ...f.context, key: 'wrong-beneficiary-signature' },
+        'family',
+        {
+          ...input,
+          blocks: {
+            ...input.blocks,
+            situation: { ...input.blocks.situation, beneficiarySigned: true },
+          },
+          acknowledgement: {
+            referencePersonId: 'child',
+            method: 'PAPER_SIGNATURE',
+            acknowledgedOn: '2026-10-01',
+          },
+        },
+      ),
+    ).rejects.toMatchObject({ rule: 'INVALID_ACKNOWLEDGEMENT' });
+    const form = await f.service.publish(
+      { ...f.context, key: 'known-sizes' },
+      'family',
+      input,
+    );
+    expect(
+      form.members.find((member) => member.personId === 'child')?.blocks
+        .education,
+    ).toEqual({
+      attendsSchool: false,
+      schoolLevelOrGrade: null,
+      studyMode: null,
+    });
+    expect(
+      form.members.find((member) => member.personId === 'child')?.sizeSnapshot,
+    ).toMatchObject({ shoeSize: '30', clothingSize: 'P' });
+  });
+  it('rejects publication of the fixed form when mandatory registration facts are missing', async () => {
+    const state = fixture(
+      createSensitivePayloads('test', { test: randomBytes(32) }),
+    );
+    const selection = await state.service.prepareTemplate(state.context);
+    await expect(
+      state.service.publish(
+        { ...state.context, key: 'publication' },
+        'family',
+        {
+          occurredAt: '2026-10-01T12:00:00Z',
+          expectedFamilyRevision: 1,
+          expectedPreviousVersionId: null,
+          fieldSelectionVersionId: selection.id,
+          memberRevisions: [
+            {
+              personId: 'person',
+              expectedPersonRevision: 1,
+              membershipId: 'membership',
+              expectedMembershipRevision: 1,
+            },
+          ],
+          blocks: structuredClone(fixedFamilyBlocks),
+          members: [
+            { personId: 'person', ...structuredClone(fixedReferenceBlocks) },
+          ],
+        },
+      ),
+    ).rejects.toMatchObject({ rule: 'REQUIRED_FIELD_MISSING' });
+    expect(state.forms.size).toBe(0);
+  });
+  it('prepares the fixed 2025 form without manual field configuration or enabling real personal data', async () => {
+    const key = randomBytes(32);
+    const { service, context, configuration } = fixture(
+      createSensitivePayloads('test', { test: key }),
+    );
+    const template = await service.prepareTemplate(context);
+    expect(template.decisionReference).toBe('FAMILY_REGISTRATION_2025');
+    expect(
+      template.fields.find((field) => field.fieldKey === 'housing.roomCount'),
+    ).toMatchObject({ required: true, included: true });
+    expect(
+      template.fields.find(
+        (field) => field.fieldKey === 'members[].medications',
+      ),
+    ).toMatchObject({ required: true, appliesTo: 'REFERENCE_MEMBER' });
+    expect(
+      configuration.decisions.find((decision) => decision.code === 'FIC_HEALTH')
+        ?.enabled,
+    ).toBe(true);
+    expect(
+      configuration.decisions.find(
+        (decision) => decision.code === 'REAL_PERSONAL_DATA',
+      ),
+    ).toBeUndefined();
+    const repeated = await service.prepareTemplate({
+      ...context,
+      key: 'another-key',
+    });
+    expect(repeated.id).toBe(template.id);
+    expect(repeated.version).toBe(1);
+  });
   it.each(['revoked', 'inactive', 'roles', 'password'] as const)(
     'revalidates a %s author before configuration or replay',
     async (state) => {

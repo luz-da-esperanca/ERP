@@ -28,6 +28,7 @@ export function registerSocialFormsRoutes(
   principal: AuthenticateRequest,
 ) {
   const idParams = z.object({ id: z.uuid() }).strict();
+  const templateInput = z.object({}).strict();
   const key = (headers: Record<string, unknown>) =>
     z.uuid().parse(headers['idempotency-key']);
   app.get('/api/v1/families/:id/social-form-context', async (request) => {
@@ -100,6 +101,15 @@ export function registerSocialFormsRoutes(
     const actor = await principal(request, 'socialForms.read');
     z.object({}).strict().parse(request.query);
     return { data: socialFormFieldsSchema.parse(await forms.fields(actor)) };
+  });
+  app.post('/api/v1/social-form-template', async (request, reply) => {
+    const actor = await principal(request, 'socialForms.write');
+    templateInput.parse(request.body);
+    return reply.code(201).send({
+      data: fieldSelectionDtoSchema.parse(
+        await forms.prepareTemplate({ actor, key: key(request.headers) }),
+      ),
+    });
   });
   app.post('/api/v1/social-form-field-selections', async (request, reply) => {
     const actor = await principal(request, 'featureDecisions.manage');

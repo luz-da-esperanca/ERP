@@ -8,6 +8,7 @@ Prefixo `/api/v1`. Coordenação e Assistência Social têm `socialForms.read` e
 
 | Método / caminho                          | Capacidade                | Resposta                                   |
 | ----------------------------------------- | ------------------------- | ------------------------------------------ |
+| `POST /social-form-template`              | `socialForms.write`       | 201, seleção fixa de cadastro de 2025      |
 | `GET /families/:id/social-form-context`   | `socialForms.read`        | 200, contexto para publicação              |
 | `GET /families/:id/social-forms`          | `socialForms.read`        | 200, página de metadados                   |
 | `POST /families/:id/social-forms`         | `socialForms.write`       | 201, versão publicada                      |
@@ -23,6 +24,14 @@ Prefixo `/api/v1`. Coordenação e Assistência Social têm `socialForms.read` e
 Todas as escritas exigem `Idempotency-Key` UUID. Autor ativo, versão da autenticação, troca de senha e capacidades atuais são revalidados dentro da transação antes de escrita ou replay. A mesma chave/autor/conteúdo recupera o resultado original; outra intenção retorna `409 IDEMPOTENCY_CONFLICT`. O resultado da ficha é sempre projetado segundo acesso, seleção e flags atuais, inclusive no replay.
 
 ## Configuração de campos e decisões
+
+Desde 09/10/2026, a UI usa a ficha fixa de 2025 e não oferece a tela de configuração. Antes de consultar a composição para uma nova ficha, envie `POST /social-form-template`, corpo `{}` e `Idempotency-Key` UUID. A resposta é `{ data: FieldSelectionDto }`, com `decisionReference: "FAMILY_REGISTRATION_2025"`. Preparações subsequentes retornam a mesma seleção; não publicam outra versão de campos. Autor, seleção, catálogos, decisões sintéticas, auditoria e conclusão da operação usam a mesma transação.
+
+O comando exige proteção criptográfica disponível. Em `SYNTHETIC`, prepara os campos/opções fixos e habilita explicitamente os blocos da demonstração, sem liberar `REAL_PERSONAL_DATA`. Em `REAL`, exige antes a decisão institucional global e todos os blocos habilitados. Uma decisão revogada impede novas publicações; a preparação não a contorna. Depois de adotar a ficha fixa, alterações por `/social-form-field-selections` são rejeitadas com `INVALID_FIELD_SELECTION`; criação/edição de opções retorna `INVALID_OPTION`. Os contratos abaixo descrevem também o mecanismo legado preservado.
+
+Na ficha fixa, todos os campos aplicáveis são obrigatórios. Auxílio, problemas de saúde, posto de saúde, ACS, necessidades, observações e escolaridade usam seus indicadores Sim/Não; detalhes não aplicáveis devem ficar `null` ou em coleção vazia. Medicamentos `[]` declara Não; Sim requer uma lista com nomes e `providedByGovernment` booleano em cada item. “Outros” exige complemento. Campos novos permanecem opcionais no schema compartilhado para aceitar versões antigas; o domínio aplica a obrigatoriedade do modelo fixo.
+
+`situation.observations` recebe até 100 linhas `{ occurredOn: "AAAA-MM-DD", description }`, sem data futura e com descrição de até 2.000 caracteres. `situation.beneficiarySigned`, `registrationResponsibleName` e `registrationResponsibleSigned` registram as declarações sobre assinaturas em papel. Beneficiário Sim exige `acknowledgement` com data conhecida e referência ao titular. CPF, RG, nascimento, contato, escolaridade, endereço e composição são capturados do cadastro verificado; não são snapshots fornecidos pelo cliente. Escolaridade/religião de crianças e adolescentes usa os quatro `selectedFieldKeys` juntos por membro selecionado; sexo, calçado e vestuário conhecidos são exigidos, incluindo `sizeProfilePersonId` e `expectedSizeRevision` para preservar seus tamanhos. As contagens declaradas somadas devem corresponder às linhas desse quadro.
 
 `GET /social-form-configuration` retorna seleção completa, opções e decisões, incluindo campos excluídos ou desabilitados, sem valores pessoais. Exige `featureDecisions.manage` e rejeita parâmetros de consulta. Essa leitura permite substituir a coleção completa sem perder definições invisíveis ao formulário. `/social-form-fields` e o contexto continuam projetados por seleção, flags e perfis.
 

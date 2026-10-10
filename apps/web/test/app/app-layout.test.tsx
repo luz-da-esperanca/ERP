@@ -73,7 +73,6 @@ describe('AppLayout', () => {
       'Políticas de aptidão',
       'Relatórios',
       'Auditoria',
-      'Configuração da ficha',
       'Campos cadastrais',
       'Usuários e perfis',
     ];

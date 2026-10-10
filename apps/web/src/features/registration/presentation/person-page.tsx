@@ -1,6 +1,14 @@
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { CalendarDays, Phone, CircleCheck, History } from 'lucide-react';
+import {
+  CalendarDays,
+  Phone,
+  CircleCheck,
+  History,
+  Pencil,
+  Ruler,
+  UsersRound,
+} from 'lucide-react';
 import { formatCpfInput } from '@erp/contracts/cpf';
 import type {
   FamilyMembership,
@@ -15,6 +23,7 @@ import {
   Empty,
   Panel,
   StatusBadge,
+  ActionLink,
 } from '../../../shared/ui';
 import {
   civilToday,
@@ -201,12 +210,9 @@ function PersonProfile({
           ) : null}
         </div>
         {allowEdit && (
-          <Link
-            className="button secondary"
-            to={`/people/${detail.person.id}/edit`}
-          >
+          <ActionLink icon={Pencil} to={`/people/${detail.person.id}/edit`}>
             Editar pessoa
-          </Link>
+          </ActionLink>
         )}
       </header>
       <PersonRegistration person={detail.person} />
@@ -233,18 +239,21 @@ export function PersonPage({
   return (
     <>
       {connected && (
-        <nav
-          className="flex flex-wrap gap-4 mb-4"
-          aria-label="Ações individuais"
-        >
+        <nav className="action-links" aria-label="Ações individuais">
           {session?.capabilities.includes('registration.write') && (
             <>
-              <Link to={`/people/${id}/sizes`}>Editar tamanhos</Link>
-              <Link to={`/people/${id}/memberships`}>Gerenciar vínculos</Link>
+              <ActionLink icon={Ruler} to={`/people/${id}/sizes`}>
+                Editar tamanhos
+              </ActionLink>
+              <ActionLink icon={UsersRound} to={`/people/${id}/memberships`}>
+                Gerenciar vínculos
+              </ActionLink>
             </>
           )}
           {session?.capabilities.includes('reports.read') && (
-            <Link to={`/people/${id}/history`}>Histórico individual</Link>
+            <ActionLink icon={History} to={`/people/${id}/history`}>
+              Histórico individual
+            </ActionLink>
           )}
         </nav>
       )}

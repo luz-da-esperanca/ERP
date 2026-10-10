@@ -12,7 +12,6 @@ import {
   BadgeCheck,
   ChartColumnIncreasing,
   History,
-  ClipboardPenLine,
   ListChecks,
   UserCog,
 } from 'lucide-react';
@@ -159,12 +158,6 @@ export function AppShell({
           label: 'Auditoria',
           icon: History,
           capability: 'audit.read',
-        },
-        {
-          to: '/social-form-configuration',
-          label: 'Configuração da ficha',
-          icon: ClipboardPenLine,
-          capability: 'featureDecisions.manage',
         },
         {
           to: '/registration-configuration',

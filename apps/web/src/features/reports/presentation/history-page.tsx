@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useParams } from 'react-router';
 import { historyEventTypeSchema } from '@erp/contracts/reports-api';
+import { Search, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { HttpReports } from '../infra/http-reports';
 import { useApiQuery } from '../../../shared/use-query';
 import {
@@ -12,16 +13,8 @@ import {
   BackLink,
   textValue,
 } from '../../../shared/ui';
-import { RecordList } from '../../../shared/record-list';
-const historyLabels = [
-  'Início de vínculo familiar',
-  'Fim de vínculo familiar',
-  'Início de inscrição',
-  'Fim de inscrição',
-  'Frequência',
-  'Ficha social',
-  'Avaliação de aptidão',
-];
+import { HistoryEventList, historyEventLabels } from './history-event-list';
+import { addDays } from '../../../shared/time';
 export function HistoryPage({
   gateway,
   person = false,
@@ -49,8 +42,19 @@ export function HistoryPage({
   return (
     <>
       <BackLink to={`/${person ? 'people' : 'families'}/${id}`} />
-      <Page title={person ? 'Histórico individual' : 'Histórico familiar'}>
-        <Panel>
+      <Page
+        title={person ? 'Histórico individual' : 'Histórico familiar'}
+        actions={
+          <button
+            className="button secondary"
+            onClick={() => setRefresh((value) => value + 1)}
+          >
+            <RefreshCw size={18} aria-hidden="true" />
+            Atualizar histórico
+          </button>
+        }
+      >
+        <Panel title="Consultar histórico">
           <form
             className="form-grid"
             onSubmit={(event) => {
@@ -63,49 +67,55 @@ export function HistoryPage({
                 page: 1,
                 order: textValue(data, 'order') === 'asc' ? 'asc' : 'desc',
                 ...(from ? { from } : {}),
-                ...(toExclusive ? { toExclusive } : {}),
+                ...(toExclusive
+                  ? { toExclusive: addDays(toExclusive, 1) }
+                  : {}),
                 ...(types ? { eventTypes: types } : {}),
               });
             }}
           >
             <Field label="Início do período" name="from" type="date" />
-            <Field
-              label="Fim do período (exclusivo)"
-              name="toExclusive"
-              type="date"
-            />
+            <Field label="Fim do período" name="toExclusive" type="date" />
             <SelectField label="Ordenação do histórico" name="order">
               <option value="desc">Mais recente primeiro</option>
               <option value="asc">Mais antigo primeiro</option>
             </SelectField>
-            <SelectField
-              label="Tipos de fatos (opcional)"
-              name="types"
-              multiple
-            >
-              {historyEventTypeSchema.options.map((type, index) => (
-                <option key={type} value={type}>
-                  {historyLabels[index]}
-                </option>
-              ))}
-            </SelectField>
-            <button className="button primary">Consultar histórico</button>
+            <details className="disclosure">
+              <summary>Tipos de registros</summary>
+              <fieldset className="history-type-filters">
+                <legend className="sr-only">
+                  Filtrar por tipo de registro
+                </legend>
+                {historyEventTypeSchema.options.map((type) => (
+                  <Field
+                    key={type}
+                    label={historyEventLabels[type]}
+                    name="types"
+                    type="checkbox"
+                    value={type}
+                  />
+                ))}
+              </fieldset>
+            </details>
+            <div className="form-actions">
+              <button className="button primary">
+                <Search size={18} aria-hidden="true" />
+                Consultar histórico
+              </button>
+            </div>
           </form>
         </Panel>
         <AsyncView state={state}>
           {(result) => (
-            <Panel title="Fatos e proveniência">
-              <p>
-                Fatos preservam a família associada no momento em que ocorreram.
-                Cancelamentos e correções permanecem identificados.
-              </p>
-              <RecordList records={result.data} />
-              <nav aria-label="Páginas do histórico">
+            <Panel title="Registros do histórico">
+              <HistoryEventList records={result.data} />
+              <nav className="pagination" aria-label="Páginas do histórico">
                 <button
                   className="button secondary"
                   disabled={query.page === 1}
                   onClick={() => setQuery({ ...query, page: query.page - 1 })}
                 >
+                  <ChevronLeft size={18} aria-hidden="true" />
                   Anterior
                 </button>
                 <span>
@@ -120,17 +130,12 @@ export function HistoryPage({
                   onClick={() => setQuery({ ...query, page: query.page + 1 })}
                 >
                   Próxima
+                  <ChevronRight size={18} aria-hidden="true" />
                 </button>
               </nav>
             </Panel>
           )}
         </AsyncView>
-        <button
-          className="button secondary"
-          onClick={() => setRefresh(refresh + 1)}
-        >
-          Atualizar histórico
-        </button>
       </Page>
     </>
   );

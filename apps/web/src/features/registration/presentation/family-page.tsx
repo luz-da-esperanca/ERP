@@ -1,6 +1,18 @@
 import { useCallback, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
+import {
+  History,
+  ClipboardList,
+  BadgeCheck,
+  Pencil,
+  Eye,
+  House,
+  UsersRound,
+  UserPlus,
+  Link2,
+  ArrowUpRight,
+} from 'lucide-react';
 import type { FamilyDetail } from '@erp/contracts/registration';
 import { useErp } from '../../../app/erp-provider';
 import { useQuery } from '../../../shared/use-query';
@@ -12,6 +24,7 @@ import {
   Field,
   Empty,
   StatusBadge,
+  ActionLink,
 } from '../../../shared/ui';
 import { civilToday, displayInstant } from '../../../shared/time';
 import { FamilyForm } from './family-form';
@@ -84,12 +97,14 @@ function FamilyProfile({
                   to={`/families/${family.id}`}
                   aria-current={isMembersView ? undefined : 'page'}
                 >
+                  <House size={18} aria-hidden="true" />
                   Visão geral
                 </Link>
                 <Link
                   to={`/families/${family.id}/members`}
                   aria-current={isMembersView ? 'page' : undefined}
                 >
+                  <UsersRound size={18} aria-hidden="true" />
                   Membros
                 </Link>
               </nav>
@@ -123,12 +138,12 @@ export function FamilyPage({
     <FamilyProfile
       actions={(id) =>
         session?.capabilities.includes('registration.write') ? (
-          <Link
-            className="button secondary"
+          <ActionLink
+            icon={edit ? Eye : Pencil}
             to={`/families/${id}${edit ? '' : '/edit'}`}
           >
             {edit ? 'Ver cadastro' : 'Editar cadastro'}
-          </Link>
+          </ActionLink>
         ) : null
       }
     >
@@ -143,30 +158,36 @@ export function FamilyPage({
         ) : (
           <>
             {connected && (
-              <nav
-                className="flex flex-wrap gap-4 mb-4"
-                aria-label="Consultas da família"
-              >
+              <nav className="action-links" aria-label="Consultas da família">
                 {session?.capabilities.includes('reports.read') && (
-                  <Link to={`/families/${family.id}/history`}>
+                  <ActionLink
+                    icon={History}
+                    to={`/families/${family.id}/history`}
+                  >
                     Histórico consolidado
-                  </Link>
+                  </ActionLink>
                 )}
                 {session?.capabilities.includes('socialForms.read') && (
-                  <Link to={`/families/${family.id}/social-forms`}>
+                  <ActionLink
+                    icon={ClipboardList}
+                    to={`/families/${family.id}/social-forms`}
+                  >
                     Ficha social
-                  </Link>
+                  </ActionLink>
                 )}
                 {session?.capabilities.includes('eligibility.read') && (
-                  <Link to={`/families/${family.id}/eligibility`}>
+                  <ActionLink
+                    icon={BadgeCheck}
+                    to={`/families/${family.id}/eligibility`}
+                  >
                     Aptidão familiar
-                  </Link>
+                  </ActionLink>
                 )}
               </nav>
             )}
             <div className="two-columns">
               <Panel title="Dados cadastrais">
-                <dl>
+                <dl className="profile-details">
                   <dt>Endereço</dt>
                   <dd>{family.address ?? 'Não informado'}</dd>
                   <dt>Bairro</dt>
@@ -279,7 +300,15 @@ function FamilyMembersTable({ detail }: { detail: FamilyDetail }) {
         <tbody>
           {members.map(({ person, membership }) => (
             <tr key={membership.id}>
-              <td>{person.name}</td>
+              <td>
+                <Link
+                  className="text-link record-link"
+                  to={`/people/${person.id}`}
+                >
+                  {person.name}
+                  <ArrowUpRight size={16} aria-hidden="true" />
+                </Link>
+              </td>
               <td>
                 {membership.isReference
                   ? 'Titular'
@@ -336,6 +365,7 @@ export function FamilyMembersPage({
                     className="button secondary"
                     to={`/families/${id}/members/link`}
                   >
+                    <Link2 size={18} aria-hidden="true" />
                     Vincular pessoa existente
                   </Link>
                 )}
@@ -344,6 +374,7 @@ export function FamilyMembersPage({
                   className="button primary"
                   to={`/people/new?familyId=${id}`}
                 >
+                  <UserPlus size={18} aria-hidden="true" />
                   Adicionar pessoa
                 </Link>
               )}
