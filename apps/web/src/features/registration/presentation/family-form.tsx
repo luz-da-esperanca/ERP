@@ -11,6 +11,8 @@ import {
   nullableValue,
 } from '../../../shared/ui';
 import { useAction } from '../../../shared/use-action';
+import { MaskedField } from '../../../shared/masked-field';
+import { AddressFields } from './address-fields';
 import {
   useRegistrationIntent,
   canRefreshDuplicateReview,
@@ -29,8 +31,9 @@ export function FamilyForm({ family }: { family?: Family }) {
         referenceName: nullableValue(data, 'referenceName'),
         address: nullableValue(data, 'address'),
         neighborhood: nullableValue(data, 'neighborhood'),
-        postalCode: nullableValue(data, 'postalCode'),
-        contactPhone: nullableValue(data, 'contactPhone'),
+        postalCode: nullableValue(data, 'postalCode')?.replace('-', '') ?? null,
+        contactPhone:
+          nullableValue(data, 'contactPhone')?.replace(/\D/g, '') ?? null,
         location: nullableValue(data, 'location'),
       });
       const prepared = await intent.prepare(
@@ -68,28 +71,11 @@ export function FamilyForm({ family }: { family?: Family }) {
           maxLength={200}
           defaultValue={family?.referenceName ?? ''}
         />
-        <Field
-          label="Bairro"
-          name="neighborhood"
-          maxLength={200}
-          defaultValue={family?.neighborhood ?? ''}
-        />
-        <Field
-          label="Endereço"
-          name="address"
-          maxLength={500}
-          defaultValue={family?.address ?? ''}
-        />
-        <Field
-          label="CEP (8 dígitos)"
-          name="postalCode"
-          pattern="[0-9]{8}"
-          defaultValue={family?.postalCode ?? ''}
-        />
-        <Field
+        <AddressFields initial={family} />
+        <MaskedField
+          mask="phone"
           label="Telefone"
           name="contactPhone"
-          maxLength={50}
           defaultValue={family?.contactPhone ?? ''}
         />
         <SelectField

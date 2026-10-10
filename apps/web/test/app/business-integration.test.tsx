@@ -63,6 +63,56 @@ afterEach(() => {
 });
 
 describe('Connected business screens', () => {
+  it('creates a family with a normalized masked postal code and an editable looked-up address', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        cep: '64000-000',
+        logradouro: 'Rua Sintética',
+        bairro: 'Centro',
+        localidade: 'Teresina',
+        uf: 'PI',
+      }),
+    );
+    const fetcher = vi.fn<typeof fetch>(async (value, options) => {
+      if (String(value).endsWith('/auth/session'))
+        return Response.json({ data: session });
+      if (String(value).includes('/duplicate-candidates'))
+        return Response.json({ data: [] });
+      if (options?.method === 'POST')
+        return Response.json({ data: family }, { status: 201 });
+      return Response.json({
+        data: {
+          family: { ...family, memberCount: 0, referencePersonName: null },
+          members: [],
+        },
+      });
+    });
+    renderConnected(fetcher, '/families/new');
+    await user.type(await screen.findByLabelText('CEP'), '64000000');
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText('Endereço') as HTMLInputElement).value,
+      ).toBe('Rua Sintética, Teresina - PI'),
+    );
+    await user.type(screen.getByLabelText('Endereço'), ', 123');
+    await user.type(screen.getByLabelText('Telefone'), '86999991234');
+    await user.click(screen.getByRole('button', { name: 'Criar família' }));
+    await waitFor(() =>
+      expect(
+        fetcher.mock.calls.some(([, options]) => options?.method === 'POST'),
+      ).toBe(true),
+    );
+    const write = fetcher.mock.calls.find(
+      ([, options]) => options?.method === 'POST',
+    );
+    expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+      postalCode: '64000000',
+      address: 'Rua Sintética, Teresina - PI, 123',
+      neighborhood: 'Centro',
+      contactPhone: '86999991234',
+    });
+  });
   it('submits a normalized masked CPF and rejects duplication without a distinct-person override', async () => {
     const user = userEvent.setup();
     const fetcher = vi.fn<typeof fetch>(async (value, options) => {
@@ -389,7 +439,7 @@ describe('Connected business screens', () => {
     });
   });
 
-  it('creates a person with unknown optional data and the displayed family revision, then edits without overwriting a revision conflict', async () => {
+  it('creates a person with a masked phone, unknown documents and the displayed family revision, then edits without overwriting a revision conflict', async () => {
     const user = userEvent.setup();
     const personId = '00000000-0000-4000-8000-000000000003';
     const person = {
@@ -457,6 +507,10 @@ describe('Connected business screens', () => {
       await screen.findByLabelText(/^Nome completo/),
       'Pessoa sintética',
     );
+    await user.type(screen.getByLabelText('Telefone'), '8632221234');
+    expect((screen.getByLabelText('Telefone') as HTMLInputElement).value).toBe(
+      '(86) 3222-1234',
+    );
     await user.click(screen.getByRole('button', { name: 'Cadastrar pessoa' }));
     await screen.findByRole('heading', { name: 'Pessoa sintética', level: 1 });
     const creation = fetcher.mock.calls.find(
@@ -469,6 +523,7 @@ describe('Connected business screens', () => {
       expectedFamilyRevision: 3,
       isReference: false,
       familyId,
+      contactPhone: '8632221234',
     });
     expect(creation?.[1]?.headers).toHaveProperty('Idempotency-Key');
     await user.click(screen.getByRole('link', { name: 'Editar pessoa' }));

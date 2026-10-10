@@ -12,3 +12,5 @@ export { MembershipsPage } from './features/registration/presentation/membership
 export { ReconciliationPage } from './features/registration/presentation/reconciliation-page';
 export { RegistrationConfigurationPage } from './features/registration/presentation/configuration-page';
 export { LinkPersonPage } from './features/registration/presentation/link-person-page';
+export { AddressFields } from './features/registration/presentation/address-fields';
+export { lookupPostalAddress } from './features/registration/infra/lookup-postal-address';

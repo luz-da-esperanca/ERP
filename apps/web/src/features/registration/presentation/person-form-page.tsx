@@ -23,6 +23,7 @@ import {
 import { civilToday } from '../../../shared/time';
 import { useRegistrationIntent } from './use-registration-intent';
 import { CpfField } from './cpf-field';
+import { MaskedField } from '../../../shared/masked-field';
 
 function PersonForm({
   registration,
@@ -49,7 +50,8 @@ function PersonForm({
         rg: nullableValue(form, 'rg'),
         occupation: nullableValue(form, 'occupation'),
         educationLevel: nullableValue(form, 'educationLevel'),
-        contactPhone: nullableValue(form, 'contactPhone'),
+        contactPhone:
+          nullableValue(form, 'contactPhone')?.replace(/\D/g, '') ?? null,
       };
       if (person) {
         const input = updatePersonSchema.parse({
@@ -125,10 +127,10 @@ function PersonForm({
           maxLength={30}
           defaultValue={person?.rg ?? ''}
         />
-        <Field
+        <MaskedField
+          mask="phone"
           label="Telefone"
           name="contactPhone"
-          maxLength={50}
           defaultValue={person?.contactPhone ?? ''}
         />
         <Field

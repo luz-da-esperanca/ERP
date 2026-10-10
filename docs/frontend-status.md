@@ -36,6 +36,20 @@ Os históricos de auditoria e de qualidade já persistidos continuam disponívei
 nos contratos de leitura/relatórios. A proteção de concorrência exige aplicar a
 migration de [unicidade do CPF](api/registration.md#migration-de-unicidade-do-cpf).
 
+Em 09/10/2026, o cadastro de família passou a consultar endereço e bairro ao
+completar os oito dígitos do CEP, usando o [ViaCEP](https://viacep.com.br/).
+O endereço continua editável para número e complemento. Consultas antigas são
+canceladas; a resposta preserva edições manuais feitas durante a consulta.
+CEP inexistente, falha do serviço ou logradouro ausente permitem preenchimento
+manual. O serviço recebe somente o CEP, sem cookies ou dados pessoais do formulário.
+CEP e telefones de pessoa/família possuem máscara e são enviados à API somente
+com dígitos. Renda usa separadores brasileiros na tela e decimal na API;
+campo vazio continua desconhecido, distinto de zero declarado.
+
+A solicitação de formulário fixo igual à ficha de 2025, com campos obrigatórios,
+está registrada em [SPEC-FIC](specs/03-social-forms.md). A implementação dessa
+substituição está pendente da definição dos campos que não se aplicam.
+
 ## Garantias e limites
 
 Aptidão é consultada no backend, sem critérios presumidos na interface.

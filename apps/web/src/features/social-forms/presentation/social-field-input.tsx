@@ -4,6 +4,7 @@ import type {
   SocialFormContextDto,
 } from '@erp/contracts/social-forms-api';
 import type { SocialFieldKey } from '@erp/contracts/social-form-fields';
+import { MaskedField } from '../../../shared/masked-field';
 import {
   Field,
   SelectField,
@@ -163,6 +164,15 @@ export function SocialFieldInput({
       </SelectField>
     );
   const count = key.endsWith('Count');
+  if (key.endsWith('incomeAmount'))
+    return (
+      <MaskedField
+        mask="currency"
+        label={socialFieldLabels[key]}
+        name={name}
+        required={field.required}
+      />
+    );
   return (
     <Field
       label={socialFieldLabels[key]}
@@ -172,9 +182,6 @@ export function SocialFieldInput({
       min={count ? 0 : undefined}
       step={count ? 1 : undefined}
       maxLength={key === 'situation.text' ? 4000 : 1000}
-      pattern={
-        key.endsWith('incomeAmount') ? '\\d{1,12}(\\.\\d{1,2})?' : undefined
-      }
     />
   );
 }
@@ -191,6 +198,8 @@ export function collectSocialFields(
     const text = textValue(data, name);
     let value: unknown = nullableValue(data, name);
     if (booleanKeys.includes(key)) value = text === '' ? null : text === 'true';
+    else if (key.endsWith('incomeAmount'))
+      value = text === '' ? null : text.replaceAll('.', '').replace(',', '.');
     else if (key.endsWith('Count')) value = text === '' ? null : Number(text);
     else if (catalogKeys.includes(key))
       value =
