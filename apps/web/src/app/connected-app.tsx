@@ -43,6 +43,7 @@ import { ConnectedFamiliesPage } from '../features/registration/presentation/con
 import {
   FamilyPage,
   FamilyMembersPage,
+  FamilyActivitiesPage,
   NewFamilyPage,
 } from '../features/registration/presentation/family-page';
 import { PersonPage } from '../features/registration/presentation/person-page';
@@ -150,6 +151,10 @@ function ConnectedRoutes({
             <Route
               path="families/:id/members"
               element={<FamilyMembersPage connected />}
+            />
+            <Route
+              path="families/:id/activities"
+              element={<FamilyActivitiesPage />}
             />
             <Route
               path="people/:id"

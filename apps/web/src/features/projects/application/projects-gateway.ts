@@ -11,6 +11,12 @@ export interface ProjectsGateway {
   createProject(input: ProjectInput): Promise<Project>;
   createActivity(input: ActivityInput): Promise<Activity>;
   getActivity(id: string, asOf: string): Promise<ActivityDetail>;
+  activities(query: {
+    familyId?: string;
+    personId?: string;
+    asOf?: string;
+    projectId?: string;
+  }): Promise<Activity[]>;
   enroll(
     activityId: string,
     personId: string,

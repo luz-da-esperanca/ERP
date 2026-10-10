@@ -43,6 +43,12 @@ export class HttpProjects {
       )
     ).data;
   }
+  activities(query: contracts.ActivitiesQueryInput) {
+    return this.all(
+      apiQuery('/activities', query),
+      contracts.activitiesPageSchema,
+    );
+  }
   enrollments(id: string, asOf?: string) {
     return this.all(
       `/activities/${z.uuid().parse(id)}/enrollments${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`,

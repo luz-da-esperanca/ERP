@@ -96,6 +96,9 @@ export interface ActivitiesQuery extends PageQuery {
   projectId?: string;
   nature?: ActivityNature;
   status?: RecordStatus;
+  personId?: string;
+  familyId?: string;
+  asOf?: string;
 }
 export interface EnrollmentsQuery extends PageQuery {
   asOf?: string;

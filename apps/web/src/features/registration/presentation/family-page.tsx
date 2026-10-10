@@ -12,6 +12,7 @@ import {
   UserPlus,
   Link2,
   ArrowUpRight,
+  BookOpen,
 } from 'lucide-react';
 import type { FamilyDetail } from '@erp/contracts/registration';
 import { useErp } from '../../../app/erp-provider';
@@ -46,7 +47,7 @@ function FamilyProfile({
 }) {
   const { id = '' } = useParams();
   const location = useLocation();
-  const { client } = useErp();
+  const { client, session } = useErp();
   const [asOf, setAsOf] = useState(civilToday);
   const at = `${asOf}T23:59:59.999-03:00`;
   const load = useCallback(
@@ -95,7 +96,11 @@ function FamilyProfile({
               >
                 <Link
                   to={`/families/${family.id}`}
-                  aria-current={isMembersView ? undefined : 'page'}
+                  aria-current={
+                    !isMembersView && !location.pathname.endsWith('/activities')
+                      ? 'page'
+                      : undefined
+                  }
                 >
                   <House size={18} aria-hidden="true" />
                   Visão geral
@@ -107,6 +112,19 @@ function FamilyProfile({
                   <UsersRound size={18} aria-hidden="true" />
                   Membros
                 </Link>
+                {session?.capabilities.includes('projects.read') && (
+                  <Link
+                    to={`/families/${family.id}/activities`}
+                    aria-current={
+                      location.pathname.endsWith('/activities')
+                        ? 'page'
+                        : undefined
+                    }
+                  >
+                    <BookOpen size={18} aria-hidden="true" />
+                    Atividades
+                  </Link>
+                )}
               </nav>
               <div className="family-profile-content">
                 {children({
@@ -399,5 +417,97 @@ export function NewFamilyPage() {
         </Panel>
       </Page>
     </>
+  );
+}
+
+export function FamilyActivitiesPage() {
+  const { client } = useErp();
+  return (
+    <FamilyProfile>
+      {({ id, asOf, onAsOfChange }) => {
+        const at = `${asOf}T23:59:59.999-03:00`;
+        const load = useCallback(
+          () => client.projects.activities({ familyId: id, asOf: at }),
+          [client, id, at],
+        );
+        const state = useQuery(load);
+        return (
+          <Panel>
+            <div className="members-heading">
+              <div>
+                <h2>Atividades da família</h2>
+                <p className="muted">
+                  Atividades com membros da família matriculados em{' '}
+                  {asOf.split('-').reverse().join('/')}.
+                </p>
+              </div>
+              <div className="members-heading-actions">
+                <Field
+                  label="Consultar atividades em"
+                  name="asOf"
+                  type="date"
+                  value={asOf}
+                  max={civilToday()}
+                  onChange={(event) => {
+                    if (event.target.value) onAsOfChange(event.target.value);
+                  }}
+                />
+              </div>
+            </div>
+            <AsyncView state={state}>
+              {(activities) => {
+                if (activities.length === 0)
+                  return (
+                    <Empty>
+                      Nenhuma atividade encontrada para esta família na data
+                      selecionada.
+                    </Empty>
+                  );
+                return (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Atividade</th>
+                          <th>Natureza</th>
+                          <th>Situação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activities.map((activity) => (
+                          <tr key={activity.id}>
+                            <td>
+                              <Link
+                                className="text-link record-link"
+                                to={`/projects/${activity.projectId}/activities/${activity.id}`}
+                              >
+                                {activity.name}
+                                <ArrowUpRight size={16} aria-hidden="true" />
+                              </Link>
+                            </td>
+                            <td>
+                              {activity.nature === 'PERIODIC'
+                                ? 'Periódica'
+                                : 'Pontual'}
+                            </td>
+                            <td>
+                              <StatusBadge>
+                                {activity.status === 'ACTIVE'
+                                  ? 'Em andamento'
+                                  : 'Encerrada'}
+                              </StatusBadge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }}
+            </AsyncView>
+          </Panel>
+        );
+      }}
+    </FamilyProfile>
   );
 }

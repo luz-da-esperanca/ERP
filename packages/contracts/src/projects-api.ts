@@ -181,6 +181,9 @@ export const activitiesQuerySchema = paginationSchema
     projectId: idSchema.optional(),
     nature: activityNatureSchema.optional(),
     status: recordStatusSchema.optional(),
+    personId: idSchema.optional(),
+    familyId: idSchema.optional(),
+    asOf: instantInput.optional(),
   })
   .strict();
 export const enrollmentsQuerySchema = paginationSchema

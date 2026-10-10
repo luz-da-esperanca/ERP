@@ -29,7 +29,7 @@ export interface ErpViewClient {
     ): Promise<Family>;
     reviewFamilyDuplicates?(input: FamilyInput): Promise<DuplicateCandidate[]>;
   };
-  projects: Pick<ProjectsGateway, 'overview' | 'getActivity'>;
+  projects: Pick<ProjectsGateway, 'overview' | 'getActivity' | 'activities'>;
   audit: { list(familyId?: string): Promise<AuditEntry[]> };
 }
 export interface ErpClient {

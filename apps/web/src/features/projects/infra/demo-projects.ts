@@ -90,6 +90,9 @@ export function createDemoProjects(runtime: DemoRuntime): ProjectsGateway {
         };
       });
     },
+    async activities(_query) {
+      return runtime.read('projects.read', (s) => s.activities);
+    },
     async getActivity(id, asOf) {
       instantSchema.parse(asOf);
       return runtime.read('projects.read', (s) => {

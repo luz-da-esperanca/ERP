@@ -567,6 +567,14 @@ export class PrismaProjects implements ProjectsReader, ProjectsUnitOfWork {
   }
   activities(query: ActivitiesQuery) {
     return this.read(async (tx) => {
+      const asOfDate = query.asOf ? new Date(query.asOf) : undefined;
+      const validFilter = asOfDate
+        ? {
+            validFrom: { lte: asOfDate },
+            OR: [{ validUntil: null }, { validUntil: { gt: asOfDate } }],
+            supersededById: null,
+          }
+        : { supersededById: null };
       const where: Prisma.ActivityWhereInput = {
         projectId: query.projectId,
         nature: query.nature,
@@ -574,6 +582,25 @@ export class PrismaProjects implements ProjectsReader, ProjectsUnitOfWork {
         nameSearch: query.q
           ? { contains: normalizeSearch(query.q) }
           : undefined,
+        enrollments:
+          query.personId || query.familyId
+            ? {
+                some: {
+                  ...validFilter,
+                  personId: query.personId,
+                  person: query.familyId
+                    ? {
+                        memberships: {
+                          some: {
+                            familyId: query.familyId,
+                            ...validFilter,
+                          },
+                        },
+                      }
+                    : undefined,
+                },
+              }
+            : undefined,
       };
       const data = await tx.activity.findMany({
         where,
