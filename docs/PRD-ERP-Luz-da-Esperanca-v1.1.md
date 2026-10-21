@@ -3,6 +3,8 @@
 Documento canônico de negócio
 
 **Versão:** 1.1 · **Data:** 18 de setembro de 2026  
+**Revisão cadastral:** 21 de outubro de 2026 — CPF obrigatório, válido e único por pessoa.
+
 **Situação:** base consolidada de produto, com decisões de negócio pendentes de validação institucional.  
 **Público:** coordenação, responsáveis pela assistência, equipes operacionais e equipes de produto e desenvolvimento.  
 **Responsável pela aprovação de negócio:** representante da instituição a designar.
@@ -123,7 +125,7 @@ Na origem dos requisitos, **C** significa necessidade confirmada no levantamento
 
 | ID | Capacidade e resultado de negócio | Origem |
 |---|---|---|
-| CAP-01 | Identificar pessoas assistidas, famílias e seus vínculos; localizar cadastros existentes e tratar possíveis duplicidades. | C para pessoas e famílias; P para o tratamento de duplicidades. |
+| CAP-01 | Identificar pessoas assistidas com CPF próprio obrigatório, válido e único, famílias e seus vínculos; localizar cadastros existentes e tratar possíveis duplicidades. | C para pessoas e famílias e para CPF obrigatório conforme F9; P para o tratamento de duplicidades. |
 | CAP-02 | Registrar e consultar a situação social conforme os campos da ficha recebida selecionados e validados para o produto. | C para acompanhamento; ficha disponível em F5; D para necessidade dos campos, atualização e responsabilidades. |
 | CAP-03 | Organizar projetos e suas atividades, distinguindo frequência de atendimento pontual. | C; D para o vínculo exato com institutos. |
 | CAP-04 | Registrar participação por pessoa e ocorrência de atividade periódica; consultar o histórico e corrigir registros de forma identificável. | C para frequência; P para controles de correção. |
@@ -169,9 +171,11 @@ As jornadas descrevem o trabalho e os resultados esperados. Não determinam tela
 
 O responsável pelo cadastro procura a pessoa e sua família antes de criar novos registros. Identifica os membros e os vínculos pertinentes, registra os dados necessários à assistência e consulta ou atualiza a ficha social conforme o instrumento institucional. A equipe passa a recuperar o histórico comum, respeitando os limites de acesso.
 
-**Resultado esperado:** a mesma família é reconhecida em atividades e atendimentos diferentes. Uma correção de composição familiar preserva o contexto dos fatos anteriores. Dados ausentes e possíveis duplicidades são sinalizados para análise; exigências como CPF, telefone ou endereço completo não são presumidas como critérios de acesso à assistência.
+**Resultado esperado:** a mesma família é reconhecida em atividades e atendimentos diferentes. Uma correção de composição familiar preserva o contexto dos fatos anteriores. Dados opcionais ausentes e possíveis duplicidades são sinalizados para análise. O cadastro de cada pessoa exige CPF próprio obrigatório, válido e único, inclusive no fluxo mínimo e na importação. Telefone, endereço completo e documentos adicionais ao CPF não são presumidos como exigências obrigatórias.
 
-**Atualização do recorte em 07/10/2026:** por exigência de Dário comunicada pelo responsável pelo projeto, a interface remove a central “Duplicidades e qualidade”. O CPF, quando conhecido e informado, deve ser válido e único por pessoa canônica; o cadastro e a edição impedem repeti-lo, sem exceção por justificativa. O CPF continua opcional. A mudança não transforma homônimos em duplicados nem apaga cadastros ou históricos existentes.
+**Atualização do recorte em 07/10/2026:** por exigência de Dário comunicada pelo responsável pelo projeto, a interface remove a central “Duplicidades e qualidade”. A regra cadastral foi atualizada em 21/10/2026 pelo responsável pelo projeto: CPF próprio é obrigatório, válido e único por pessoa, inclusive em cadastro mínimo, edição e importação. CPF ausente, vazio, inválido ou já atribuído a outra pessoa impede concluir a gravação, sem exceção por justificativa ou uso do documento de outro membro. A mudança não transforma homônimos em duplicados nem apaga cadastros ou históricos existentes.
+
+**Cadastro mínimo enquanto DEC-01 estiver pendente:** exigir nome, CPF próprio obrigatório, válido e único e vínculo familiar. Nascimento desconhecido deve ficar sinalizado, sem data fictícia ou bloqueio por obrigatoriedade ainda não aprovada. A necessidade de titular, sua quantidade e forma de substituição dependem de DEC-01; não impor esse papel nem designá-lo automaticamente antes da decisão.
 
 ### 4.2 Registrar participação e avaliar aptidão
 
@@ -221,7 +225,7 @@ A numeração de calçado e vestuário aparece no quadro de crianças e adolesce
 
 **RN-03 — Aptidão não garante entrega.** A condição permite considerar a família para distribuição. A entrega depende dos itens disponíveis e da decisão de distribuição; cadastro ou aptidão não constitui promessa de benefício. [F1, §§2 e 4; F2, seção 3]
 
-**RN-04 — Atividades por projeto e por natureza.** Projetos contêm atividades. O controle deve distinguir atividades periódicas com frequência e atividades pontuais com registro de realização. O vínculo obrigatório e exclusivo de cada projeto a um instituto depende de validação. [F1, §§3 e 5; DEC-04]
+**RN-04 — Atividades por projeto e por natureza.** Projetos contêm atividades. O controle deve distinguir atividades periódicas com frequência e atividades pontuais com registro de realização. A associação de projetos com institutos, sua obrigatoriedade e cardinalidade dependem de validação. Enquanto DEC-04 estiver pendente, não exigir instituto para cadastrar projeto nem impor exclusividade. [F1, §§3 e 5; DEC-04]
 
 **RN-05 — Atendimento pontual como ocorrência.** Atendimentos como consultas e fisioterapia exigem comprovação de realização, sem a chamada periódica aplicável às aulas. A classificação não limita a pessoa a uma única ocorrência. [F1, §3; F2, seção 4]
 
@@ -255,7 +259,7 @@ Estas regras dão consistência ao escopo mínimo. São propostas de produto e n
 
 ### 5.3 Políticas que permanecem em aberto
 
-Não são regras vigentes deste PRD: frequência mínima ou janela de participação; contribuição de atendimentos pontuais para aptidão; pontuação de vulnerabilidade; prioridade automática por renda; intervalo obrigatório entre entregas; prazo anual de ficha social; suspensão de famílias; exceções emergenciais; exigência universal de documentos; transferências do social ao Bazar; ou coleta de conteúdo clínico. Esses temas devem seguir as decisões da seção 8 quando forem pertinentes ao produto.
+Não são regras vigentes deste PRD: frequência mínima ou janela de participação; contribuição de atendimentos pontuais para aptidão; pontuação de vulnerabilidade; prioridade automática por renda; intervalo obrigatório entre entregas; prazo anual de ficha social; suspensão de famílias; exceções emergenciais; exigência de documentos adicionais ao CPF; transferências do social ao Bazar; ou coleta de conteúdo clínico. Esses temas devem seguir as decisões da seção 8 quando forem pertinentes ao produto.
 
 ## 6 Critérios de aceite de negócio
 
@@ -329,7 +333,7 @@ Os responsáveis abaixo são papéis propostos. A coordenação deverá designar
 
 | ID | Decisão necessária | Quem deve decidir | Antes de quê |
 |---|---|---|---|
-| DEC-01 | Definir núcleo familiar, vínculo atual e histórico, responsável de referência, documentos necessários e tratamento de cadastro incompleto ou duplicado. | Coordenação e responsáveis pelo cadastro e acompanhamento social. | Fechar CAP-01 e preparar cadastros reais. |
+| DEC-01 | Definir núcleo familiar, vínculo atual e histórico, eventual obrigatoriedade do nascimento, necessidade/quantidade de referências familiares e critérios de designação/substituição, eventuais documentos adicionais ao CPF obrigatório e tratamento de cadastro incompleto ou duplicado. | Coordenação e responsáveis pelo cadastro e acompanhamento social. | Fechar CAP-01 e preparar cadastros reais. |
 | DEC-02 | Definir frequência válida, período, interrupções, atividades consideradas, evidência incompleta e eventual efeito de atendimentos pontuais. | Coordenação e responsáveis pelas atividades e assistência. | Automatizar ou usar aptidão para liberar ou impedir entregas. |
 | DEC-03 | Definir prioridades, limites, urgências e possibilidade de exceções; identificar quem pode autorizar e como justificar. | Coordenação e equipe de assistência. | Aplicar bloqueios ou prioridades além da disponibilidade física. |
 | DEC-04 | Confirmar relação entre institutos e projetos, organização dos encontros e necessidade de turmas ou inscrições. | Coordenação e responsáveis pelas atividades. | Detalhar CAP-03 e CAP-04. |
@@ -383,6 +387,7 @@ O arquivo PRD-ERP-Luz-da-Esperanca-v1.1.md é a versão de referência para cont
 |---|---|---|---|
 | 1.0 | 17/09/2026 | Consolidação do problema, solução, escopo, regras, critérios de aceite e decisões pendentes. | Base canônica entregue; validação institucional das propostas e pendências não registrada. |
 | 1.1 | 18/09/2026 | Incorporação da ficha recebida, substituição do Bússola Social, diagnóstico a completar, transição e referências do dossiê; preservação das políticas pendentes. | Revisão documental; aprovação institucional ainda não registrada. |
+| 1.1 — revisão cadastral | 21/10/2026 | CPF próprio obrigatório, válido e único em criação, edição, cadastro mínimo e importação; substitui a indicação anterior de opcionalidade. Conciliação com a transcrição: nascimento desconhecido não bloqueia o mínimo, e titularidade e associação entre institutos e projetos não impõem exigências antes das decisões aplicáveis. | Diretriz explícita do responsável pelo projeto para CPF; os demais esclarecimentos preservam DEC-01 e DEC-04 pendentes, sem declarar aprovação institucional. |
 
 ## 10 Fontes e conciliação das divergências
 
@@ -398,6 +403,7 @@ O arquivo PRD-ERP-Luz-da-Esperanca-v1.1.md é a versão de referência para cont
 | F6 | Esclarecimentos da equipe em 18/09/2026 | Bússola Social identificado como sistema pago atual; decisão de substituição por sistema próprio. |
 | F7 | Pesquisa documental de sistemas para organizações sociais, v1.0 | Comparação de oito soluções; referência de mercado sem incorporação automática de funcionalidades. |
 | F8 | Bibliografia e fundamentação do ERP Social, v1.1 | Estudos acadêmicos, normas e fontes técnicas; contribuição e limites de aplicação. |
+| F9 | Diretriz cadastral do responsável pelo projeto em 21/10/2026 | CPF próprio obrigatório, válido e único, inclusive no fluxo mínimo e na importação. |
 
 F1 prevalece para verificar o que foi efetivamente solicitado na fala. F2, F3 e F4 ajudam a organizar o produto e identificar lacunas, sem constituírem evidências independentes de aprovação. A classificação P explicita os desdobramentos propostos neste PRD.
 
