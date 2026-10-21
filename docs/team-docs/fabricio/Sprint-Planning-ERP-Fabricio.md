@@ -32,7 +32,7 @@ O documento é utilizável como plano de coordenação: escopos estão separados
 | PB-17 → PB-20 → G-10 | Dependência crítica: PB-17 precisa terminar antes de PB-20. Propõem-se PB-17 até 17/11 e PB-20 no início de 18/11 para reservar o restante do dia à validação de G-10. Esses horários/datas internos são metas de execução novas, a alinhar entre líderes; o geral só fixa PB-20 e G-10 até 18/11. |
 | “Avaliação real desde 16/11” em C-04 | O geral também prevê PB-20 só em 18/11. Em 16–17/11 pode ocorrer preparação/teste contratual com exemplos; validação com avaliação oficial começa quando PB-20 estiver disponível, prevista em 18/11. Aceite real de C-04 permanece em 20/11. Essa interpretação precisa ser refletida na próxima revisão do geral. |
 | G-01/G-02 em S1 e S2 | O geral informa início em S1 e conclusão em S2; contar uma única conclusão em 30/10. A demonstração de S1 é do avanço do catálogo, não prova de conclusão dos dois cartões. Não são atribuições desta equipe. |
-| CPF e proteção desde S1 | PB-04 já cria pessoas em S1: CPF informado precisa ser válido/único e dados protegidos desde a primeira gravação. PB-05 na S2 completa busca e mensagens; não adia a integridade cadastral. PB-11 na S4 completa controles específicos da ficha; acesso básico vem de C-02. |
+| CPF e proteção desde S1 | PB-04 já cria pessoas em S1: CPF é obrigatório e precisa ser válido/único e dados protegidos desde a primeira gravação. PB-05 na S2 completa busca e mensagens; não adia a integridade cadastral. PB-11 na S4 completa controles específicos da ficha; acesso básico vem de C-02. |
 | Carga de S5/S6 e migração | S5 integra aptidão/entrega; S6 reúne histórico, relatórios, migração e restauração. Manter C-08 em construção desde S3 e C-09 desde S1, como o geral prevê; medir capacidade para evitar concentrar toda implementação na última semana. |
 
 O arquivo geral anexado permanece como referência recebida. Este recorte explicita os ajustes de execução acima e não altera unilateralmente os cartões ou prazos da outra equipe.
@@ -80,14 +80,14 @@ Todas as células indicam uma tarefa própria detalhada adiante; não há integr
 | Tarefa | Origem | Responsável principal | Tipo | Entrega | Evidência de conclusão | Revisor |
 |---|---|---|---|---|---|---|
 | TF-01-01 | C-01, C-02, C-03, C-04, PB-03, PB-04, PB-12 | Fabricio | Revisão | Revisar contratos, segurança e cadastros da S1 | Parecer registrado sobre contratos/autenticação, autorização, CPF e vínculo mínimo, projetos e auditoria; PRs/evidências analisados e pendências com item responsável. | — (parecer do revisor) |
-| TF-01-02 | PB-03, PB-04, C-01 | Gabriel | Execução | Implementar família/pessoa/vínculo e contratos cadastrais | APIs e contratos de família/pessoa/vínculo publicados; CPF opcional válido/único quando informado, autoria e permissões aplicadas; dados recuperáveis pela interface. | Ruan |
-| TF-01-03 | PB-03, PB-04 | Ruan | Execução | Entregar formulários de família e cadastro mínimo de pessoa | Fluxo completo de família → pessoa vinculada integrado à API, com campos pendentes sinalizados e sem CPF obrigatório. | Gabriel |
-| TF-01-04 | PB-12, C-01, C-02, C-03 | Alan | Execução | Implementar projetos e integração de autenticação/autorização no servidor | Cadastro de institutos/projetos disponível; autenticação e perfis comuns integrados; autoria/auditoria conectadas ao mecanismo conduzido pela outra frente. Contratos/documentação técnica produzidos. | Fabricio |
+| TF-01-02 | PB-03, PB-04, C-01 | Gabriel | Execução | Implementar família/pessoa/vínculo e contratos cadastrais | APIs e contratos de família/pessoa/vínculo publicados; CPF obrigatório, válido e único, autoria e permissões aplicadas; dados recuperáveis pela interface. | Ruan |
+| TF-01-03 | PB-03, PB-04 | Ruan | Execução | Entregar formulários de família e cadastro mínimo de pessoa | Fluxo completo de família → pessoa vinculada integrado à API, com CPF próprio obrigatório, válido e único; nascimento desconhecido sinalizado sem bloqueio e sem exigir titular enquanto LAC-02 estiver pendente. | Gabriel |
+| TF-01-04 | PB-12, C-01, C-02, C-03 | Alan | Execução | Implementar projetos e integração de autenticação/autorização no servidor | Cadastros de institutos e projetos disponíveis, sem exigir associação pendente em LAC-04; autenticação e perfis comuns integrados; autoria/auditoria conectadas ao mecanismo conduzido pela outra frente. Contratos/documentação técnica produzidos. | Fabricio |
 | TF-01-05 | C-02 | Kauã | Execução | Entregar login, sessão e navegação protegida na interface | Login integrado ao serviço comum; logout, sessão inválida e negação de acesso tratados. Tela não substitui autorização no servidor. Kauã é responsável principal por esta tarefa. | Fabricio |
 
 **Parcela dos itens comuns:** Gabriel produz contratos cadastrais; Alan integra autenticação/perfis e auditoria na base comum com a outra frente; Kauã implementa login/sessão na interface. Fabricio revisa contratos, PRs e evidências.
 
-**Sequência e demonstração:** Integrar C-01/C-02/C-03 antes das gravações; família PB-03 precede pessoa/vínculo PB-04. PB-04 prioriza cadastro mínimo conforme o geral, com campos complementares explicitamente pendentes. Regras de integridade do CPF e autoria já se aplicam. Alan e Kauã trabalham em projetos/login em paralelo.
+**Sequência e demonstração:** Integrar C-01/C-02/C-03 antes das gravações; família PB-03 precede pessoa/vínculo PB-04. PB-04 prioriza cadastro mínimo com CPF próprio obrigatório, válido e único conforme o geral, com campos complementares explicitamente pendentes. Regras de integridade do CPF e autoria já se aplicam. Alan e Kauã trabalham em projetos/login em paralelo.
 
 ## Sprint 2 — 26/10/2026 a 30/10/2026
 
@@ -105,15 +105,15 @@ Todas as células indicam uma tarefa própria detalhada adiante; não há integr
 
 | Tarefa | Origem | Responsável principal | Tipo | Entrega | Evidência de conclusão | Revisor |
 |---|---|---|---|---|---|---|
-| TF-02-01 | C-07, PB-05, PB-06, PB-13 | Fabricio | Revisão | Revisar busca, vínculos, atividades e plano de migração | Revisar validação/unicidade de CPF, histórico de titular/vínculos, natureza/encerramento da atividade e mapa de exportação produzido pelos executores; registrar parecer e bloqueios. | — (parecer do revisor) |
-| TF-02-02 | PB-05, PB-06 | Gabriel | Execução | Entregar busca/validações no servidor e manutenção dos vínculos | Busca por critérios disponíveis; unicidade de CPF verificada em criação/edição e concorrência; troca de titular e vínculos mantém história e contagem correta. | Fabricio |
-| TF-02-03 | PB-05, PB-06, C-07 | Ruan | Execução | Entregar telas cadastrais e mapa de exportação/migração | Busca e manutenção de titular/vínculos integradas; amostra/formato/IDs e plano de corte documentados com a outra frente, com insumos de Gabriel; fonte ausente registrada como bloqueio. | Fabricio |
+| TF-02-01 | C-07, PB-05, PB-06, PB-13 | Fabricio | Revisão | Revisar busca, vínculos, atividades e plano de migração | Revisar validação/unicidade de CPF, histórico de vínculos e referência familiar conforme política aprovada em LAC-02, natureza/encerramento da atividade e mapa de exportação produzido pelos executores; registrar parecer e bloqueios. | — (parecer do revisor) |
+| TF-02-02 | PB-05, PB-06 | Gabriel | Execução | Entregar busca/validações no servidor e manutenção dos vínculos | Busca por critérios disponíveis; unicidade de CPF verificada em criação/edição e concorrência; vínculos mantêm história e contagem correta; titularidade segue somente política aprovada em LAC-02. | Fabricio |
+| TF-02-03 | PB-05, PB-06, C-07 | Ruan | Execução | Entregar telas cadastrais e mapa de exportação/migração | Busca e manutenção de vínculos integradas; referência familiar apenas conforme política aprovada em LAC-02; amostra/formato/IDs e plano de corte documentados com a outra frente, com insumos de Gabriel; fonte ausente registrada como bloqueio. | Fabricio |
 | TF-02-04 | PB-13 | Alan | Execução | Entregar regras, API e persistência do catálogo de atividades | Natureza periódica/pontual obrigatória; horários/responsável ou tipo pontual registrados; não trocar natureza com fatos nem apagar histórico ao encerrar. | Kauã |
 | TF-02-05 | PB-13 | Kauã | Execução | Entregar interface de criação, consulta e encerramento de atividades | Telas integradas com natureza e campos correspondentes, validação, mensagens de bloqueio e preservação dos registros ao encerrar. | Alan |
 
 **Parcela dos itens comuns:** Ruan executa C-07 com insumos de Gabriel e da outra frente, documentando fonte/mapeamento/corte. Fabricio revisa o plano e registra inconsistências.
 
-**Sequência e demonstração:** PB-05 conclui busca e prevenção de duplicidade sobre o cadastro da S1; PB-06 mantém composição e titular histórico. Alan/Kauã concluem catálogo PB-13 para os atendimentos da outra frente na S3.
+**Sequência e demonstração:** PB-05 conclui busca e prevenção de duplicidade sobre o cadastro da S1; PB-06 mantém composição histórica; referência familiar segue somente política aprovada em LAC-02. Alan/Kauã concluem catálogo PB-13 para os atendimentos da outra frente na S3.
 
 ## Sprint 3 — 02/11/2026 a 06/11/2026
 

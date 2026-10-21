@@ -78,7 +78,7 @@ G-01/G-02 iniciam na semana geral S1 e concluem uma única vez em S2, em 30/10. 
 | Tarefa | Origem | Principal | Tipo | Entrega | Evidência de conclusão | Revisor |
 |---|---|---|---|---|---|---|
 | TG-02-01 | G-03, G-04, G-05 | Gabriel (líder) | Revisão | Revisar atendimentos, visita e correções | Parecer sobre vínculo histórico, executor/operador, cancelamento e observações sem prontuário; PRs/evidências e pendências registrados. | — |
-| TG-02-02 | G-03 | G2 | Execução | Implementar registro de atendimento | Atendimento à pessoa ou família com data, tipo, executor e operador; cadastro mínimo integrado; repetição em outras datas não cria presença. | G3 |
+| TG-02-02 | G-03 | G2 | Execução | Implementar registro de atendimento | Atendimento à pessoa ou família com data, tipo, executor e operador; cadastro mínimo com CPF obrigatório integrado; repetição em outras datas não cria presença. | G3 |
 | TG-02-03 | G-03, C-03 | G3 | Execução | Entregar interface de atendimento e integração à auditoria | Fluxo de escolha pessoa/família/atividade e confirmação integrado; datas, autoria e dados autorizados conferidos. | G2 |
 | TG-02-04 | G-04 | G4 | Execução | Implementar visita domiciliar | Visita vinculada à família com data, executor e situação encontrada; acesso restrito e sem sobrescrever ficha automaticamente; LAC-13 aplicada. | G2 |
 | TG-02-05 | G-05 | G5 | Execução | Implementar correção e cancelamento do atendimento | Motivo, autor, revisão esperada e valores anteriores preservados; cancelados separados dos atendimentos válidos nos totais. | G3 |

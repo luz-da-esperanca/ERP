@@ -16,7 +16,7 @@ ERP Social Luz da Esperança • Versão 3.2 • 21/10/2026
 
 CRM, captação/doações financeiras, vendas/caixa/financeiro/estoque comercial do Bazar e Escola Espírita continuam fora do ERP. Identificar doador de itens não é implementar CRM. O ERP recebe itens do Bazar; não implementa o sistema comercial nem exige integração automática quando o lançamento manual referenciado for aprovado.
 
-Fontes: PRD 1.1 (inclui mudança de CPF de 07/10/2026), ERS 1.0 e Modelagem lógica v1.1 anexados; divisão atualizada por Fabricio em 19/10. Não houve inspeção de código ou entrevista institucional nova.
+Fontes: PRD 1.1 (inclui mudanças de 07/10/2026 e CPF obrigatório definido em 21/10/2026), ERS 1.1 e Modelagem lógica v1.1 anexados; divisão atualizada por Fabricio em 19/10. Não houve inspeção de código ou entrevista institucional nova.
 
 ## Integrantes e regra de atribuição
 
@@ -48,7 +48,7 @@ Esta é uma única lista de produto, publicada em recortes por equipe. IDs iguai
 
 **Estimativas:** a refinar pelos executores. As pontuações preliminares da versão anterior não foram tratadas como velocidade nem convertidas em promessa para o novo prazo. Cada cartão inclui interface, regras, persistência, autorização e verificações; itens grandes devem virar subtarefas antes de entrar na sprint. “Tudo no backlog” não significa “tudo assumido até 04/12”. Essenciais condicionados continuam essenciais; se bloqueados, exigem decisão explícita sobre prazo/escopo, não descarte silencioso.
 
-**Conciliação:** CPF opcional, válido e único quando informado; sem central de duplicidades na interface conforme PRD atualizado. F-R01 mantém a pendência RF-CAD-07/RF-REL-09 até consulta à SPEC-CAD não anexada. Saúde/religião só após aprovação. Aptidão sem regra/evidência suficiente permanece Pendente. Migração é parte do mínimo do produto e está no backlog comum, condicionada à exportação e ao aceite.
+**Conciliação:** CPF obrigatório, válido e único; sem central de duplicidades na interface conforme PRD atualizado. F-R01 mantém a pendência RF-CAD-07/RF-REL-09 até consulta à SPEC-CAD não anexada. Saúde/religião só após aprovação. Aptidão sem regra/evidência suficiente permanece Pendente. Migração é parte do mínimo do produto e está no backlog comum, condicionada à exportação e ao aceite.
 
 
 ## Backlog — Fabricio
@@ -98,20 +98,20 @@ Esta é uma única lista de produto, publicada em recortes por equipe. IDs iguai
 
 **Equipe:** Fabricio. **Responsável principal:** Ruan. **Apoio/revisor:** Gabriel. **Estimativa:** a refinar. **Dependências:** C-01, C-02, C-03, PB-03.
 
-**Aceite:** Pessoa é criada com vínculo identificado e data de início; cadastro mínimo admite nome, nascimento e família, com campos restantes pendentes; CPF/RG opcionais; obrigatório completo depende de LAC-02, inclusive conciliação do campo sexo com CAD-11.
+**Aceite:** Pessoa é criada com vínculo identificado e data de início; cadastro mínimo exige nome, CPF próprio válido e único e família. Nascimento desconhecido fica sinalizado e não bloqueia enquanto LAC-02 não aprovar sua obrigatoriedade; sexo, RG e campos complementares podem ficar pendentes. LAC-02 não permite dispensar o CPF obrigatório nem autoriza exigir titular sem decisão.
 
 **Requisitos cobertos (ERS):**
 
-- **RF-CAD-02:** O sistema deve cadastrar a pessoa com nome, data de nascimento e sexo. CPF, RG, ocupação, nível escolar e telefone são opcionais. — Essencial.
-- **RF-CAD-03:** O sistema deve vincular cada pessoa assistida a uma família, com parentesco em relação ao titular e data de início do vínculo. — Essencial.
+- **RF-CAD-02:** O sistema deve cadastrar a pessoa com nome e CPF próprio obrigatório, válido e único, registrando nascimento quando conhecido. Sexo, RG, ocupação, nível escolar e telefone são opcionais no cadastro mínimo. Nascimento desconhecido fica sinalizado e não bloqueia esse fluxo enquanto sua obrigatoriedade não for validada em LAC-02. Validar CPF conforme VAL-02 em criação, edição e importação; CPF ausente impede concluir a gravação. Homônimos com CPFs distintos são permitidos. — Essencial.
+- **RF-CAD-03:** O sistema deve vincular a pessoa à família, com início de vigência e parentesco quando informado e aplicável à referência familiar aprovada. A ausência de titular ainda não definido não impede criar o vínculo. O mesmo par pessoa–família não pode ter períodos sobrepostos; vínculos simultâneos com famílias diferentes dependem de LAC-02. Cada fato assistencial identifica sua família na data do fato. — Essencial.
 - **RF-CAD-08:** O sistema deve sinalizar dados ausentes no cadastro sem impedir seu uso em atendimentos e entregas. — Essencial.
-- **RF-CAD-11:** O sistema deve permitir um cadastro mínimo (nome, data de nascimento e família) no momento de um atendimento, para completar depois. — Essencial.
+- **RF-CAD-11:** O sistema deve permitir cadastro mínimo com nome, CPF próprio obrigatório e família no momento do atendimento. Registrar nascimento quando conhecido e sinalizar sua ausência, sem exigir data fictícia ou bloquear esse fluxo enquanto LAC-02 não aprovar sua obrigatoriedade. Sexo, RG e contato não são exigidos. Pessoa e vínculo são gravados juntos ou nenhum; CPF ausente, inválido ou repetido impede concluir o cadastro. — Essencial.
 
 ### PB-05 — Buscar cadastros antes de criar e impedir CPF inválido ou repetido
 
 **Equipe:** Fabricio. **Responsável principal:** Gabriel. **Apoio/revisor:** Kauã. **Estimativa:** a refinar. **Dependências:** C-01, C-02, C-03, PB-04.
 
-**Aceite:** Busca por nome, nascimento, CPF e endereço encontra candidatos; homônimos não são fundidos; CPF preenchido inválido ou já usado é rejeitado em criação/edição, inclusive sob concorrência; vários cadastros sem CPF são aceitos. Sem central de duplicidades.
+**Aceite:** Busca por nome, nascimento, CPF e endereço encontra candidatos; homônimos não são fundidos; CPF ausente, vazio, inválido ou já usado é rejeitado em criação/edição/importação, inclusive sob concorrência; homônimos com CPFs próprios distintos são aceitos. Sem central de duplicidades.
 
 **Requisitos cobertos (ERS):**
 
@@ -121,12 +121,12 @@ Esta é uma única lista de produto, publicada em recortes por equipe. IDs iguai
 
 **Equipe:** Fabricio. **Responsável principal:** Gabriel. **Apoio/revisor:** Fabricio. **Estimativa:** a refinar. **Dependências:** C-01, C-02, C-03, PB-04.
 
-**Aceite:** Um titular vigente conforme regra aprovada; troca preserva anterior; contagem usa vínculos ativos; alteração não transfere fatos passados; início inclusivo e fim exclusivo; sobreposições respeitam decisão de LAC-02, sem política presumida.
+**Aceite:** Vínculos e contagem histórica funcionam sem exigir titular enquanto LAC-02 estiver pendente. Necessidade, quantidade e substituição de referências familiares seguem somente política aprovada; trocas preservam o anterior. Alteração não transfere fatos passados; início inclusivo e fim exclusivo; sobreposições de vínculos respeitam LAC-02. Não presumir sucessor obrigatório nem encerramento da família.
 
 **Requisitos cobertos (ERS):**
 
-- **RF-CAD-04:** O sistema deve indicar um titular por família e permitir trocá-lo, mantendo o anterior no histórico. — Essencial.
-- **RF-CAD-05:** O sistema deve permitir encerrar ou mudar o vínculo de uma pessoa sem apagar os anteriores. Presenças, atendimentos e entregas continuam na família em que ocorreram. — Essencial.
+- **RF-CAD-04:** Proposta condicionada a LAC-02: permitir indicar e substituir a referência familiar conforme política aprovada. A instituição define necessidade de titular, quantidade de referências, critérios de designação e substituição. Enquanto pendente, não exigir titular nem designá-lo automaticamente para concluir o cadastro. Se a função for aprovada, preservar referências anteriores, períodos, autoria e motivo das trocas. — Essencial, condicionado a LAC-02.
+- **RF-CAD-05:** O sistema deve encerrar ou mudar vínculos preservando seus períodos e os anteriores. Efeitos sobre eventual referência familiar seguem somente a política aprovada em LAC-02; a saída de um membro não exige por inferência um sucessor ou o encerramento da família. Alteração retroativa deve detectar fatos afetados e exigir correção explícita, sem transferir silenciosamente presenças, atendimentos ou entregas. — Essencial.
 - **RF-CAD-09:** O sistema deve calcular o número de pessoas da família a partir dos vínculos ativos. — Essencial.
 
 ### PB-07 — Registrar numerações de calçado e vestuário por pessoa
@@ -166,12 +166,12 @@ Esta é uma única lista de produto, publicada em recortes por equipe. IDs iguai
 
 **Equipe:** Fabricio. **Responsável principal:** Ruan. **Apoio/revisor:** Gabriel. **Estimativa:** a refinar. **Dependências:** C-01, C-02, C-03, PB-08, PB-09.
 
-**Aceite:** Edição publica nova versão completa; versão anterior permanece consultável por autorizado; mudança posterior de endereço/titular não altera ficha antiga; ciência/assinatura em papel guarda forma/data; ausência não vira consentimento.
+**Aceite:** Edição publica nova versão completa; versão anterior permanece consultável por autorizado; mudança posterior de endereço ou referência familiar não altera ficha antiga. Ciência guarda forma, data e pessoa conforme decisões de LAC-02/LAC-08; ausência não vira consentimento nem designação automática de titular.
 
 **Requisitos cobertos (ERS):**
 
 - **RF-FIC-08:** O sistema deve registrar a data e o responsável por cada preenchimento da ficha e manter as versões anteriores consultáveis. — Essencial.
-- **RF-FIC-09:** O sistema deve registrar que o titular assinou a ficha em papel, com a data, ou outra forma de ciência definida em LAC-08. — Essencial.
+- **RF-FIC-09:** O sistema deve registrar forma e data da ciência, pessoa que a prestou e versão da ficha, conforme os responsáveis e procedimentos aprovados em LAC-02 e LAC-08. A ficha em papel identifica um titular, mas não autoriza impor esse papel no ERP antes da decisão. Ausência de ciência ou de referência familiar aprovada não equivale a assinatura ou consentimento; não atribuir um signatário automaticamente. — Essencial.
 
 ### PB-11 — Aplicar proteção da ficha e habilitação condicionada de dados sensíveis
 
@@ -187,12 +187,12 @@ Esta é uma única lista de produto, publicada em recortes por equipe. IDs iguai
 
 **Equipe:** Fabricio. **Responsável principal:** Alan. **Apoio/revisor:** Kauã. **Estimativa:** a refinar. **Dependências:** C-01, C-02, C-03.
 
-**Aceite:** Institutos previstos podem ser mantidos; projeto possui nome, descrição, instituto, vigência e situação; validação de vigência e organização segue LAC-04.
+**Aceite:** Institutos e projetos podem ser cadastrados; projeto possui nome, descrição, vigência e situação. Enquanto LAC-04 estiver pendente, instituto não é obrigatório para gravar projeto e não há exclusividade presumida; associação segue somente a cardinalidade e obrigatoriedade aprovadas.
 
 **Requisitos cobertos (ERS):**
 
 - **RF-ATV-01:** O sistema deve manter a lista de institutos: Criança, Jovem, Esclarecimento e Família, Caridade, Divulgação e Mediunidade. — Essencial.
-- **RF-ATV-02:** O sistema deve cadastrar projetos com nome, descrição, instituto, período de vigência e situação (ativo ou encerrado). — Essencial.
+- **RF-ATV-02:** O sistema deve cadastrar projetos com nome, descrição, vigência e situação, validando seus períodos. A associação com institutos, sua obrigatoriedade e cardinalidade dependem de LAC-04; enquanto pendente, não exigir instituto para gravar o projeto nem impor vínculo exclusivo. Encerramento ou mudança cadastral preserva o contexto das atividades e fatos já registrados. — Essencial.
 
 ### PB-13 — Cadastrar atividades periódicas/pontuais e encerrá-las preservando registros
 

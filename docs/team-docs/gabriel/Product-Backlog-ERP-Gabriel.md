@@ -22,7 +22,7 @@ A capacidade é de **oito executores, quatro por equipe**, mais o tempo separado
 
 CRM e doações financeiras, vendas/caixa/financeiro/estoque comercial do Bazar, Escola Espírita e prontuário clínico continuam fora do ERP. Identificar doador de itens não cria CRM. Recebimento manual com referência única do Bazar pode atender à integração se aprovado; não implica implementar o sistema comercial.
 
-CPF opcional, válido e único quando informado, desde a criação de pessoas em S1. Busca preventiva/experiência de erro são completadas em PB-05/S2. Sem central de duplicidades conforme o PRD atualizado; F-R01 mantém a conciliação de RF-CAD-07/RF-REL-09 com a SPEC-CAD não anexada. Saúde/religião e uso de dados reais dependem das decisões institucionais; enquanto pendentes, dados sintéticos e campos bloqueados. Aptidão sem política/evidência suficiente é Pendente. Migração continua essencial, condicionada à fonte e conferência; não é silenciosamente removida por falta de exportação.
+CPF obrigatório, válido e único, desde a criação de pessoas em S1. Busca preventiva/experiência de erro são completadas em PB-05/S2. Sem central de duplicidades conforme o PRD atualizado; F-R01 mantém a conciliação de RF-CAD-07/RF-REL-09 com a SPEC-CAD não anexada. Saúde/religião e uso de dados reais dependem das decisões institucionais; enquanto pendentes, dados sintéticos e campos bloqueados. Aptidão sem política/evidência suficiente é Pendente. Migração continua essencial, condicionada à fonte e conferência; não é silenciosamente removida por falta de exportação.
 
 ## Lista priorizada e responsáveis
 
