@@ -11,7 +11,7 @@ ERP Social Luz da Esperança • Versão 3.2 • 21/10/2026
 | Frente | Responsabilidade confirmada / proposta |
 |---|---|
 | Fabricio — equipe de 5 pessoas | Pessoas, famílias e vínculos; ficha social; institutos/projetos/atividades; frequência e aptidão. |
-| Outra frente — equipe de 5 pessoas, líder e G2–G5 conforme o geral | Atendimentos pontuais e visita domiciliar; estoque social e entregas; recebimento de itens do Bazar. |
+| Outra frente — equipe de 5 pessoas, líder e Erick, Felipe, Samuel e Paulo conforme o geral | Atendimentos pontuais e visita domiciliar; estoque social e entregas; recebimento de itens do Bazar. |
 | Comum — trabalho das duas equipes, não uma terceira equipe | Acesso, auditoria, contratos, histórico e relatórios consolidados, migração, implantação e homologação. Lideranças executoras abaixo são propostas a confirmar na S1. |
 
 CRM, captação/doações financeiras, vendas/caixa/financeiro/estoque comercial do Bazar e Escola Espírita continuam fora do ERP. Identificar doador de itens não é implementar CRM. O ERP recebe itens do Bazar; não implementa o sistema comercial nem exige integração automática quando o lançamento manual referenciado for aprovado.

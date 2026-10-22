@@ -1,6 +1,6 @@
 # Product Backlog — Equipe Gabriel
 
-ERP Social Luz da Esperança • Versão 4.0 • 21/10/2026
+ERP Social Luz da Esperança • Versão 4.1 • 21/10/2026
 
 **Base de revisão:** Geral v2.3 definido pelas equipes + recorte Fabricio v3.2 + instrução de que Fabricio e Gabriel (líder) somente revisam. Prazo final informado como provável: **04/12/2026**. Datas e dependências do geral são mantidas; a revisão corrige responsáveis de execução e a sequência da integração.
 
@@ -9,10 +9,10 @@ ERP Social Luz da Esperança • Versão 4.0 • 21/10/2026
 | Frente | Implementação/execução | Somente revisão | Escopo |
 |---|---|---|---|
 | Fabricio | Gabriel (dev da equipe Fabricio), Ruan, Alan e Kauã | Fabricio | Cadastro, ficha, atividades/frequência/aptidão |
-| Gabriel | G2, G3, G4 e G5 — nomes a substituir quando informados | Gabriel (líder) | Atendimentos/visitas, estoque/entregas e recebimento Bazar |
+| Gabriel | Erick, Felipe, Samuel e Paulo | Gabriel (líder) | Atendimentos/visitas, estoque/entregas e recebimento Bazar |
 | Comum | Parcelas identificadas nas tarefas dos oito executores | Fabricio e Gabriel (líder), conforme o recorte | Acesso, auditoria, contratos, relatórios/histórico, migração e operação |
 
-“Gabriel (dev da equipe Fabricio)” e “Gabriel (líder)” identificam papéis diferentes no quadro. O desenvolvedor Gabriel continua implementando; a restrição de somente revisão aplica-se ao líder da outra equipe. G2–G5 são identificadores provisórios, não nomes conhecidos nem especialidades confirmadas.
+“Gabriel (dev da equipe Fabricio)” e “Gabriel (líder)” identificam papéis diferentes no quadro. O desenvolvedor Gabriel continua implementando; a restrição de somente revisão aplica-se ao líder da outra equipe. A equipe Gabriel é composta por Erick, Felipe, Samuel e Paulo (identificadores anteriores G2, G3, G4 e G5, respectivamente); as especialidades individuais permanecem a confirmar na reunião de planejamento.
 
 Os líderes revisam código, contratos, testes, documentação e evidências, registrando parecer/pendências. Não recebem implementação, integração, correção, produção dos artefatos a revisar, execução de importação ou infraestrutura. A decisão institucional e o aceite de negócio são do representante da instituição. Nos recortes há **28 tarefas de execução + 7 de revisão por equipe**, com uma responsabilidade principal por integrante em cada ciclo próprio. São **70 tarefas de execução/revisão no total: 56 de execução e 14 de revisão**, decompondo os 57 cartões do produto, sem duplicar requisitos/estimativas.
 
@@ -30,31 +30,31 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 | ID | Entrega | Natureza/prioridade | Execução principal | Apoio/revisão | Fase/meta | Referências |
 |---|---|---|---|---|---|---|
-| G-01 | Cadastrar itens, categorias, unidades e numerações | Essencial | G2 | G3 | S1–S2 (fim 30/10) | RF-EST-01, RF-EST-08 |
-| G-02 | Identificar origens: doadores de itens e campanhas | Essencial | G4 | G5 | S1–S2 (fim 30/10) | RF-EST-02 |
-| G-03 | Registrar atendimento à pessoa ou à família | Essencial | G2 | G3 | S3 | RF-ATD-01, RF-ATD-02, RF-ATD-03, RF-ATD-04, RF-ATD-05, RF-ATD-08 |
-| G-04 | Registrar visita domiciliar | Essencial condicionado | G4 | G2 | S3 | RF-ATD-06 |
-| G-05 | Corrigir e cancelar atendimentos | Essencial | G5 | G3 | S3 | RF-ATD-07 |
-| G-06 | Registrar entrada e triagem de itens | Essencial | G4 | G5 | S4 | RF-EST-03, RF-EST-04 |
-| G-07 | Consultar lotes, validade, disponibilidade e movimentos | Essencial | G2 | G4 | S4 | RF-EST-05, RF-EST-09, RF-EST-10 |
-| G-08 | Registrar ajustes, inventário e saldo inicial | Essencial | G3 | G5 | S5/5a (18/11) | RF-EST-06, RF-EST-07, RF-MIG-06 |
-| G-09 | Receber e conferir transferências do Bazar | Essencial condicionado | G4 | G3 | S5/5a (18/11) | RF-BAZ-01, RF-BAZ-02, RF-BAZ-03, RF-BAZ-04 |
-| G-10 | Preparar entrega consultando família, necessidades e aptidão | Essencial | G2 | G5 | S5/5a (18/11) | RF-ENT-01, RF-ENT-02 |
-| G-11 | Confirmar entrega e baixa atômica, segura contra repetição | Essencial | G2 | G3 | S5/5b (20/11) | RF-ENT-03, RF-ENT-04, RF-ENT-05 |
-| G-12 | Tratar exceções de aptidão na entrega | Essencial condicionado | G4 | G5 | S5/5b (20/11) | RF-ENT-06 |
-| G-13 | Estornar entrega lançada por engano | Essencial | G2 | G3 | S6 | RF-ENT-07 |
-| G-14 | Relatórios de estoque e de entregas por família/item | Essencial | G3 | G4 | S6 | RF-REL-05, RF-REL-06 |
-| G-15 | Fornecer atendimentos e entregas ao histórico comum | Essencial | G5 | G3 | S6 | Técnico/integração conforme modelagem |
-| G-R01 | Agendamento de atendimentos | Desejável | G2 | Gabriel (líder, somente revisão) | Reserva | RF-ATD-09 |
-| G-R02 | Consolidação por doador/campanha com valor estimado | Desejável | G3 | Gabriel (líder, somente revisão) | Reserva | RF-EST-11 |
-| G-R03 | Compatibilidade por tamanho | Desejável | G5 | Gabriel (líder, somente revisão) | Reserva | RF-ENT-08 |
-| G-R04 | Prioridade, limites e intervalos de entrega | Desejável | G4 | Gabriel (líder, somente revisão) | Reserva | RF-ENT-09 |
+| G-01 | Cadastrar itens, categorias, unidades e numerações | Essencial | Erick | Felipe | S1–S2 (fim 30/10) | RF-EST-01, RF-EST-08 |
+| G-02 | Identificar origens: doadores de itens e campanhas | Essencial | Samuel | Paulo | S1–S2 (fim 30/10) | RF-EST-02 |
+| G-03 | Registrar atendimento à pessoa ou à família | Essencial | Erick | Felipe | S3 | RF-ATD-01, RF-ATD-02, RF-ATD-03, RF-ATD-04, RF-ATD-05, RF-ATD-08 |
+| G-04 | Registrar visita domiciliar | Essencial condicionado | Samuel | Erick | S3 | RF-ATD-06 |
+| G-05 | Corrigir e cancelar atendimentos | Essencial | Paulo | Felipe | S3 | RF-ATD-07 |
+| G-06 | Registrar entrada e triagem de itens | Essencial | Samuel | Paulo | S4 | RF-EST-03, RF-EST-04 |
+| G-07 | Consultar lotes, validade, disponibilidade e movimentos | Essencial | Erick | Samuel | S4 | RF-EST-05, RF-EST-09, RF-EST-10 |
+| G-08 | Registrar ajustes, inventário e saldo inicial | Essencial | Felipe | Paulo | S5/5a (18/11) | RF-EST-06, RF-EST-07, RF-MIG-06 |
+| G-09 | Receber e conferir transferências do Bazar | Essencial condicionado | Samuel | Felipe | S5/5a (18/11) | RF-BAZ-01, RF-BAZ-02, RF-BAZ-03, RF-BAZ-04 |
+| G-10 | Preparar entrega consultando família, necessidades e aptidão | Essencial | Erick | Paulo | S5/5a (18/11) | RF-ENT-01, RF-ENT-02 |
+| G-11 | Confirmar entrega e baixa atômica, segura contra repetição | Essencial | Erick | Felipe | S5/5b (20/11) | RF-ENT-03, RF-ENT-04, RF-ENT-05 |
+| G-12 | Tratar exceções de aptidão na entrega | Essencial condicionado | Samuel | Paulo | S5/5b (20/11) | RF-ENT-06 |
+| G-13 | Estornar entrega lançada por engano | Essencial | Erick | Felipe | S6 | RF-ENT-07 |
+| G-14 | Relatórios de estoque e de entregas por família/item | Essencial | Felipe | Samuel | S6 | RF-REL-05, RF-REL-06 |
+| G-15 | Fornecer atendimentos e entregas ao histórico comum | Essencial | Paulo | Felipe | S6 | Técnico/integração conforme modelagem |
+| G-R01 | Agendamento de atendimentos | Desejável | Erick | Gabriel (líder, somente revisão) | Reserva | RF-ATD-09 |
+| G-R02 | Consolidação por doador/campanha com valor estimado | Desejável | Felipe | Gabriel (líder, somente revisão) | Reserva | RF-EST-11 |
+| G-R03 | Compatibilidade por tamanho | Desejável | Paulo | Gabriel (líder, somente revisão) | Reserva | RF-ENT-08 |
+| G-R04 | Prioridade, limites e intervalos de entrega | Desejável | Samuel | Gabriel (líder, somente revisão) | Reserva | RF-ENT-09 |
 
 ## Detalhamento e critérios de aceite
 
 ### G-01 — Cadastrar itens, categorias, unidades e numerações
 
-**Frente:** Gabriel. **Execução principal:** G2. **Revisão:** G3. **Estimativa:** a refinar. **Dependências:** C-01, C-02, C-03.
+**Frente:** Gabriel. **Execução principal:** Erick. **Revisão:** Felipe. **Estimativa:** a refinar. **Dependências:** C-01, C-02, C-03.
 
 **Aceite:** Quantidade usa decimal exato e precisão da unidade; unidades diferentes não são somadas implicitamente; mudança de unidade não reinterpreta movimentos anteriores.
 
@@ -65,7 +65,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-02 — Identificar origens: doadores de itens e campanhas
 
-**Frente:** Gabriel. **Execução principal:** G4. **Revisão:** G5. **Estimativa:** a refinar. **Dependências:** C-02.
+**Frente:** Gabriel. **Execução principal:** Samuel. **Revisão:** Paulo. **Estimativa:** a refinar. **Dependências:** C-02.
 
 **Aceite:** Cadastrar origem física/jurídica e campanha; identificação do doador de itens não cria CRM financeiro. Origem desconhecida permanece explícita.
 
@@ -75,7 +75,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-03 — Registrar atendimento à pessoa ou à família
 
-**Frente:** Gabriel. **Execução principal:** G2. **Revisão:** G3. **Estimativa:** a refinar. **Dependências:** PB-04, PB-13, C-02, C-03.
+**Frente:** Gabriel. **Execução principal:** Erick. **Revisão:** Felipe. **Estimativa:** a refinar. **Dependências:** PB-04, PB-13, C-02, C-03.
 
 **Aceite:** Registrar data, tipo, família, pessoa opcional, executor e operador distintos; duas realizações geram duas ocorrências, sem presença. Reusar cadastro mínimo; sem diagnóstico/prescrição.
 
@@ -90,7 +90,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-04 — Registrar visita domiciliar
 
-**Frente:** Gabriel. **Execução principal:** G4. **Revisão:** G2. **Estimativa:** a refinar. **Dependências:** G-03.
+**Frente:** Gabriel. **Execução principal:** Samuel. **Revisão:** Erick. **Estimativa:** a refinar. **Dependências:** G-03.
 
 **Aceite:** Visita ligada à família com data, responsável e situação encontrada; respeitar acesso e LAC-13; não sobrescrever ficha social automaticamente.
 
@@ -100,7 +100,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-05 — Corrigir e cancelar atendimentos
 
-**Frente:** Gabriel. **Execução principal:** G5. **Revisão:** G3. **Estimativa:** a refinar. **Dependências:** G-03, C-03.
+**Frente:** Gabriel. **Execução principal:** Paulo. **Revisão:** Felipe. **Estimativa:** a refinar. **Dependências:** G-03, C-03.
 
 **Aceite:** Exigir motivo, autor e revisão esperada; manter original e família do fato; cancelamento deixa trilha e ajusta totais.
 
@@ -110,7 +110,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-06 — Registrar entrada e triagem de itens
 
-**Frente:** Gabriel. **Execução principal:** G4. **Revisão:** G5. **Estimativa:** a refinar. **Dependências:** G-01, G-02, C-03.
+**Frente:** Gabriel. **Execução principal:** Samuel. **Revisão:** Paulo. **Estimativa:** a refinar. **Dependências:** G-01, G-02, C-03.
 
 **Aceite:** Guardar recebido, aceito e descartado com motivo; só aceito gera lote/saldo. Confirmação repetida não duplica entrada; falha não grava parcialmente.
 
@@ -121,7 +121,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-07 — Consultar lotes, validade, disponibilidade e movimentos
 
-**Frente:** Gabriel. **Execução principal:** G2. **Revisão:** G4. **Estimativa:** a refinar. **Dependências:** G-06.
+**Frente:** Gabriel. **Execução principal:** Erick. **Revisão:** Samuel. **Estimativa:** a refinar. **Dependências:** G-06.
 
 **Aceite:** Vencido mantém saldo físico, mas fica indisponível; bloquear entrega vencida; sinalizar próximos do vencimento conforme parâmetro aprovado; histórico explica saldo por item/tamanho/unidade.
 
@@ -133,7 +133,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-08 — Registrar ajustes, inventário e saldo inicial
 
-**Frente:** Gabriel. **Execução principal:** G3. **Revisão:** G5. **Estimativa:** a refinar. **Dependências:** G-07.
+**Frente:** Gabriel. **Execução principal:** Felipe. **Revisão:** Paulo. **Estimativa:** a refinar. **Dependências:** G-07.
 
 **Aceite:** Contagem exibe diferença sem ajuste automático; confirmar com motivo e revisão; criar saldo inicial por lote/unidade/validade, sem doação fictícia e sem duplicar movimentos importados.
 
@@ -145,7 +145,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-09 — Receber e conferir transferências do Bazar
 
-**Frente:** Gabriel. **Execução principal:** G4. **Revisão:** G3. **Estimativa:** a refinar. **Dependências:** G-06, G-07.
+**Frente:** Gabriel. **Execução principal:** Samuel. **Revisão:** Felipe. **Estimativa:** a refinar. **Dependências:** G-06, G-07.
 
 **Aceite:** Referência única impede duplicidade concorrente; guardar informado, recebido e divergência; só quantidade efetivamente recebida e aceita fica disponível. Origem Bazar separada da arrecadação externa. Lançamento manual referenciado é a alternativa prevista, se aprovada.
 
@@ -158,7 +158,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-10 — Preparar entrega consultando família, necessidades e aptidão
 
-**Frente:** Gabriel. **Execução principal:** G2. **Revisão:** G5. **Estimativa:** a refinar. **Dependências:** PB-04, PB-09, PB-20, G-07.
+**Frente:** Gabriel. **Execução principal:** Erick. **Revisão:** Paulo. **Estimativa:** a refinar. **Dependências:** PB-04, PB-09, PB-20, G-07.
 
 **Aceite:** Selecionar família/retirante válido na data, itens e quantidades; mostrar avaliação oficial, evidências, necessidades autorizadas, entregas anteriores e saldo; nunca consultar toda ficha para distribuição.
 
@@ -169,7 +169,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-11 — Confirmar entrega e baixa atômica, segura contra repetição
 
-**Frente:** Gabriel. **Execução principal:** G2. **Revisão:** G3. **Estimativa:** a refinar. **Dependências:** G-10, G-03, C-03.
+**Frente:** Gabriel. **Execução principal:** Erick. **Revisão:** Felipe. **Estimativa:** a refinar. **Dependências:** G-10, G-03, C-03.
 
 **Aceite:** Gravar entrega, atendimento e saída juntos ou nada. Com 5 unidades, confirmar entrega de 2 duas vezes deixa uma entrega e saldo 3. Concorrência não causa saldo negativo; linhas repetidas do lote são agregadas.
 
@@ -181,7 +181,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-12 — Tratar exceções de aptidão na entrega
 
-**Frente:** Gabriel. **Execução principal:** G4. **Revisão:** G5. **Estimativa:** a refinar. **Dependências:** G-10, PB-20.
+**Frente:** Gabriel. **Execução principal:** Samuel. **Revisão:** Paulo. **Estimativa:** a refinar. **Dependências:** G-10, PB-20.
 
 **Aceite:** Não apta/Pendente exige justificativa e autorizador conforme política validada. Não inventar bloqueio; na confirmação, validar avaliação/revisões e preservar evidências usadas.
 
@@ -191,7 +191,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-13 — Estornar entrega lançada por engano
 
-**Frente:** Gabriel. **Execução principal:** G2. **Revisão:** G3. **Estimativa:** a refinar. **Dependências:** G-11.
+**Frente:** Gabriel. **Execução principal:** Erick. **Revisão:** Felipe. **Estimativa:** a refinar. **Dependências:** G-11.
 
 **Aceite:** Estorno integral recompõe lotes e altera atendimento/entrega juntos; repetição não duplica recomposição; lote vencido retorna ao físico, mas não ao disponível. Preservar motivo e saída original.
 
@@ -201,7 +201,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-14 — Relatórios de estoque e de entregas por família/item
 
-**Frente:** Gabriel. **Execução principal:** G3. **Revisão:** G4. **Estimativa:** a refinar. **Dependências:** G-08, G-09, G-11, G-13.
+**Frente:** Gabriel. **Execução principal:** Felipe. **Revisão:** Samuel. **Estimativa:** a refinar. **Dependências:** G-08, G-09, G-11, G-13.
 
 **Aceite:** Saldo inicial + movimentos = saldo final; Bazar separado; unidades não somadas indevidamente; filtros de período e detalhes dos totais conferem com registros; estornos preservados na conciliação.
 
@@ -212,13 +212,13 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-15 — Fornecer atendimentos e entregas ao histórico comum
 
-**Frente:** Gabriel. **Execução principal:** G5. **Revisão:** G3. **Estimativa:** a refinar. **Dependências:** G-05, G-11, G-13.
+**Frente:** Gabriel. **Execução principal:** Paulo. **Revisão:** Felipe. **Estimativa:** a refinar. **Dependências:** G-05, G-11, G-13.
 
 **Aceite:** C-05 recebe fatos com vínculo histórico e status; entrega ligada ao atendimento não é contada duas vezes; informações sensíveis seguem perfil.
 
 ### G-R01 — Agendamento de atendimentos
 
-**Frente:** Gabriel. **Execução principal:** G2. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
+**Frente:** Gabriel. **Execução principal:** Erick. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
 
 **Aceite:** Agendar não conta como atendimento realizado.
 
@@ -228,7 +228,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-R02 — Consolidação por doador/campanha com valor estimado
 
-**Frente:** Gabriel. **Execução principal:** G3. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
+**Frente:** Gabriel. **Execução principal:** Felipe. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
 
 **Aceite:** Método aprovado em LAC-09; Bazar separado e sem financeiro comercial.
 
@@ -238,7 +238,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-R03 — Compatibilidade por tamanho
 
-**Frente:** Gabriel. **Execução principal:** G5. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
+**Frente:** Gabriel. **Execução principal:** Paulo. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
 
 **Aceite:** Mostrar compatíveis e dados desconhecidos separadamente; nada entregue automaticamente.
 
@@ -248,7 +248,7 @@ Os itens são priorizados por dependências habilitadoras, ciclo essencial e dep
 
 ### G-R04 — Prioridade, limites e intervalos de entrega
 
-**Frente:** Gabriel. **Execução principal:** G4. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
+**Frente:** Gabriel. **Execução principal:** Samuel. **Revisão:** Gabriel (líder, somente revisão). **Estimativa:** a refinar. **Dependências:** C-01.
 
 **Aceite:** Aplicar apenas política aprovada em LAC-03; sem valores inventados.
 
