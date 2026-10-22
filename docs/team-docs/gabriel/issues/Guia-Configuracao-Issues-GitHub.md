@@ -20,7 +20,7 @@ O repositório tem um único padrão para as duas equipes, definido pelas issues
 | Épico | Nenhum |
 | Sub-issues | Nenhuma |
 | Dependências nativas | Nenhuma |
-| Assignee | Somente o responsável; o revisor fica registrado no corpo |
+| Assignee | Um por executor nomeado; o revisor fica registrado no corpo |
 
 A tarefa de revisão usa seções próprias, conforme a issue de revisão da equipe Fabricio: `Escopo da revisão` (itens narrativos) e `Critérios de aceite` (caixas de marcação).
 
@@ -70,7 +70,7 @@ gh issue list --state all --limit 20 --json number,title,labels,assignees,commen
 gh issue view 7 --json number,title,body,labels,assignees,comments
 ```
 
-Verifique se a issue tem exatamente um assignee, o responsável, e nenhuma label.
+Verifique se a issue tem um assignee por executor nomeado — exatamente um quando a tarefa tem um único executor —, se nenhum revisor aparece entre os assignees e se não há label.
 
 ## Como a equipe Fabricio fez
 
@@ -87,6 +87,12 @@ O ciclo 1 tem cinco tarefas, com um responsável principal por integrante e a re
 | #8 | TG-01-03 | Felipe (@FelipeeMartinns) | Gabriel (líder) | Execução |
 | #9 | TG-01-04 | Samuel (@Zidan-09) | Paulo (@PaulEvezely) | Execução |
 | #10 | TG-01-05 | Paulo (@PaulEvezely) | Erick (@Erick-VP) | Execução |
+
+## Issues de cartões comuns
+
+Os cartões comuns às duas equipes — C-01, C-02, C-03, C-07 e C-09 — usam o mesmo corpo, com três ajustes: o título troca o prefixo de ciclo pela janela geral (`[S1][C-01]`), a linha `**Equipe:**` registra `Comum (Fabricio + Gabriel)` e a linha `**Ciclo:**` vira `**Fase:**` com a fase e a condição do cartão. Quando o cartão tem mais de um executor, o corpo registra todos em `**Responsável:**` e cada executor recebe atribuição; o revisor permanece apenas no corpo. A atribuição múltipla não dilui a responsabilidade, porque o próprio corpo nomeia a parcela de cada executor.
+
+O C-01 foi publicado como #11 a partir de `docs/team-docs/gabriel/issues/c-01.md`, com o título `[S1][C-01] Acordar arquitetura, contratos, decisões e ambiente integrado`, assignees Alan (@alanrcastro100) e Felipe (@FelipeeMartinns), e revisão de Fabricio e de Gabriel (líder). As issues do ciclo citam o #11 no comentário de vínculos.
 
 ## Ciclos seguintes
 
