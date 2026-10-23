@@ -1,0 +1,10 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/server/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Business models are added by their owning modules through versioned migrations.
