@@ -6,6 +6,7 @@
   "engines": { "node": ">=24.11.0 <25", "npm": ">=11 <13" },
   "packageManager": "npm@11.19.0",
   "scripts": {
+    "dev": "start \"Server\" cmd /k \"npm run dev:server\" && start \"Client\" cmd /k \"npm run dev:client\"",
     "dev:server": "node --env-file-if-exists=.env --watch src/server/main.ts",
     "dev:client": "vite --host 127.0.0.1",
     "prisma:generate": "prisma generate",
