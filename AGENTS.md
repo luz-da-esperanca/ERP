@@ -10,7 +10,7 @@ This is the canonical development guide for the entire repository. `CLAUDE.md` p
 
 ## Repository context and sources
 
-The repository currently contains requirements, planning documents, and agent skills. It has no application `src/` or `test/`, package manifest, lockfile, TypeScript configuration, Prisma schema, or application test, lint, build, or CI setup. The stack below is required for implementation; it is not evidence of installed dependencies or working commands.
+The repository uses one npm package and lockfile. `src/client/` contains React; `src/server/` composes Fastify and infrastructure; `src/modules/` receives business modules as needed. `test/` is beside `src/`; Prisma schema and versioned migrations live in root `prisma/`. Read [README.md](README.md) for verified setup and scripts, [module boundaries](src/modules/README.md) for feature placement, and [the shared environment contract](docs/contracts/shared-environment.md) for bootstrap scope and acceptance evidence. Redis remains deferred until a justified cache use case exists. Current dependencies and commands are defined by `package.json`, `package-lock.json`, and their actual configurations.
 
 | Concern | Source to consult when relevant |
 | --- | --- |

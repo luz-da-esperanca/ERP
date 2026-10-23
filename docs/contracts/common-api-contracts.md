@@ -18,7 +18,7 @@ Covers common technical contracts. Does not define endpoint-specific schemas, bu
 
 ## 3. General conventions
 
-- **Protocol:** HTTP/1.1 or HTTP/2 over TLS in all environments
+- **Protocol:** HTTP/1.1 or HTTP/2 over TLS in shared, staging, and production environments. The C-01 loopback-only development environment uses HTTP without real personal data (see [Shared Environment](./shared-environment.md)); this exception remains part of the review candidate.
 - **Format:** JSON only (`Content-Type: application/json`; accept `application/json`)
 - **Encoding:** UTF-8
 - **Language/locale:** API errors in pt-BR as per [Common Errors](./common-errors.md); field names in English

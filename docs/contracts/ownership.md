@@ -14,7 +14,7 @@
 | API/contracts | Felipe (@FelipeeMartinns) | — | Documented in [common-api-contracts.md](./common-api-contracts.md) |
 | Audit (C-03) | Felipe (@FelipeeMartinns) | — | Per backlog/sprint planning |
 | Access (C-02) | Alan (@alanrcastro100) | Kauã | Per backlog/sprint planning |
-| Environment | Felipe (@FelipeeMartinns) | — | Item 5; depends on migration convention |
+| Environment | Felipe (@FelipeeMartinns) | Fabricio advances the bootstrap on 2026-10-23 at the user's direction | Item 5; executable candidate in [shared-environment.md](./shared-environment.md); independent review pending |
 | Migrations | Alan (@alanrcastro100) | — | Item 6; documented in [git-flow-and-migrations.md](./git-flow-and-migrations.md) |
 | Git Flow / branches | Alan (@alanrcastro100) | — | Item 6; documented in [git-flow-and-migrations.md](./git-flow-and-migrations.md) |
 | ADRs / glossary | Alan (@alanrcastro100) | — | Item 7; documented in [GLOSSARY.md](../../GLOSSARY.md) and [docs/adr/](../adr/) |

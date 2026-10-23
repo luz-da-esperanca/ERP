@@ -1,8 +1,8 @@
 # C-01 Review, Approval Evidence, and S1 Scope Boundary (C-01 Items 9 and 10)
 
-- **Status:** In review — awaiting formal sign-off from Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`), and completion of Item 5 (shared environment) by Felipe (`@FelipeeMartinns`)
+- **Status:** In review — awaiting formal sign-off; Item 5 has an implementation candidate advanced by Fabricio, pending independent review and integration.
 - **Version:** 1.0-rc.1
-- **Executors:** Alan (`@alanrcastro100`, Team Fabricio) and Felipe (`@FelipeeMartinns`, Team Gabriel)
+- **Executors:** Alan (`@alanrcastro100`, Team Fabricio) and Felipe (`@FelipeeMartinns`, Team Gabriel); Fabricio advances the Item 5 bootstrap on 2026-10-23 at the user's direction.
 - **Reviewers:** Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`)
 - **Source:** C-01 acceptance criteria 9 and 10 ([c-01.md](../team-docs/gabriel/issues/c-01.md))
 
@@ -25,7 +25,7 @@ Provide a single auditable record of:
 | **2** | Define common error format and translation of validation, authorization, conflict, and persistence failures without exposing stack traces, credentials, or internal details. | Felipe (`@FelipeeMartinns`) | [`docs/contracts/common-errors.md`](./common-errors.md), [`ADR-0003`](../adr/0003-problem-details-error-contract-and-boundary-translation.md) | Published (`1.0-rc.1`); cross-team aligned by Alan; pending reviewer sign-off |
 | **3** | Define API/service contracts consumed by interfaces: inputs, outputs, error semantics/codes, and versioning. | Felipe (`@FelipeeMartinns`) | [`docs/contracts/common-api-contracts.md`](./common-api-contracts.md) | Published (`1.0-rc.1`); cross-team aligned by Alan; pending reviewer sign-off |
 | **4** | Name a single owner per common item: identifiers, error format, API contracts, audit (`C-03`), access (`C-02`), environment, and migrations. | Felipe (`@FelipeeMartinns`) & Alan (`@alanrcastro100`) | [`docs/contracts/ownership.md`](./ownership.md) | Published (`1.0-rc.1`); confirmed by Alan and Felipe; pending reviewer sign-off |
-| **5** | Materialize the shared environment with the required stack (manifest, strict TypeScript, Fastify app, React app, Prisma schema, versioned migrations) verifiable from a clean clone. | Felipe (`@FelipeeMartinns`) | Root manifest / `tsconfig.json` / `prisma/` / `src/` (to be delivered by Felipe) | **Pending execution by Felipe** (unblocked by Item 6 convention) |
+| **5** | Materialize the shared environment with the required stack (manifest, strict TypeScript, Fastify app, React app, Prisma schema, versioned migrations) verifiable from a clean clone. | Felipe (`@FelipeeMartinns`); bootstrap advanced by Fabricio | Root manifest / `tsconfig.json` / `prisma/` / `src/`; [environment and evidence](./shared-environment.md) | **Implementation candidate; independent review and integration pending** |
 | **6** | Define Git Flow branches (`main`, `develop`, `feature/*`, `release/*`, `hotfix/*`) and the Prisma migration convention. | Alan (`@alanrcastro100`) | [`docs/contracts/git-flow-and-migrations.md`](./git-flow-and-migrations.md) | Published (`1.0-rc.1`); pending Felipe confirmation and reviewer sign-off |
 | **7** | Record architectural decisions in `docs/adr/` and common vocabulary in root `GLOSSARY.md`, ratified by both reviewers. | Alan (`@alanrcastro100`) | [`GLOSSARY.md`](../../GLOSSARY.md), [`docs/adr/0001`..`0005`](../adr/) | Published (`1.0-rc.1`); pending reviewer ratification |
 | **8** | Record pending institutional decisions (`LAC-01`, `LAC-02`, `LAC-04`, `LAC-07`, `LAC-11`, plus `LAC-03`..`13`) as pending, with decision-maker and deadline; none silently resolved. | Alan (`@alanrcastro100`) | [`docs/contracts/pending-institutional-decisions.md`](./pending-institutional-decisions.md) | Published (`1.0-rc.1`); pending reviewer sign-off |
@@ -33,6 +33,8 @@ Provide a single auditable record of:
 | **10** | Limit S1 acceptance to the contract and minimum environment: does not conclude business functionality or institutional acceptance. | Alan (`@alanrcastro100`) & Felipe (`@FelipeeMartinns`) | Section 5 of this document | Documented and enforced |
 
 *Note on CAD contracts (`C-01` / `TF-01-02`):* As specified in `Product-Backlog-ERP-Geral.md` and `c-01.md`, Gabriel from Team Fabricio (`@gaboliveira-alt`) provides the registration (`CAD`) module contracts under `TF-01-02`, building on the common contracts defined here.
+
+*Implementation exception (2026-10-23):* The user explicitly requested advancing the foundation so the teams can start. Fabricio's implementation of Item 5 is limited to that bootstrap. It does not provide his own independent review, record Gabriel's approval, close C-01, or resolve any institutional gap. Other work assignments remain in effect.
 
 ## 3. Cross-Team Executor Alignment Record (Alan & Felipe)
 
@@ -48,12 +50,12 @@ Alan (`@alanrcastro100`, Team Fabricio executor for C-01) has reviewed and confi
 
 ## 4. Formal Reviewer Approval Log (C-01 Item 9)
 
-Per `Sprint-Planning-ERP-Geral.md` (`TF-01-01` and `TG-01-01`), Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`) act exclusively as technical reviewers. Neither reviewer is recorded as having approved until their actual review is submitted on the Pull Request / Issue #11.
+The sprint planning assigns Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`) to technical review. The explicit user direction on 2026-10-23 makes an implementation exception for Fabricio's Item 5 bootstrap and ADR-0006; his own work requires independent review. Neither reviewer is recorded as having approved until their actual review is submitted on the Pull Request / Issue #11.
 
 | Reviewer | Role / Task | Scope Reviewed | Status | PR / Issue #11 Review Link & Date |
 | --- | --- | --- | --- | --- |
-| **Fabricio** (`@Fabricio-Fontenele`) | Team Fabricio Lead (`TF-01-01`) | Items 1–4, 6–10 (`docs/contracts/*`, `GLOSSARY.md`, `docs/adr/0001`..`0005`) and Item 5 shared environment | **PENDING REVIEW** | _To be recorded upon PR review_ |
-| **Gabriel (lead)** (`@Gabriel-afk-9`) | Team Gabriel Lead (`TG-01-01`) | Items 1–4, 6–10 (`docs/contracts/*`, `GLOSSARY.md`, `docs/adr/0001`..`0005`) and Item 5 shared environment | **PENDING REVIEW** | _To be recorded upon PR review_ |
+| **Fabricio** (`@Fabricio-Fontenele`) | Team Fabricio Lead (`TF-01-01`) | Other executors' contracts and artifacts; self-authored Item 5 and ADR-0006 require independent review | **PENDING REVIEW** | _To be recorded upon PR review_ |
+| **Gabriel (lead)** (`@Gabriel-afk-9`) | Team Gabriel Lead (`TG-01-01`) | Items 1–10, including the shared environment and proposed ADR-0006 | **PENDING REVIEW** | _To be recorded upon PR review_ |
 
 ## 5. S1 Scope Boundary and Blocker Rule (C-01 Item 10)
 
