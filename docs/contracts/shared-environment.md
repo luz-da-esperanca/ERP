@@ -51,4 +51,28 @@ The clean verification used a fresh local clone of `feature/c-01-common-contract
 
 Docker Compose was not executed because Docker is unavailable on this host. The configured official `postgres:17.10-alpine` image tag was checked against the registry; this is not a claim that the container ran. The alternative native PostgreSQL path was executed. Remote GitHub Actions results are recorded on the corresponding pull request and must be checked separately from the local evidence above.
 
+### Independent review — Felipe (`@FelipeeMartinns`) — 2026-10-23
+
+- **Role:** Contract owner for Item 5 (independent review; no sign-off implied)
+- **Branch verified:** `feature/c-01-item5-verification` (commit `a6cf091`) in a fresh clone at `C:\Users\Felipe\AppData\Local\Temp\opencode\c01-clean` (no reuse of `node_modules`, `dist`, `.env`)
+- **Environment:** Node.js v24.20.0, npm 11.19.0 (via nvm), Docker Desktop 29.5.2, PostgreSQL 17.10 (`postgres:17.10-alpine`) via `docker compose`. `.node-version`/README specify Node 24.20.0 and npm 11.19.0; environment adjustment required.
+
+| Check | Executed result |
+| --- | --- |
+| `npm ci --no-fund` | Passed (390 packages, 0 vulnerabilities) |
+| `npm run prisma:generate` | Passed |
+| `npm run db:migrate` (empty `erp`) | Passed (`20261023160000_initialize_schema`) |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed (0 warnings) |
+| `npm test` | Passed (2 files, 19 tests) |
+| `npm run test:integration` (`erp_test`) | Passed (1 file, 1 test) |
+| `npm run build` | Passed (tsc + vite) |
+| `npm start --serve-client` smoke | `GET /api/v1/health` 200; `GET /api/v1/ready` 200; `/` served HTML with client script; `GET /api/v1/naoexiste` 404 (Problem Details) |
+
+**Observations:**
+- Docker was available in this environment (Fabricio reported unavailable and used portable binaries) — environment difference, not a code defect.
+- Bootstrap commits (`1d103d7`, `74a3767`, `69118aa`, `a6cf091`) entered `develop` directly without a pull request/review, which conflicts with [`git-flow-and-migrations.md`](./git-flow-and-migrations.md). This requires tracking/decision.
+- Prisma 7.10.1 reports an update notice to `8.0.0-rc.27` (advisory only).
+- Item 5 behavior matches the documented contract; independent verification completed. Formal sign-off still pending per contract.
+
 Contract ratification and institutional approvals remain in [the C-01 review register](./c-01-review-and-approval-evidence.md), not in a successful build. The database/server checks establish a development starting point, not production readiness or completed business functionality.
