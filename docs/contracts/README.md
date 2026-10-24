@@ -1,36 +1,25 @@
-# Common Contracts
+# Sprint 1 Common Contracts (`C-01`)
 
-Technical documentation for the C-01 common contracts. All canonical documents are in English. Files with `.pt-BR.md` are local translations for personal review only and **must not be committed**.
+This folder holds the shared Sprint 1 architectural and integration contracts agreed under **PB-00 / C-01** (`[S1][C-01] Acordar arquitetura, contratos, decisões e ambiente integrado`).
 
-## Index
+All tasks in Sprint 1 (`TF-01-01` through `TF-01-06`) must follow these agreements. If a change to any contract becomes necessary during implementation, update the corresponding document here via pull request and notify the team before merging incompatible behavior.
 
-| Contract / Artifact | Canonical | Version | Status | Owner | Reviewers | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| Identifiers (C-01 item 1) | [`common-identifiers.md`](./common-identifiers.md) | 1.0-rc.1 | Review candidate — cross-team aligned by Alan; pending reviewer approval | Felipe (@FelipeeMartinns) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), Alan (@alanrcastro100) | Linked to [ADR-0002](../adr/0002-common-identifiers-and-idempotency-keys.md). |
-| Errors (C-01 item 2) | [`common-errors.md`](./common-errors.md) | 1.0-rc.1 | Review candidate — cross-team aligned by Alan; pending reviewer approval | Felipe (@FelipeeMartinns) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), Alan (@alanrcastro100) | Linked to [ADR-0003](../adr/0003-problem-details-error-contract-and-boundary-translation.md). |
-| API contracts (C-01 item 3) | [`common-api-contracts.md`](./common-api-contracts.md) | 1.0-rc.1 | Review candidate — cross-team aligned by Alan; pending reviewer approval | Felipe (@FelipeeMartinns) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), Alan (@alanrcastro100) | Reuses identifiers and error contracts. |
-| Ownership matrix (C-01 item 4) | [`ownership.md`](./ownership.md) | 1.0-rc.1 | Review candidate — confirmed by Alan and Felipe; pending reviewer approval | Felipe (@FelipeeMartinns) & Alan (@alanrcastro100) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9) | Single owner per common item. |
-| Executable environment (C-01 item 5) | [`shared-environment.md`](./shared-environment.md), [`../../README.md`](../../README.md) | 0.1.0 | Implementation candidate; independent review pending | Felipe (@FelipeeMartinns); bootstrap advanced by Fabricio | Independent review required | Single package, Fastify + React, Prisma, operational endpoints, tests, and quality gates. |
-| Git Flow & migrations (C-01 item 6) | [`git-flow-and-migrations.md`](./git-flow-and-migrations.md) | 1.0-rc.1 | Review candidate — pending Felipe confirmation and reviewer approval | Alan (@alanrcastro100) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), Felipe (@FelipeeMartinns) | Unblocks C-01 item 5 shared environment. |
-| Domain glossary & ADRs (C-01 item 7) | [`../../GLOSSARY.md`](../../GLOSSARY.md), [`../adr/`](../adr/) | 1.0-rc.1 | Review candidate — pending reviewer ratification | Alan (@alanrcastro100); Fabricio authors bootstrap ADR-0006 | Independent review required for self-authored artifacts | ADRs `0001` to `0006` + root `GLOSSARY.md`. |
-| Pending LAC decisions (C-01 item 8) | [`pending-institutional-decisions.md`](./pending-institutional-decisions.md) | 1.0-rc.1 | Review candidate — all LAC items remain `PENDING` | Alan (@alanrcastro100) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), Felipe (@FelipeeMartinns) | Covers `LAC-01`, `02`, `04`, `07`, `11` and `03`..`13`. |
-| Review & S1 scope boundary (C-01 items 9–10) | [`c-01-review-and-approval-evidence.md`](./c-01-review-and-approval-evidence.md) | 1.0-rc.1 | In review — awaiting independent sign-off and integration | Alan (@alanrcastro100) & Felipe (@FelipeeMartinns) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), with independent review of Fabricio's bootstrap | Tracks executor alignment, reviewer sign-off, and S1 boundary. |
+## Contents
 
-Local copies (not committed): [`common-identifiers.pt-BR.md`](./common-identifiers.pt-BR.md), [`common-errors.pt-BR.md`](./common-errors.pt-BR.md).
+| Document | Scope |
+| --- | --- |
+| [`architecture-and-layers.md`](architecture-and-layers.md) | Monolith module layout, Clean Architecture layer boundaries, and inward dependency rules |
+| [`http-and-error-conventions.md`](http-and-error-conventions.md) | REST route conventions, RFC 9457 Problem Details error payload, pagination/filtering, optimistic concurrency, idempotency, and session/auth contract |
+| [`identifiers-and-time.md`](identifiers-and-time.md) | UUIDv7 internal identifiers, human-readable operational references, UTC timestamps vs. `America/Sao_Paulo` business dates, and `factDate` vs. `recordedAt` |
+| [`ownership.md`](ownership.md) | File and folder ownership matrix per Sprint 1 developer to minimize merge conflicts |
+| [`development-environment.md`](development-environment.md) | Exact runtime versions, environment variables, local PostgreSQL + Prisma setup, and verification commands |
+| [`access-and-session.md`](access-and-session.md) | Server-client authentication, session lifecycle, profile RBAC, and administrative user management contract (`C-02` / `TF-01-04` / `TF-01-05`) |
+| [`institutes-and-projects.md`](institutes-and-projects.md) | Institutes listing and Projects creation, update, closure, and institute association contract (`PB-12` / `RF-ATV-01` / `RF-ATV-02` / `LAC-04` / `TF-01-04`) |
 
-## Rules
+## Related References
 
-- Decisions in these documents are proposals. No reviewer approval is implied until recorded by Fabricio and Gabriel (lead).
-- No public response may expose stack traces, credentials, or internal details (RNF-SEG-04).
-- Errors and identifiers follow the rules in these contracts. Other modules must not create parallel schemes.
-- Portuguese is used for product UI text; technical documentation is in English.
-- Changes are versioned in this repository and require review.
-
-## Remaining work for C-01
-
-1. **Item 5 (Felipe, bootstrap advanced by Fabricio):** Review and integrate the executable candidate documented in [`shared-environment.md`](./shared-environment.md), including its recorded clean-clone verification. Advancing implementation does not transfer the remaining common work or imply approval.
-2. **Item 9 (Fabricio & Gabriel lead):** Record technical review and approval evidence in [`c-01-review-and-approval-evidence.md`](./c-01-review-and-approval-evidence.md) and on the Pull Request / Issue #11.
-
-## Evidence
-
-Approval evidence for Fabricio and Gabriel (lead) must be recorded before closing C-01. Cross-team executor alignment is recorded in [`c-01-review-and-approval-evidence.md`](./c-01-review-and-approval-evidence.md).
+- [GLOSSARY.md](../../GLOSSARY.md) — Canonical ubiquitous language and domain invariants
+- [ADR-0001](../adr/0001-modular-monolith-and-clean-architecture.md) — Modular monolith and Clean Architecture boundaries
+- [ADR-0002](../adr/0002-http-problem-details-and-idempotency.md) — HTTP Problem Details, optimistic concurrency, and idempotency
+- [ADR-0003](../adr/0003-identifiers-and-time-semantics.md) — UUIDv7 identifiers and `factDate` vs `recordedAt`
+- [ADR-0004](../adr/0004-pending-institutional-decisions-and-safe-defaults.md) — Safe technical defaults while `LAC-01..10` remain pending
