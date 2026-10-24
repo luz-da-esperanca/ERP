@@ -1,6 +1,6 @@
 # Access, Authentication, Session, and Server-Side Authorization Contract (`C-02` / `TF-01-04` / `TF-01-05`)
 
-- **Status:** Review candidate — pending approval
+- **Status:** Implementation candidate — independent approval pending
 - **Version:** 1.0-rc.1
 - **Owner:** Alan (`@alanrcastro100`, server-side auth, profiles, and user lifecycle) with Kauã (`@Kaua-cel`, client-side login, session handling, and protected navigation)
 - **Reviewers:** Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`)
@@ -14,7 +14,7 @@ Define the shared server-side authentication, session management, user lifecycle
 
 ## 2. User Profiles (`ERS §2.3` / `RF-ACS-02` / `LAC-08`)
 
-Every authenticated user (`Operator`) has zero or more explicit profiles assigned by an authorized administrator (`RF-ACS-02`). Creating an account grants **no** implicit social or operational privileges.
+Every authenticated user (`Operator`) has one or more explicit profiles, as required by the current general backlog, assigned by an authorized administrator (`RF-ACS-02`). Creating an account grants **no** implicit social or operational privileges.
 
 | Profile Code | Institutional Role (`ERS §2.3`) | Permitted Operational Scope in S1 |
 | --- | --- | --- |
@@ -32,16 +32,16 @@ Every authenticated user (`Operator`) has zero or more explicit profiles assigne
 
 - **Login identifier (`VAL-11`, `VAL-12`):**
   - Trimmed of leading/trailing whitespace and compared case-insensitively (`normalizedLogin = loginIdentifier.trim().toLowerCase()`).
-  - Length: `3..120` characters after trimming; empty or whitespace-only values are rejected with `422 VALIDATION_FAILED` (`FIELD_REQUIRED` / `FIELD_INVALID`).
+  - Length: `3..120` characters after trimming; empty or whitespace-only values are rejected with `422 VALIDATION_FAILED` (field codes such as `REQUIRED_FIELD`, `INVALID_FORMAT`, or `INVALID_LENGTH`).
   - Uniqueness is enforced on `normalizedLogin` both in the application and via a PostgreSQL unique constraint (`OP-01`, `AC-53`).
 - **Password (`VAL-11`, `RNF-SEG-01`):**
   - Never truncated or whitespace-normalized silently.
-  - Minimum length: `8` characters, maximum `256` characters (`VAL-12`).
-  - Stored exclusively as a salted cryptographic password hash (`scrypt` with per-password random 16-byte salt and constant-time comparison via `timingSafeEqual`). Plaintext passwords, password hashes, and session tokens are never returned in API responses, error payloads, or audit records.
+  - Minimum length: `8` characters, maximum `128` characters (`VAL-12`).
+  - Stored exclusively as a salted cryptographic password hash (`scrypt`, `N=16384`, `r=8`, `p=5`, random 16-byte salt, 64-byte key, explicit stored parameters, and constant-time comparison). Existing three-part hashes remain verifiable. See the proposed implementation note in [ADR-0005](../adr/0005-sensitive-data-protection-and-server-side-authorization.md). Plaintext passwords and password hashes are never returned in API responses, error payloads, or audit records. The session token is returned only by successful login, as specified below, and is excluded from audit records and errors.
 - **Anti-enumeration (`RF-ACS-01`):**
   - Unknown login identifier, wrong password, and deactivated account during login all return the exact same public error: `401 INVALID_CREDENTIALS` (`Credenciais inválidas.`).
 - **Repeated failed login protection (`RNF-SEG-02`, `LAC-10`):**
-  - Enforced server-side per normalized login identifier.
+  - Enforced server-side per normalized login identifier. Counting and lock transitions are serialized in the same transaction; successful login clears failures, and an expired lock starts a new consecutive-failure cycle. The counting window is this consecutive-failure cycle; institutional security parameters remain pending before the pilot.
   - Configurable via environment (`AUTH_MAX_FAILED_ATTEMPTS`, default proposed `5`; `AUTH_LOCKOUT_DURATION_SECONDS`, default proposed `900` / 15 minutes). These numeric values are configurable proposals under `LAC-10`, not hardcoded institutional policy.
   - When locked, login returns `429 RATE_LIMITED` with `Retry-After` header in seconds.
 
@@ -49,7 +49,7 @@ Every authenticated user (`Operator`) has zero or more explicit profiles assigne
 
 - **Session token transport:**
   - On successful login, the server issues an opaque high-entropy session token (`256-bit` random token, stored hashed with SHA-256 on the server) via:
-    1. An `HttpOnly; SameSite=Lax; Path=/` cookie (`erp_session`, adding `Secure` in production/HTTPS); and
+    1. An `HttpOnly; SameSite=Lax; Path=/` cookie (`erp_session`, always adding `Secure` when `NODE_ENV=production`; use `AUTH_COOKIE_SECURE=true` for other shared HTTPS environments); and
     2. The response body (`sessionToken`) so API clients and tests can also authenticate via `Authorization: Bearer <sessionToken>`.
 - **Inactivity expiration (`RNF-SEG-03`, `LAC-10`):**
   - Controlled on the server (`expiresAt` updated on authenticated activity; configurable via `AUTH_SESSION_IDLE_TIMEOUT_SECONDS`, default proposed `1800` / 30 minutes).
@@ -134,7 +134,7 @@ Creates a new user account with explicit profiles (`RF-ACS-02`, `VAL-11`). Recor
     "profiles": ["PERIODIC_ACTIVITY"]
   }
   ```
-- **Response `201 Created`:** Returns user representation (`id`, `loginIdentifier`, `displayName`, `profiles`, `status`, `version`, `createdAt`, `createdByUserId`). Never includes password or hash.
+- **Response `201 Created`:** Returns user representation (`id`, `loginIdentifier`, `displayName`, `profiles`, `status`, `version`, `createdAt`, `updatedAt`, `deactivatedAt`). Never includes password or hash.
 - **Errors:** `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 DUPLICATE_RESOURCE`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
 
 ### 5.5 `GET /api/v1/users`
@@ -142,7 +142,8 @@ Creates a new user account with explicit profiles (`RF-ACS-02`, `VAL-11`). Recor
 Lists user accounts for administration.
 
 - **Authentication & Authorization:** Requires `ADMIN` profile.
-- **Response `200 OK`:** `{ "items": [ ... ], "hasMore": false }`.
+- **Query:** `page` (positive integer, default `1`), `pageSize` (`1..100`, default `20`), optional `status` (`ACTIVE` / `DEACTIVATED`), and `profile` (one known profile code). Unknown, repeated, or malformed parameters are rejected with `400 INVALID_REQUEST`.
+- **Response `200 OK`:** `{ "items": [ ... ], "page": 1, "pageSize": 20, "totalItems": 0, "totalPages": 0 }`. Ordering is by display name, then ID; persistence applies the page bounds.
 
 ### 5.6 `PUT /api/v1/users/:id/profiles`
 
@@ -177,3 +178,12 @@ Deactivates a user account while preserving historical authorship on all previou
 - **Response `200 OK`:** Updated user with `status: "DEACTIVATED"` and incremented `version`.
 - **Errors:** `401`, `403`, `404 RESOURCE_NOT_FOUND`, `409 STALE_VERSION`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
 
+
+## 6. Provisioning, validation, and atomicity
+
+- Provision the initial ADMIN with the controlled local command in [README.md](../../README.md#initial-administrator). It is unavailable once any user exists and grants no implicit operational profile. Bootstrap records its origin and the newly established operator identity in the audit trail.
+- User creation requires explicit profiles. Empty profile lists are rejected under the current backlog; deactivation blocks access while retaining historical authorship. Changing that cardinality requires aligning the backlog, contract, and tests.
+- Creation accepts passwords of `8..128` characters; login accepts a non-empty password of at most `128` characters without normalization. The bounds are technical input constraints, not approval of a pending institutional policy.
+- JSON bodies allow only the fields documented for the operation. Client IDs and extra fields are rejected with `400 INVALID_REQUEST`; semantic type/length/date failures return `422 VALIDATION_FAILED`. A supplied `factDate` must be a valid string calendar date. Change reasons are trimmed, non-empty, and at most `1000` characters.
+- Protected mutations, audit, and operation confirmations commit together. A failed audit or confirmation rolls back the mutation. Concurrent identical keys replay one stored result. Secret-bearing creation inputs are compared using a separate salted verifier; changing the password with the same key returns `409 IDEMPOTENCY_CONFLICT`. Pre-existing confirmations without a verifier cannot establish equality for a password-bearing replay and are rejected rather than accepted silently.
+- Authorship is retained by the protected audit trail; it is not an undocumented `createdByUserId` field on these representations.

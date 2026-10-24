@@ -21,7 +21,7 @@ The system maintains the six institutional Institutes identified in the requirem
 | --- | --- |
 | `CRIANCA` | Criança |
 | `JOVEM` | Jovem |
-| `ESCLARECIMENTO_FAMILIA` | Esclarecimento e Família |
+| `ESCLARECIMENTO_E_FAMILIA` | Esclarecimento e Família |
 | `CARIDADE` | Caridade |
 | `DIVULGACAO` | Divulgação |
 | `MEDIUNIDADE` | Mediunidade |
@@ -29,7 +29,7 @@ The system maintains the six institutional Institutes identified in the requirem
 ### 2.2 Projects and Validity Periods (`RF-ATV-02`, `VAL-01`..`VAL-04`, `VAL-07`, `VAL-12`)
 
 - **Identifier:** Server-generated UUIDv7 (`id`).
-- **Name (`VAL-01`, `VAL-12`):** Mandatory, trimmed, non-empty string (`1..160` chars).
+- **Name (`VAL-01`, `VAL-12`):** Mandatory, trimmed, non-empty string (`3..150` chars).
 - **Description (`VAL-01`, `VAL-12`):** Optional trimmed string (`1..1000` chars); empty string is normalized to absent/omitted.
 - **Validity period (`VAL-03`, `VAL-04`):**
   - `startDate` (`YYYY-MM-DD`): Mandatory valid calendar date (inclusive start).
@@ -106,13 +106,14 @@ Creates a new Project. Requires `Idempotency-Key` (`OP-02`) and records creation
     "institutes": [],
     "version": 1,
     "createdAt": "2026-10-23T14:00:00.000Z",
-    "createdByUserId": "0192f5b6-1111-7000-8000-000000000001"
+    "updatedAt": "2026-10-23T14:00:00.000Z",
+    "closedAt": null
   }
   ```
 
 ### 4.3 `GET /api/v1/projects` and `GET /api/v1/projects/:id`
 
-Lists or fetches Projects with optional filtering by `status` (`PLANNED`, `ACTIVE`, `CLOSED`) and `instituteId`.
+Lists or fetches Projects with optional filtering by `status` (`PLANNED`, `ACTIVE`, `CLOSED`), a valid UUID `instituteId`, and `search` (up to `150` characters). Lists accept `page` (positive integer, default `1`) and `pageSize` (`1..100`, default `20`) and return `items`, `page`, `pageSize`, `totalItems`, and `totalPages`. Persistence applies the bounds and orders by name, then ID. Unknown or malformed query parameters return `400 INVALID_REQUEST`.
 
 ### 4.4 `PATCH /api/v1/projects/:id`
 
@@ -148,3 +149,10 @@ Closes a Project while preserving its record and historical context (`RF-ATV-08`
   ```
 - **Response `200 OK`:** Updated Project with `status: "CLOSED"` and `version: 3`.
 
+
+## 5. Input and transaction guarantees
+
+- The `3..150` project-name and `1000` description bounds match validation and the persistence schema. Omitted description/end date are represented by `null`; an open project has `closedAt: null`.
+- Write bodies reject extra fields and client-supplied entity IDs. A supplied `factDate` must be a valid string date; reasons are non-empty and at most `1000` characters.
+- A protected mutation, its audit entry, and its idempotency confirmation share the transaction created at composition. Failure leaves no partial project or history. Concurrent repeats of one actor/operation/key return one result.
+- The audit trail owns authenticated authorship and before/after context; project responses do not add an undocumented `createdByUserId`. C-03 ownership remains with Felipe; this integration does not constitute independent review or institutional approval.
