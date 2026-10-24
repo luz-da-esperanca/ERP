@@ -1,4 +1,10 @@
 import { resolve } from 'node:path';
+import { PrismaAccessRepository } from '../modules/access/infrastructure/prisma-access-repository.ts';
+import { PrismaProjectsRepository } from '../modules/activities/infrastructure/prisma-projects-repository.ts';
+import {
+  PrismaAuditTrail,
+  PrismaIdempotencyStore,
+} from '../modules/shared/prisma-audit-and-idempotency.ts';
 import { createApp } from './app.ts';
 import { readConfig } from './config.ts';
 import { createDatabase } from './database.ts';
@@ -7,13 +13,16 @@ const config = readConfig(process.env);
 const database = createDatabase(config.databaseUrl);
 const app = createApp({
   checkDatabase: database.check,
+  accessRepository: new PrismaAccessRepository(database.client),
+  projectsRepository: new PrismaProjectsRepository(database.client),
+  auditTrail: new PrismaAuditTrail(database.client),
+  idempotencyStore: new PrismaIdempotencyStore(database.client),
   logger: true,
   ...(process.argv.includes('--serve-client')
     ? { clientDirectory: resolve(import.meta.dirname, '../client') }
     : {}),
 });
 
-// Register business-module HTTP adapters here and inject their infrastructure dependencies.
 app.addHook('onClose', () => database.close());
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
