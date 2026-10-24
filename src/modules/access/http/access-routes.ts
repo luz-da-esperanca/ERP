@@ -1,11 +1,11 @@
+import { readEnumFilter, readFactDate, readJsonBody, readPagination, readQuery, readRouteIdentifier } from '../../shared/http/request-validation.ts';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { requireIdempotencyKey } from '../../shared/audit-and-idempotency.ts';
-import { forbiddenError, invalidRequestError } from '../../shared/errors.ts';
+import { forbiddenError } from '../../shared/errors.ts';
 import type { AccessService, AuthenticatedPrincipal } from '../application/access-service.ts';
 import {
   ACCESS_PROFILES,
   type AccessProfile,
-  type UserStatus,
 } from '../domain/access-types.ts';
 
 const SESSION_COOKIE_NAME = 'erp_session';
@@ -23,7 +23,10 @@ export function extractSessionToken(request: FastifyRequest): string | undefined
       const [rawName, ...rest] = part.trim().split('=');
       if (rawName === SESSION_COOKIE_NAME) {
         const value = rest.join('=').trim();
-        if (value.length > 0) return decodeURIComponent(value);
+        if (value.length > 0) {
+          try { return decodeURIComponent(value); }
+          catch { return undefined; }
+        }
       }
     }
   }
@@ -61,31 +64,30 @@ export function createAuthGuard(accessService: AccessService): AuthGuard {
   };
 }
 
-function asObjectRecord(body: unknown): Record<string, unknown> {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    throw invalidRequestError('O corpo da requisição deve ser um objeto JSON válido.');
-  }
-  return body as Record<string, unknown>;
-}
-
 export function registerAccessRoutes(
   app: FastifyInstance,
   accessService: AccessService,
   authGuard: AuthGuard,
+  secureCookies: boolean,
 ): void {
+  const cookieAttributes = `Path=/; HttpOnly; SameSite=Lax${secureCookies ? '; Secure' : ''}`;
   app.post('/api/v1/auth/login', async (request, reply) => {
-    const body = asObjectRecord(request.body);
+    const body = readJsonBody(request.body, ["loginIdentifier","password"]);
     const result = await accessService.login({
-      login: body.login,
+      login: body.loginIdentifier,
       password: body.password,
     });
 
     reply.header(
       'Set-Cookie',
-      `${SESSION_COOKIE_NAME}=${encodeURIComponent(result.session.token)}; Path=/; HttpOnly; SameSite=Lax`,
+      `${SESSION_COOKIE_NAME}=${encodeURIComponent(result.session.token)}; ${cookieAttributes}`,
     );
 
-    return reply.code(200).send(result);
+    return reply.code(200).send({
+      sessionToken: result.session.token,
+      expiresAt: result.session.idleExpiresAt,
+      user: result.user,
+    });
   });
 
   app.post('/api/v1/auth/logout', async (request, reply) => {
@@ -93,53 +95,40 @@ export function registerAccessRoutes(
     await accessService.logout(token);
     reply.header(
       'Set-Cookie',
-      `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+      `${SESSION_COOKIE_NAME}=; ${cookieAttributes}; Max-Age=0`,
     );
     return reply.code(204).send();
   });
 
   app.get('/api/v1/auth/session', async (request, reply) => {
     const principal = await authGuard.requireAuthenticated(request);
-    return reply.code(200).send(principal);
+    return reply.code(200).send({ expiresAt: principal.session.idleExpiresAt, user: principal.user });
   });
 
   app.get('/api/v1/users', async (request, reply) => {
     await authGuard.requireProfiles(request, ['ADMIN']);
-    const query = (request.query ?? {}) as Record<string, unknown>;
-    const rawStatus = typeof query.status === 'string' ? query.status : undefined;
-    const rawProfile = typeof query.profile === 'string' ? query.profile : undefined;
+    const query = readQuery(request.query, ['status', 'profile', 'page', 'pageSize']);
+    const statusFilter = readEnumFilter(query.status, ['ACTIVE', 'DEACTIVATED'] as const);
+    const profileFilter = readEnumFilter(query.profile, ACCESS_PROFILES);
 
-    const statusFilter: UserStatus | undefined =
-      rawStatus === 'ACTIVE' || rawStatus === 'DEACTIVATED' ? rawStatus : undefined;
-    const profileFilter: AccessProfile | undefined =
-      rawProfile && (ACCESS_PROFILES as readonly string[]).includes(rawProfile)
-        ? (rawProfile as AccessProfile)
-        : undefined;
-
-    const items = await accessService.listUsers({
+    const page = await accessService.listUsers({
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(profileFilter ? { profile: profileFilter } : {}),
-    });
+    }, readPagination(query));
 
-    return reply.code(200).send({
-      items,
-      page: 1,
-      pageSize: Math.max(20, items.length),
-      totalItems: items.length,
-      totalPages: items.length === 0 ? 0 : 1,
-    });
+    return reply.code(200).send(page);
   });
 
   app.post('/api/v1/users', async (request, reply) => {
     const principal = await authGuard.requireProfiles(request, ['ADMIN']);
     const operationId = requireIdempotencyKey(request.headers['idempotency-key']);
-    const body = asObjectRecord(request.body);
-    const factDate = typeof body.factDate === 'string' ? body.factDate : undefined;
+    const body = readJsonBody(request.body, ["loginIdentifier","displayName","password","profiles","factDate"]);
+    const factDate = readFactDate(body);
 
     const result = await accessService.createUser({
       actorId: principal.user.id,
       operationId,
-      login: body.login,
+      login: body.loginIdentifier,
       displayName: body.displayName,
       password: body.password,
       profiles: body.profiles,
@@ -152,10 +141,9 @@ export function registerAccessRoutes(
   app.put('/api/v1/users/:id/profiles', async (request, reply) => {
     const principal = await authGuard.requireProfiles(request, ['ADMIN']);
     const operationId = requireIdempotencyKey(request.headers['idempotency-key']);
-    const params = (request.params ?? {}) as Record<string, unknown>;
-    const targetUserId = typeof params.id === 'string' ? params.id : '';
-    const body = asObjectRecord(request.body);
-    const factDate = typeof body.factDate === 'string' ? body.factDate : undefined;
+    const targetUserId = readRouteIdentifier(request.params);
+    const body = readJsonBody(request.body, ["version","profiles","reason","factDate"]);
+    const factDate = readFactDate(body);
 
     const updated = await accessService.updateUserProfiles({
       actorId: principal.user.id,
@@ -173,10 +161,9 @@ export function registerAccessRoutes(
   app.post('/api/v1/users/:id/deactivate', async (request, reply) => {
     const principal = await authGuard.requireProfiles(request, ['ADMIN']);
     const operationId = requireIdempotencyKey(request.headers['idempotency-key']);
-    const params = (request.params ?? {}) as Record<string, unknown>;
-    const targetUserId = typeof params.id === 'string' ? params.id : '';
-    const body = asObjectRecord(request.body);
-    const factDate = typeof body.factDate === 'string' ? body.factDate : undefined;
+    const targetUserId = readRouteIdentifier(request.params);
+    const body = readJsonBody(request.body, ["version","reason","factDate"]);
+    const factDate = readFactDate(body);
 
     const deactivated = await accessService.deactivateUser({
       actorId: principal.user.id,
@@ -190,4 +177,3 @@ export function registerAccessRoutes(
     return reply.code(200).send(deactivated);
   });
 }
-

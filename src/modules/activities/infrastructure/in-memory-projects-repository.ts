@@ -1,9 +1,10 @@
+import { DEFAULT_PAGINATION, type Pagination } from '../../shared/pagination.ts';
+import type { ProjectFilter } from '../application/projects-service.ts';
 import type { ProjectsRepositoryPort } from '../application/projects-service.ts';
 import {
   CANONICAL_INSTITUTES,
   type InstituteView,
   type ProjectRecord,
-  type ProjectStatus,
 } from '../domain/project-types.ts';
 
 export class InMemoryProjectsRepository implements ProjectsRepositoryPort {
@@ -18,11 +19,16 @@ export class InMemoryProjectsRepository implements ProjectsRepositoryPort {
     return [...this.institutes];
   }
 
-  async listProjects(filter?: {
-    readonly status?: ProjectStatus;
-    readonly instituteId?: string;
-    readonly search?: string;
-  }): Promise<readonly ProjectRecord[]> {
+  async listProjects(filter?: ProjectFilter, pagination: Pagination = DEFAULT_PAGINATION): Promise<readonly ProjectRecord[]> {
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    return this.matchingProjects(filter).slice(offset, offset + pagination.pageSize);
+  }
+
+  async countProjects(filter?: ProjectFilter): Promise<number> {
+    return this.matchingProjects(filter).length;
+  }
+
+  private matchingProjects(filter?: ProjectFilter): readonly ProjectRecord[] {
     const normalizedSearch = filter?.search?.trim().toLowerCase();
     const normalizedInstituteId = filter?.instituteId?.trim().toLowerCase();
 
@@ -61,5 +67,11 @@ export class InMemoryProjectsRepository implements ProjectsRepositoryPort {
     this.projectsById.set(key, record);
     return record;
   }
+  checkpoint(): () => void {
+    const projectsById = structuredClone(this.projectsById);
+    return () => {
+      this.projectsById.clear();
+      for (const [key, value] of projectsById) this.projectsById.set(key, value);
+    };
+  }
 }
-

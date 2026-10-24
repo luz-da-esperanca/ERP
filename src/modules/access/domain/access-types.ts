@@ -29,7 +29,7 @@ export interface UserRecord {
 
 export interface UserView {
   readonly id: string;
-  readonly login: string;
+  readonly loginIdentifier: string;
   readonly displayName: string;
   readonly status: UserStatus;
   readonly profiles: readonly AccessProfile[];
@@ -58,17 +58,33 @@ export interface LoginAttemptStateRecord {
 
 export interface SecurityPolicyConfig {
   readonly maxFailedLoginAttempts: number;
-  readonly lockoutDurationMinutes: number;
-  readonly sessionInactivityMinutes: number;
+  readonly lockoutDurationSeconds: number;
+  readonly sessionIdleTimeoutSeconds: number;
 }
 
 export const DEFAULT_SECURITY_POLICY_CONFIG: SecurityPolicyConfig = {
   maxFailedLoginAttempts: 5,
-  lockoutDurationMinutes: 15,
-  sessionInactivityMinutes: 30,
+  lockoutDurationSeconds: 900,
+  sessionIdleTimeoutSeconds: 1800,
 };
 
 const VALID_PROFILES_SET = new Set<string>(ACCESS_PROFILES);
+
+export function validateLoginFields(input: { readonly login: unknown; readonly password: unknown }): {
+  readonly normalizedLogin: string; readonly password: string;
+} {
+  const normalizedLogin = normalizeLoginIdentifier(input.login);
+  const password = typeof input.password === 'string' ? input.password : '';
+  const errors: FieldValidationError[] = [];
+  if (normalizedLogin.length < 3 || normalizedLogin.length > 120 || /\s/.test(normalizedLogin)) {
+    errors.push({ field: 'loginIdentifier', code: 'INVALID_FORMAT', message: 'O identificador de login deve ter entre 3 e 120 caracteres sem espaços internos.' });
+  }
+  if (password.length === 0 || password.length > 128) {
+    errors.push({ field: 'password', code: 'INVALID_LENGTH', message: 'Informe uma senha de acesso com no máximo 128 caracteres.' });
+  }
+  if (errors.length) throw validationFailedError(errors);
+  return { normalizedLogin, password };
+}
 
 /**
  * Normalizes a login identifier by trimming outer whitespace and lowercasing (VAL-11).
@@ -81,7 +97,7 @@ export function normalizeLoginIdentifier(rawLogin: unknown): string {
 export function toUserView(record: UserRecord): UserView {
   return {
     id: record.id,
-    login: record.login,
+    loginIdentifier: record.login,
     displayName: record.displayName,
     status: record.status,
     profiles: [...record.profiles],
@@ -155,7 +171,7 @@ export function validateUserCreationFields(input: {
 
   if (normalizedLogin.length < 3 || normalizedLogin.length > 120 || /\s/.test(normalizedLogin)) {
     errors.push({
-      field: 'login',
+      field: 'loginIdentifier',
       code: 'INVALID_FORMAT',
       message: 'O identificador de login deve ter entre 3 e 120 caracteres sem espaços internos.',
     });
@@ -198,4 +214,3 @@ export function validateUserCreationFields(input: {
     profiles,
   };
 }
-

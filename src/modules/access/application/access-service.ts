@@ -1,4 +1,6 @@
-import type { AuditTrailPort, IdempotencyPort } from '../../shared/audit-and-idempotency.ts';
+import { requireChangeReason } from '../../shared/change-reason.ts';
+import { buildPage, DEFAULT_PAGINATION, type Page, type Pagination } from '../../shared/pagination.ts';
+import type { MutationContext, TransactionRunner } from '../../shared/transactions.ts';
 import {
   authRequiredError,
   duplicateResourceError,
@@ -8,10 +10,10 @@ import {
   staleVersionError,
   validationFailedError,
 } from '../../shared/errors.ts';
-import { generateUuidV7, isUuidV4OrV7 } from '../../shared/identifiers-and-time.ts';
+import { generateUuidV7, isUuidV4OrV7, validateFactDate } from '../../shared/identifiers-and-time.ts';
 import {
   DEFAULT_SECURITY_POLICY_CONFIG,
-  normalizeLoginIdentifier,
+  validateLoginFields,
   toUserView,
   validateProfilesList,
   validateUserCreationFields,
@@ -23,20 +25,21 @@ import {
   type UserStatus,
   type UserView,
 } from '../domain/access-types.ts';
-import {
-  generateSessionToken,
-  hashPassword,
-  hashSessionToken,
-  verifyPassword,
-} from '../infrastructure/password-hasher.ts';
+import type { AccessSecurityPort } from './access-security.ts';
 
-export interface AccessRepositoryPort {
-  findUserByLogin(login: string): Promise<UserRecord | null>;
-  findUserById(id: string): Promise<UserRecord | null>;
-  listUsers(filter?: {
+export interface UserFilter {
     readonly status?: UserStatus;
     readonly profile?: AccessProfile;
-  }): Promise<readonly UserRecord[]>;
+
+}
+
+export interface AccessRepositoryPort {
+  lockInitialUserProvisioning(): Promise<void>;
+  lockLoginState(login: string): Promise<void>;
+  findUserByLogin(login: string): Promise<UserRecord | null>;
+  findUserById(id: string): Promise<UserRecord | null>;
+  listUsers(filter?: UserFilter, pagination?: Pagination): Promise<readonly UserRecord[]>;
+  countUsers(filter?: UserFilter): Promise<number>;
   createUser(record: UserRecord): Promise<UserRecord>;
   updateUser(record: UserRecord, expectedVersion: number): Promise<UserRecord | null>;
   createSession(session: SessionRecord): Promise<SessionRecord>;
@@ -70,24 +73,24 @@ export interface LoginResult extends AuthenticatedPrincipal {
 }
 
 export interface AccessServiceDependencies {
+  readonly security: AccessSecurityPort;
   readonly repository: AccessRepositoryPort;
-  readonly auditTrail: AuditTrailPort;
-  readonly idempotency: IdempotencyPort;
+  readonly transactions: TransactionRunner<MutationContext<AccessRepositoryPort>>;
   readonly clock?: () => Date;
   readonly securityConfig?: Partial<SecurityPolicyConfig>;
 }
 
 export class AccessService {
+  private readonly security: AccessSecurityPort;
   private readonly repository: AccessRepositoryPort;
-  private readonly auditTrail: AuditTrailPort;
-  private readonly idempotency: IdempotencyPort;
+  private readonly transactions: TransactionRunner<MutationContext<AccessRepositoryPort>>;
   private readonly clock: () => Date;
   private readonly securityConfig: SecurityPolicyConfig;
 
   constructor(deps: AccessServiceDependencies) {
+    this.security = deps.security;
     this.repository = deps.repository;
-    this.auditTrail = deps.auditTrail;
-    this.idempotency = deps.idempotency;
+    this.transactions = deps.transactions;
     this.clock = deps.clock ?? (() => new Date());
     this.securityConfig = {
       ...DEFAULT_SECURITY_POLICY_CONFIG,
@@ -95,70 +98,89 @@ export class AccessService {
     };
   }
 
-  async login(input: { readonly login: unknown; readonly password: unknown }): Promise<LoginResult> {
-    const normalizedLogin = normalizeLoginIdentifier(input.login);
-    const rawPassword = typeof input.password === 'string' ? input.password : '';
-
-    if (normalizedLogin.length === 0 || rawPassword.length === 0) {
-      throw validationFailedError([
-        ...(normalizedLogin.length === 0
-          ? [{ field: 'login', code: 'REQUIRED_FIELD', message: 'Informe o identificador de acesso.' }]
-          : []),
-        ...(rawPassword.length === 0
-          ? [{ field: 'password', code: 'REQUIRED_FIELD', message: 'Informe a senha de acesso.' }]
-          : []),
-      ]);
-    }
-
-    const now = this.clock();
-    const attemptState = await this.repository.getLoginAttemptState(normalizedLogin);
-    if (attemptState?.lockedUntil) {
-      const lockedUntilMs = Date.parse(attemptState.lockedUntil);
-      if (lockedUntilMs > now.getTime()) {
-        const retryAfterSeconds = Math.max(1, Math.ceil((lockedUntilMs - now.getTime()) / 1000));
-        throw rateLimitedError(retryAfterSeconds);
+  async provisionInitialAdministrator(input: {
+    readonly loginIdentifier: unknown; readonly displayName: unknown; readonly password: unknown;
+  }): Promise<UserView> {
+    const validated = validateUserCreationFields({ ...input, login: input.loginIdentifier, profiles: ['ADMIN'] });
+    return this.transactions(async ({ repository, auditTrail }) => {
+      await repository.lockInitialUserProvisioning();
+      if (await repository.countUsers() !== 0) {
+        throw duplicateResourceError('O provisionamento inicial está desativado porque já existem usuários.');
       }
-    }
+      const now = this.clock();
+      const record: UserRecord = {
+        id: generateUuidV7(now.getTime()), login: validated.normalizedLogin,
+        displayName: validated.displayName, passwordHash: this.security.hashPassword(validated.password),
+        status: 'ACTIVE', profiles: ['ADMIN'], version: 1,
+        createdAt: now.toISOString(), updatedAt: now.toISOString(), deactivatedAt: null,
+      };
+      const saved = await repository.createUser(record);
+      const view = toUserView(saved);
+      await auditTrail.record({ actorId: saved.id, entityType: 'USER', entityId: saved.id,
+        action: 'CREATE', before: null, after: { ...view },
+        reason: 'Initial administrator provisioned through the authorized local command.',
+      });
+      return view;
+    });
+  }
 
-    const user = await this.repository.findUserByLogin(normalizedLogin);
-    const passwordMatches = verifyPassword(rawPassword, user?.passwordHash);
+  async login(input: { readonly login: unknown; readonly password: unknown }): Promise<LoginResult> {
+    const { normalizedLogin, password: rawPassword } = validateLoginFields(input);
 
-    if (!user || !passwordMatches || user.status !== 'ACTIVE') {
-      await this.recordFailedAttempt(normalizedLogin, attemptState, now);
-      throw invalidCredentialsError();
-    }
+    const outcome = await this.transactions(async ({ repository }) => {
+      await repository.lockLoginState(normalizedLogin);
+      const now = this.clock();
+      const attemptState = await repository.getLoginAttemptState(normalizedLogin);
+      if (attemptState?.lockedUntil) {
+        const lockedUntilMs = Date.parse(attemptState.lockedUntil);
+        if (lockedUntilMs > now.getTime()) {
+          const retryAfterSeconds = Math.max(1, Math.ceil((lockedUntilMs - now.getTime()) / 1000));
+          return { error: rateLimitedError(retryAfterSeconds) };
+        }
+      }
 
-    if (attemptState) {
-      await this.repository.clearLoginAttemptState(normalizedLogin);
-    }
+      const user = await repository.findUserByLogin(normalizedLogin);
+      const passwordMatches = this.security.verifyPassword(rawPassword, user?.passwordHash);
 
-    const { rawToken, tokenHash } = generateSessionToken();
-    const issuedAt = now.toISOString();
-    const idleExpiresAt = new Date(
-      now.getTime() + this.securityConfig.sessionInactivityMinutes * 60_000,
-    ).toISOString();
+      if (!user || !passwordMatches || user.status !== 'ACTIVE') {
+        await this.recordFailedAttempt(repository, normalizedLogin, attemptState, now);
+        return { error: invalidCredentialsError() };
+      }
 
-    const sessionRecord: SessionRecord = {
-      id: generateUuidV7(now.getTime()),
-      userId: user.id,
-      tokenHash,
-      issuedAt,
-      lastActivityAt: issuedAt,
-      idleExpiresAt,
-      revokedAt: null,
-    };
-    await this.repository.createSession(sessionRecord);
+      if (attemptState) {
+        await repository.clearLoginAttemptState(normalizedLogin);
+      }
 
-    return {
-      user: toUserView(user),
-      session: {
-        id: sessionRecord.id,
-        token: rawToken,
-        issuedAt: sessionRecord.issuedAt,
-        lastActivityAt: sessionRecord.lastActivityAt,
-        idleExpiresAt: sessionRecord.idleExpiresAt,
-      },
-    };
+      const { rawToken, tokenHash } = this.security.generateSessionToken();
+      const issuedAt = now.toISOString();
+      const idleExpiresAt = new Date(
+        now.getTime() + this.securityConfig.sessionIdleTimeoutSeconds * 1000,
+      ).toISOString();
+
+      const sessionRecord: SessionRecord = {
+        id: generateUuidV7(now.getTime()),
+        userId: user.id,
+        tokenHash,
+        issuedAt,
+        lastActivityAt: issuedAt,
+        idleExpiresAt,
+        revokedAt: null,
+      };
+      await repository.createSession(sessionRecord);
+
+      return { value: {
+        user: toUserView(user),
+        session: {
+          id: sessionRecord.id,
+          token: rawToken,
+          issuedAt: sessionRecord.issuedAt,
+          lastActivityAt: sessionRecord.lastActivityAt,
+          idleExpiresAt: sessionRecord.idleExpiresAt,
+        },
+      } };
+    });
+    if (outcome.error) throw outcome.error;
+    return outcome.value;
   }
 
   async authenticateToken(rawToken: string | undefined): Promise<AuthenticatedPrincipal> {
@@ -167,7 +189,7 @@ export class AccessService {
     }
 
     const now = this.clock();
-    const tokenHash = hashSessionToken(rawToken.trim());
+    const tokenHash = this.security.hashSessionToken(rawToken.trim());
     const session = await this.repository.findSessionByTokenHash(tokenHash);
     if (!session || session.revokedAt !== null) {
       throw authRequiredError();
@@ -187,7 +209,7 @@ export class AccessService {
 
     const lastActivityAt = now.toISOString();
     const idleExpiresAt = new Date(
-      now.getTime() + this.securityConfig.sessionInactivityMinutes * 60_000,
+      now.getTime() + this.securityConfig.sessionIdleTimeoutSeconds * 1000,
     ).toISOString();
     await this.repository.updateSessionActivity(session.id, lastActivityAt, idleExpiresAt);
 
@@ -211,12 +233,9 @@ export class AccessService {
     await this.repository.revokeSessionById(principal.session.id, nowIso);
   }
 
-  async listUsers(filter?: {
-    readonly status?: UserStatus;
-    readonly profile?: AccessProfile;
-  }): Promise<readonly UserView[]> {
-    const records = await this.repository.listUsers(filter);
-    return records.map((record) => toUserView(record));
+  async listUsers(filter?: UserFilter, pagination: Pagination = DEFAULT_PAGINATION): Promise<Page<UserView>> {
+    const [records, total] = await Promise.all([this.repository.listUsers(filter, pagination), this.repository.countUsers(filter)]);
+    return buildPage(records.map(toUserView), total, pagination);
   }
 
   async createUser(input: {
@@ -228,9 +247,11 @@ export class AccessService {
     readonly profiles: unknown;
     readonly factDate?: string;
   }): Promise<{ readonly statusCode: number; readonly body: UserView }> {
+    validateFactDate(input.factDate);
     const validated = validateUserCreationFields(input);
-    const result = await this.idempotency.execute({
+    const result = await this.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
       operationType: 'CREATE_USER',
+      secret: validated.password,
       actorId: input.actorId,
       operationId: input.operationId,
       payload: {
@@ -240,7 +261,7 @@ export class AccessService {
         factDate: input.factDate ?? null,
       },
       run: async () => {
-        const existing = await this.repository.findUserByLogin(validated.normalizedLogin);
+        const existing = await repository.findUserByLogin(validated.normalizedLogin);
         if (existing) {
           throw duplicateResourceError(
             'Já existe um usuário cadastrado com este identificador de login.',
@@ -253,7 +274,7 @@ export class AccessService {
           id: generateUuidV7(now.getTime()),
           login: validated.normalizedLogin,
           displayName: validated.displayName,
-          passwordHash: hashPassword(validated.password),
+          passwordHash: this.security.hashPassword(validated.password),
           status: 'ACTIVE',
           profiles: validated.profiles,
           version: 1,
@@ -262,10 +283,10 @@ export class AccessService {
           deactivatedAt: null,
         };
 
-        const saved = await this.repository.createUser(record);
+        const saved = await repository.createUser(record);
         const view = toUserView(saved);
 
-        await this.auditTrail.record({
+        await auditTrail.record({
           actorId: input.actorId,
           ...(input.factDate !== undefined ? { factDate: input.factDate } : {}),
           entityType: 'USER',
@@ -278,7 +299,7 @@ export class AccessService {
 
         return { statusCode: 201, body: view };
       },
-    });
+    }));
 
     return { statusCode: result.statusCode, body: result.body };
   }
@@ -292,6 +313,7 @@ export class AccessService {
     readonly reason: unknown;
     readonly factDate?: string;
   }): Promise<UserView> {
+    validateFactDate(input.factDate);
     if (!isUuidV4OrV7(input.targetUserId)) {
       throw resourceNotFoundError('Usuário não encontrado.');
     }
@@ -306,18 +328,9 @@ export class AccessService {
     }
     const expectedVersion = input.version;
     const profiles = validateProfilesList(input.profiles, 'profiles');
-    const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
-    if (reason.length === 0) {
-      throw validationFailedError([
-        {
-          field: 'reason',
-          code: 'REQUIRED_FIELD',
-          message: 'A justificativa da alteração de perfis é obrigatória.',
-        },
-      ]);
-    }
+    const reason = requireChangeReason(input.reason);
 
-    const result = await this.idempotency.execute({
+    const result = await this.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
       operationType: 'UPDATE_USER_PROFILES',
       actorId: input.actorId,
       operationId: input.operationId,
@@ -329,7 +342,7 @@ export class AccessService {
         factDate: input.factDate ?? null,
       },
       run: async () => {
-        const current = await this.repository.findUserById(input.targetUserId);
+        const current = await repository.findUserById(input.targetUserId);
         if (!current) {
           throw resourceNotFoundError('Usuário não encontrado.');
         }
@@ -344,7 +357,7 @@ export class AccessService {
           version: current.version + 1,
           updatedAt: nowIso,
         };
-        const saved = await this.repository.updateUser(updatedRecord, expectedVersion);
+        const saved = await repository.updateUser(updatedRecord, expectedVersion);
         if (!saved) {
           throw staleVersionError();
         }
@@ -352,7 +365,7 @@ export class AccessService {
         const beforeView = toUserView(current);
         const afterView = toUserView(saved);
 
-        await this.auditTrail.record({
+        await auditTrail.record({
           actorId: input.actorId,
           ...(input.factDate !== undefined ? { factDate: input.factDate } : {}),
           entityType: 'USER',
@@ -366,7 +379,7 @@ export class AccessService {
 
         return { statusCode: 200, body: afterView };
       },
-    });
+    }));
 
     return result.body;
   }
@@ -379,6 +392,7 @@ export class AccessService {
     readonly reason: unknown;
     readonly factDate?: string;
   }): Promise<UserView> {
+    validateFactDate(input.factDate);
     if (!isUuidV4OrV7(input.targetUserId)) {
       throw resourceNotFoundError('Usuário não encontrado.');
     }
@@ -392,18 +406,9 @@ export class AccessService {
       ]);
     }
     const expectedVersion = input.version;
-    const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
-    if (reason.length === 0) {
-      throw validationFailedError([
-        {
-          field: 'reason',
-          code: 'REQUIRED_FIELD',
-          message: 'A justificativa da desativação é obrigatória.',
-        },
-      ]);
-    }
+    const reason = requireChangeReason(input.reason);
 
-    const result = await this.idempotency.execute({
+    const result = await this.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
       operationType: 'DEACTIVATE_USER',
       actorId: input.actorId,
       operationId: input.operationId,
@@ -414,7 +419,7 @@ export class AccessService {
         factDate: input.factDate ?? null,
       },
       run: async () => {
-        const current = await this.repository.findUserById(input.targetUserId);
+        const current = await repository.findUserById(input.targetUserId);
         if (!current) {
           throw resourceNotFoundError('Usuário não encontrado.');
         }
@@ -430,17 +435,17 @@ export class AccessService {
           version: current.version + 1,
           updatedAt: nowIso,
         };
-        const saved = await this.repository.updateUser(updatedRecord, expectedVersion);
+        const saved = await repository.updateUser(updatedRecord, expectedVersion);
         if (!saved) {
           throw staleVersionError();
         }
 
-        await this.repository.revokeAllUserSessions(saved.id, nowIso);
+        await repository.revokeAllUserSessions(saved.id, nowIso);
 
         const beforeView = toUserView(current);
         const afterView = toUserView(saved);
 
-        await this.auditTrail.record({
+        await auditTrail.record({
           actorId: input.actorId,
           ...(input.factDate !== undefined ? { factDate: input.factDate } : {}),
           entityType: 'USER',
@@ -454,12 +459,13 @@ export class AccessService {
 
         return { statusCode: 200, body: afterView };
       },
-    });
+    }));
 
     return result.body;
   }
 
   private async recordFailedAttempt(
+    repository: AccessRepositoryPort,
     normalizedLogin: string,
     previous: LoginAttemptStateRecord | null,
     now: Date,
@@ -471,10 +477,10 @@ export class AccessService {
     const failedAttempts = previousFailures + 1;
     const isNowLocked = failedAttempts >= this.securityConfig.maxFailedLoginAttempts;
     const lockedUntil = isNowLocked
-      ? new Date(now.getTime() + this.securityConfig.lockoutDurationMinutes * 60_000).toISOString()
+      ? new Date(now.getTime() + this.securityConfig.lockoutDurationSeconds * 1000).toISOString()
       : null;
 
-    await this.repository.saveLoginAttemptState({
+    await repository.saveLoginAttemptState({
       login: normalizedLogin,
       failedAttempts,
       lockedUntil,
@@ -482,4 +488,3 @@ export class AccessService {
     });
   }
 }
-

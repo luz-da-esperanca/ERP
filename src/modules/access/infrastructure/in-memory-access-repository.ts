@@ -1,3 +1,5 @@
+import { DEFAULT_PAGINATION, type Pagination } from '../../shared/pagination.ts';
+import type { UserFilter } from '../application/access-service.ts';
 import type { AccessRepositoryPort } from '../application/access-service.ts';
 import {
   normalizeLoginIdentifier,
@@ -11,7 +13,7 @@ import { hashPassword } from './password-hasher.ts';
 
 export interface SeedUserInput {
   readonly id: string;
-  readonly login: string;
+  readonly loginIdentifier: string;
   readonly displayName: string;
   readonly password: string;
   readonly profiles: readonly AccessProfile[];
@@ -19,6 +21,12 @@ export interface SeedUserInput {
 }
 
 export class InMemoryAccessRepository implements AccessRepositoryPort {
+  async lockInitialUserProvisioning(): Promise<void> {
+    // The shared in-memory transaction runner serializes initial provisioning.
+  }
+  async lockLoginState(): Promise<void> {
+    // The in-memory transaction runner serializes access to its checkpointed state.
+  }
   private readonly usersById = new Map<string, UserRecord>();
   private readonly sessionsById = new Map<string, SessionRecord>();
   private readonly loginAttemptsByLogin = new Map<string, LoginAttemptStateRecord>();
@@ -26,7 +34,7 @@ export class InMemoryAccessRepository implements AccessRepositoryPort {
   constructor(seedUsers: readonly SeedUserInput[] = []) {
     const initialIso = '2026-01-01T00:00:00.000Z';
     for (const seed of seedUsers) {
-      const normalizedLogin = normalizeLoginIdentifier(seed.login);
+      const normalizedLogin = normalizeLoginIdentifier(seed.loginIdentifier);
       const status = seed.status ?? 'ACTIVE';
       this.usersById.set(seed.id, {
         id: seed.id,
@@ -57,10 +65,16 @@ export class InMemoryAccessRepository implements AccessRepositoryPort {
     return this.usersById.get(id) ?? null;
   }
 
-  async listUsers(filter?: {
-    readonly status?: UserStatus;
-    readonly profile?: AccessProfile;
-  }): Promise<readonly UserRecord[]> {
+  async listUsers(filter?: UserFilter, pagination: Pagination = DEFAULT_PAGINATION): Promise<readonly UserRecord[]> {
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    return this.matchingUsers(filter).slice(offset, offset + pagination.pageSize);
+  }
+
+  async countUsers(filter?: UserFilter): Promise<number> {
+    return this.matchingUsers(filter).length;
+  }
+
+  private matchingUsers(filter?: UserFilter): readonly UserRecord[] {
     const all = [...this.usersById.values()];
     return all
       .filter((user) => {
@@ -144,5 +158,17 @@ export class InMemoryAccessRepository implements AccessRepositoryPort {
   async clearLoginAttemptState(login: string): Promise<void> {
     this.loginAttemptsByLogin.delete(normalizeLoginIdentifier(login));
   }
+  checkpoint(): () => void {
+    const usersById = structuredClone(this.usersById);
+    const sessionsById = structuredClone(this.sessionsById);
+    const loginAttemptsByLogin = structuredClone(this.loginAttemptsByLogin);
+    return () => {
+      this.usersById.clear();
+      for (const [key, value] of usersById) this.usersById.set(key, value);
+      this.sessionsById.clear();
+      for (const [key, value] of sessionsById) this.sessionsById.set(key, value);
+      this.loginAttemptsByLogin.clear();
+      for (const [key, value] of loginAttemptsByLogin) this.loginAttemptsByLogin.set(key, value);
+    };
+  }
 }
-

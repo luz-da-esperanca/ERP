@@ -1,4 +1,6 @@
-import type { PrismaClient } from '../../../server/generated/prisma/client.ts';
+import { DEFAULT_PAGINATION, type Pagination } from '../../shared/pagination.ts';
+import type { Prisma } from '../../../server/generated/prisma/client.ts';
+import type { ProjectFilter } from '../application/projects-service.ts';
 import type { ProjectsRepositoryPort } from '../application/projects-service.ts';
 import type {
   InstituteCode,
@@ -38,9 +40,9 @@ function mapProjectRow(row: PrismaProjectWithInstitutes): ProjectRecord {
 }
 
 export class PrismaProjectsRepository implements ProjectsRepositoryPort {
-  private readonly client: PrismaClient;
+  private readonly client: Prisma.TransactionClient;
 
-  constructor(client: PrismaClient) {
+  constructor(client: Prisma.TransactionClient) {
     this.client = client;
   }
 
@@ -57,28 +59,17 @@ export class PrismaProjectsRepository implements ProjectsRepositoryPort {
     }));
   }
 
-  async listProjects(filter?: {
-    readonly status?: ProjectStatus;
-    readonly instituteId?: string;
-    readonly search?: string;
-  }): Promise<readonly ProjectRecord[]> {
-    const search = filter?.search?.trim();
+  async listProjects(filter?: ProjectFilter, pagination: Pagination = DEFAULT_PAGINATION): Promise<readonly ProjectRecord[]> {
     const rows = await this.client.project.findMany({
-      where: {
-        ...(filter?.status ? { status: filter.status } : {}),
-        ...(filter?.instituteId
-          ? { institutes: { some: { instituteId: filter.instituteId } } }
-          : {}),
-        ...(search
-          ? { name: { contains: search, mode: 'insensitive' } }
-          : {}),
-      },
+      where: this.buildFilter(filter),
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
       include: {
         institutes: {
           orderBy: { instituteId: 'asc' },
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
     return rows.map((row) => mapProjectRow(row));
   }
@@ -129,49 +120,64 @@ export class PrismaProjectsRepository implements ProjectsRepositoryPort {
     record: ProjectRecord,
     expectedVersion: number,
   ): Promise<ProjectRecord | null> {
-    return this.client.$transaction(async (tx) => {
-      const updatedCount = await tx.project.updateMany({
-        where: { id: record.id, version: expectedVersion },
-        data: {
-          name: record.name,
-          description: record.description,
-          startDate: record.startDate,
-          endDate: record.endDate,
-          status: record.status,
-          version: record.version,
-          updatedAt: new Date(record.updatedAt),
-          closedAt: record.closedAt ? new Date(record.closedAt) : null,
-        },
-      });
-      if (updatedCount.count === 0) {
-        return null;
-      }
-
-      await tx.projectInstitute.deleteMany({
-        where: { projectId: record.id },
-      });
-
-      const linkedAt = new Date(record.updatedAt);
-      for (const instituteId of record.instituteIds) {
-        await tx.projectInstitute.create({
-          data: {
-            projectId: record.id,
-            instituteId,
-            linkedAt,
-          },
-        });
-      }
-
-      const fresh = await tx.project.findUnique({
-        where: { id: record.id },
-        include: {
-          institutes: {
-            orderBy: { instituteId: 'asc' },
-          },
-        },
-      });
-      return fresh ? mapProjectRow(fresh) : null;
+    const tx = this.client;
+    const updatedCount = await tx.project.updateMany({
+      where: { id: record.id, version: expectedVersion },
+      data: {
+        name: record.name,
+        description: record.description,
+        startDate: record.startDate,
+        endDate: record.endDate,
+        status: record.status,
+        version: record.version,
+        updatedAt: new Date(record.updatedAt),
+        closedAt: record.closedAt ? new Date(record.closedAt) : null,
+      },
     });
+    if (updatedCount.count === 0) {
+      return null;
+    }
+
+    await tx.projectInstitute.deleteMany({
+      where: { projectId: record.id },
+    });
+
+    const linkedAt = new Date(record.updatedAt);
+    for (const instituteId of record.instituteIds) {
+      await tx.projectInstitute.create({
+        data: {
+          projectId: record.id,
+          instituteId,
+          linkedAt,
+        },
+      });
+    }
+
+    const fresh = await tx.project.findUnique({
+      where: { id: record.id },
+      include: {
+        institutes: {
+          orderBy: { instituteId: 'asc' },
+        },
+      },
+    });
+    return fresh ? mapProjectRow(fresh) : null;
+  }
+  async countProjects(filter?: ProjectFilter): Promise<number> {
+    return this.client.project.count({ where: this.buildFilter(filter) });
+  }
+
+  private buildFilter(filter?: ProjectFilter): Prisma.ProjectWhereInput {
+    const search = filter?.search?.trim();
+    return {
+        ...(filter?.status ? { status: filter.status } : {}),
+        ...(filter?.instituteId
+          ? { institutes: { some: { instituteId: filter.instituteId } } }
+          : {}),
+        ...(search
+          ? { name: { contains: search, mode: 'insensitive' } }
+          : {}),
+
+    };
   }
 }
-

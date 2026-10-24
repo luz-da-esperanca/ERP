@@ -1,6 +1,6 @@
+import { requireChangeReason } from './change-reason.ts';
 import { createHash } from 'node:crypto';
 import {
-  idempotencyConflictError,
   invalidRequestError,
   validationFailedError,
 } from './errors.ts';
@@ -17,6 +17,9 @@ const SENSITIVE_AUDIT_KEYS = new Set([
   'sessionToken',
   'tokenHash',
   'secret',
+  'secretHash',
+  'rawToken',
+  'token',
   'authorization',
 ]);
 
@@ -71,16 +74,17 @@ function sanitizeAuditSnapshot(
   snapshot: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
   if (!snapshot) return null;
-  const cleaned: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(snapshot)) {
-    if (SENSITIVE_AUDIT_KEYS.has(key)) continue;
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      cleaned[key] = sanitizeAuditSnapshot(value as Record<string, unknown>);
-    } else {
-      cleaned[key] = value;
-    }
+  return Object.fromEntries(Object.entries(snapshot)
+    .filter(([key]) => !SENSITIVE_AUDIT_KEYS.has(key))
+    .map(([key, value]) => [key, sanitizeAuditValue(value)]));
+}
+
+function sanitizeAuditValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeAuditValue);
+  if (value !== null && typeof value === 'object') {
+    return sanitizeAuditSnapshot(Object.fromEntries(Object.entries(value)));
   }
-  return cleaned;
+  return value;
 }
 
 export function validateAndBuildAuditEntry(
@@ -100,16 +104,8 @@ export function validateAndBuildAuditEntry(
     ]);
   }
 
-  const trimmedReason = input.reason?.trim() ?? null;
-  if (ACTIONS_REQUIRING_REASON.has(input.action) && (!trimmedReason || trimmedReason.length === 0)) {
-    throw validationFailedError([
-      {
-        field: 'reason',
-        code: 'REQUIRED_FIELD',
-        message: 'A justificativa da alteração ou encerramento é obrigatória.',
-      },
-    ]);
-  }
+  const trimmedReason = input.reason === null || input.reason === undefined ? null : requireChangeReason(input.reason);
+  if (ACTIONS_REQUIRING_REASON.has(input.action) && trimmedReason === null) requireChangeReason(input.reason);
 
   return {
     id: generateUuidV7(now.getTime()),
@@ -126,32 +122,8 @@ export function validateAndBuildAuditEntry(
   };
 }
 
-export class InMemoryAuditTrail implements AuditTrailPort {
-  private readonly entries: AuditEntry[] = [];
-  private readonly clock: () => Date;
-
-  constructor(clock: () => Date = () => new Date()) {
-    this.clock = clock;
-  }
-
-  async record(input: AuditRecordInput): Promise<AuditEntry> {
-    const entry = validateAndBuildAuditEntry(input, this.clock);
-    this.entries.push(entry);
-    return entry;
-  }
-
-  async listByEntity(entityType: string, entityId: string): Promise<readonly AuditEntry[]> {
-    return this.entries.filter(
-      (entry) => entry.entityType === entityType && entry.entityId === entityId,
-    );
-  }
-
-  all(): readonly AuditEntry[] {
-    return [...this.entries];
-  }
-}
-
 export interface IdempotentExecutionRequest<T> {
+  readonly secret?: string;
   readonly operationType: string;
   readonly actorId: string;
   readonly operationId: string;
@@ -202,50 +174,3 @@ export function requireIdempotencyKey(headerValue: string | readonly string[] | 
   }
   return trimmed.toLowerCase();
 }
-
-interface StoredIdempotencyRecord {
-  readonly payloadDigest: string;
-  readonly statusCode: number;
-  readonly body: unknown;
-}
-
-export class InMemoryIdempotencyStore implements IdempotencyPort {
-  private readonly records = new Map<string, StoredIdempotencyRecord>();
-
-  async execute<T>(request: IdempotentExecutionRequest<T>): Promise<IdempotentExecutionResult<T>> {
-    if (!isUuidV4OrV7(request.operationId)) {
-      throw invalidRequestError(
-        'O cabeçalho Idempotency-Key é obrigatório e deve ser um UUID v4 ou v7 válido.',
-      );
-    }
-
-    const compositeKey = `${request.operationType}:${request.actorId}:${request.operationId.toLowerCase()}`;
-    const payloadDigest = computePayloadDigest(request.payload);
-    const existing = this.records.get(compositeKey);
-
-    if (existing) {
-      if (existing.payloadDigest !== payloadDigest) {
-        throw idempotencyConflictError();
-      }
-      return {
-        statusCode: existing.statusCode,
-        body: existing.body as T,
-        replayed: true,
-      };
-    }
-
-    const outcome = await request.run();
-    this.records.set(compositeKey, {
-      payloadDigest,
-      statusCode: outcome.statusCode,
-      body: outcome.body,
-    });
-
-    return {
-      statusCode: outcome.statusCode,
-      body: outcome.body,
-      replayed: false,
-    };
-  }
-}
-

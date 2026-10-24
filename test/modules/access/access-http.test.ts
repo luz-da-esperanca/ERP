@@ -5,6 +5,94 @@ const ADMIN_ID = '01963000-0000-7000-8000-000000000001';
 const COORD_ID = '01963000-0000-7000-8000-000000000002';
 
 describe('Server authentication, session lifecycle, RBAC, and user administration (C-02 / AC-52 / AC-53)', () => {
+  it('treats a malformed session cookie as an invalid session', async () => {
+    const app = createApp({ checkDatabase: async () => {} });
+    onTestFinished(() => app.close());
+    const response = await app.inject({ method: 'GET', url: '/api/v1/auth/session', headers: { cookie: 'erp_session=%invalid' } });
+    expect(response.statusCode).toBe(401);
+    expect(response.json().code).toBe('AUTH_REQUIRED');
+  });
+  it.each([
+    { loginIdentifier: 'x'.repeat(121), password: 'SyntheticPassword!123' },
+    { loginIdentifier: {}, password: 'SyntheticPassword!123' },
+    { loginIdentifier: 'valid@example.invalid', password: 'x'.repeat(129) },
+    { loginIdentifier: 'valid@example.invalid', password: {} },
+  ])('validates login types and bounds before accessing credentials (%j)', async (payload) => {
+    const app = createApp({ checkDatabase: async () => {} });
+    onTestFinished(() => app.close());
+    const response = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload });
+    expect(response.statusCode).toBe(422);
+    expect(response.json().code).toBe('VALIDATION_FAILED');
+  });
+  it('returns the requested user page with consistent totals', async () => {
+    const app = createApp({ checkDatabase: async () => {}, seedUsers: [
+      { id: ADMIN_ID, loginIdentifier: 'page-admin@example.invalid', displayName: 'Alpha Admin', password: 'SyntheticPassword!123', profiles: ['ADMIN'] },
+      { id: COORD_ID, loginIdentifier: 'page-coord@example.invalid', displayName: 'Beta Coordinator', password: 'SyntheticPassword!123', profiles: ['COORDINATOR'] },
+    ] });
+    onTestFinished(() => app.close());
+    const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { loginIdentifier: 'page-admin@example.invalid', password: 'SyntheticPassword!123' } });
+    const response = await app.inject({ method: 'GET', url: '/api/v1/users?page=2&pageSize=1', headers: { authorization: `Bearer ${login.json().sessionToken as string}` } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ page: 2, pageSize: 1, totalItems: 2, totalPages: 2, items: [{ id: COORD_ID }] });
+    expect(response.json().items).toHaveLength(1);
+  });
+  it('rejects a user creation replay with a changed password without exposing either password', async () => {
+    const app = createApp({ checkDatabase: async () => {}, seedUsers: [{
+      id: ADMIN_ID, loginIdentifier: 'secret-admin@example.invalid', displayName: 'Synthetic Admin',
+      password: 'SyntheticPassword!123', profiles: ['ADMIN'],
+    }] });
+    onTestFinished(() => app.close());
+    const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+      payload: { loginIdentifier: 'secret-admin@example.invalid', password: 'SyntheticPassword!123' } });
+    const request = { method: 'POST' as const, url: '/api/v1/users',
+      headers: { authorization: `Bearer ${login.json().sessionToken as string}`, 'idempotency-key': '01963000-0000-7000-8000-000000000900' },
+      payload: { loginIdentifier: 'new@example.invalid', displayName: 'Synthetic User', password: 'OriginalPassword!123', profiles: ['ADMIN'] },
+    };
+    const first = await app.inject(request);
+    expect(first.statusCode).toBe(201);
+    const replay = await app.inject(request);
+    expect(replay.json()).toEqual(first.json());
+    const conflict = await app.inject({ ...request, payload: { ...request.payload, password: 'DifferentPassword!123' } });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().code).toBe('IDEMPOTENCY_CONFLICT');
+    expect(first.body + replay.body + conflict.body).not.toContain('OriginalPassword');
+    expect(first.body + replay.body + conflict.body).not.toContain('DifferentPassword');
+  });
+  it.each([true, false])('uses deployment cookie security consistently for login and logout (%j)', async (secureCookies) => {
+    const app = createApp({ checkDatabase: async () => {}, secureCookies, seedUsers: [{
+      id: ADMIN_ID, loginIdentifier: 'cookie@example.invalid', displayName: 'Synthetic Admin',
+      password: 'SyntheticPassword!123', profiles: ['ADMIN'],
+    }] });
+    onTestFinished(() => app.close());
+    const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+      payload: { loginIdentifier: 'cookie@example.invalid', password: 'SyntheticPassword!123' } });
+    const logout = await app.inject({ method: 'POST', url: '/api/v1/auth/logout',
+      headers: { authorization: `Bearer ${login.json().sessionToken as string}` } });
+    expect(logout.statusCode).toBe(204);
+    for (const response of [login, logout]) {
+      expect(/;\s*Secure(?:;|$)/.test(String(response.headers['set-cookie']))).toBe(secureCookies);
+      expect(String(response.headers['set-cookie'])).toContain('HttpOnly');
+      expect(String(response.headers['set-cookie'])).toContain('SameSite=Lax');
+    }
+  });
+  it('accepts the published loginIdentifier contract and returns sessionToken and expiresAt', async () => {
+    const app = createApp({ checkDatabase: async () => {}, seedUsers: [{
+      id: ADMIN_ID, loginIdentifier: 'contract@example.invalid', displayName: 'Synthetic Admin',
+      password: 'SyntheticPassword!123', profiles: ['ADMIN'],
+    }] });
+    onTestFinished(() => app.close());
+    const response = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+      payload: { loginIdentifier: 'contract@example.invalid', password: 'SyntheticPassword!123' },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body).toMatchObject({ sessionToken: expect.any(String), expiresAt: expect.any(String),
+      user: { loginIdentifier: 'contract@example.invalid' } });
+    expect(body).not.toHaveProperty('session');
+    const session = await app.inject({ method: 'GET', url: '/api/v1/auth/session',
+      headers: { authorization: `Bearer ${body.sessionToken as string}` } });
+    expect(session.json()).toMatchObject({ expiresAt: expect.any(String), user: { id: ADMIN_ID } });
+  });
   it('authenticates with normalized login, issues HttpOnly cookie and bearer session, and rejects unknown/wrong/deactivated credentials without enumeration (RF-ACS-01 / VAL-11)', async () => {
     let currentNow = new Date('2026-04-14T12:00:00.000Z');
     const app = createApp({
@@ -13,7 +101,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
       seedUsers: [
         {
           id: ADMIN_ID,
-          login: 'admin@luz.org',
+          loginIdentifier: 'admin@luz.org',
           displayName: 'Administrador Geral',
           password: 'AdminPassword!123',
           profiles: ['ADMIN'],
@@ -26,12 +114,12 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     const wrongUser = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: 'inexistente@luz.org', password: 'AdminPassword!123' },
+      payload: { loginIdentifier: 'inexistente@luz.org', password: 'AdminPassword!123' },
     });
     const wrongPass = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: 'admin@luz.org', password: 'WrongPassword!123' },
+      payload: { loginIdentifier: 'admin@luz.org', password: 'WrongPassword!123' },
     });
 
     expect(wrongUser.statusCode).toBe(401);
@@ -44,7 +132,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     const loginRes = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: '  ADMIN@LUZ.ORG  ', password: 'AdminPassword!123' },
+      payload: { loginIdentifier: '  ADMIN@LUZ.ORG  ', password: 'AdminPassword!123' },
     });
 
     expect(loginRes.statusCode).toBe(200);
@@ -57,21 +145,19 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     expect(body).toMatchObject({
       user: {
         id: ADMIN_ID,
-        login: 'admin@luz.org',
+        loginIdentifier: 'admin@luz.org',
         displayName: 'Administrador Geral',
         status: 'ACTIVE',
         profiles: ['ADMIN'],
       },
-      session: {
-        id: expect.any(String),
-        token: expect.any(String),
-      },
+      sessionToken: expect.any(String),
+      expiresAt: expect.any(String),
     });
 
     const sessionRes = await app.inject({
       method: 'GET',
       url: '/api/v1/auth/session',
-      headers: { authorization: `Bearer ${body.session.token as string}` },
+      headers: { authorization: `Bearer ${body.sessionToken as string}` },
     });
     expect(sessionRes.statusCode).toBe(200);
     expect(sessionRes.json().user.id).toBe(ADMIN_ID);
@@ -81,7 +167,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     const expiredRes = await app.inject({
       method: 'GET',
       url: '/api/v1/auth/session',
-      headers: { authorization: `Bearer ${body.session.token as string}` },
+      headers: { authorization: `Bearer ${body.sessionToken as string}` },
     });
     expect(expiredRes.statusCode).toBe(401);
     expect(expiredRes.json()).toMatchObject({ code: 'AUTH_REQUIRED' });
@@ -94,13 +180,13 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
       clock: () => currentNow,
       securityConfig: {
         maxFailedLoginAttempts: 3,
-        lockoutDurationMinutes: 10,
-        sessionInactivityMinutes: 30,
+        lockoutDurationSeconds: 600,
+        sessionIdleTimeoutSeconds: 1800,
       },
       seedUsers: [
         {
           id: ADMIN_ID,
-          login: 'admin@luz.org',
+          loginIdentifier: 'admin@luz.org',
           displayName: 'Administrador Geral',
           password: 'AdminPassword!123',
           profiles: ['ADMIN'],
@@ -114,7 +200,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
       const attempt = await app.inject({
         method: 'POST',
         url: '/api/v1/auth/login',
-        payload: { login: 'admin@luz.org', password: 'WrongPassword!' },
+        payload: { loginIdentifier: 'admin@luz.org', password: 'WrongPassword!' },
       });
       expect(attempt.statusCode).toBe(401);
     }
@@ -122,7 +208,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     const lockedAttempt = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: 'admin@luz.org', password: 'AdminPassword!123' },
+      payload: { loginIdentifier: 'admin@luz.org', password: 'AdminPassword!123' },
     });
     expect(lockedAttempt.statusCode).toBe(429);
     expect(lockedAttempt.headers['retry-after']).toBe('600');
@@ -135,7 +221,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
       seedUsers: [
         {
           id: ADMIN_ID,
-          login: 'admin@luz.org',
+          loginIdentifier: 'admin@luz.org',
           displayName: 'Administrador Geral',
           password: 'AdminPassword!123',
           profiles: ['ADMIN'],
@@ -143,7 +229,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
         },
         {
           id: COORD_ID,
-          login: 'coord@luz.org',
+          loginIdentifier: 'coord@luz.org',
           displayName: 'Coordenadora Ana',
           password: 'CoordPassword!123',
           profiles: ['COORDINATOR'],
@@ -156,17 +242,17 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     const adminLogin = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: 'admin@luz.org', password: 'AdminPassword!123' },
+      payload: { loginIdentifier: 'admin@luz.org', password: 'AdminPassword!123' },
     });
-    const adminToken = adminLogin.json().session.token as string;
+    const adminToken = adminLogin.json().sessionToken as string;
 
     // Non-ADMIN user cannot access /api/v1/users (AC-52)
     const coordLogin = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: 'coord@luz.org', password: 'CoordPassword!123' },
+      payload: { loginIdentifier: 'coord@luz.org', password: 'CoordPassword!123' },
     });
-    const coordToken = coordLogin.json().session.token as string;
+    const coordToken = coordLogin.json().sessionToken as string;
 
     const forbiddenUsersList = await app.inject({
       method: 'GET',
@@ -185,7 +271,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
         'idempotency-key': '01963000-0000-7000-8000-000000000101',
       },
       payload: {
-        login: '  Educador.Joao@Luz.org ',
+        loginIdentifier: '  Educador.Joao@Luz.org ',
         displayName: 'João Educador',
         password: 'JoaoPassword!123',
         profiles: ['PERIODIC_ACTIVITY'],
@@ -195,7 +281,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     expect(createUserRes.statusCode).toBe(201);
     const createdUser = createUserRes.json();
     expect(createdUser).toMatchObject({
-      login: 'educador.joao@luz.org',
+      loginIdentifier: 'educador.joao@luz.org',
       displayName: 'João Educador',
       status: 'ACTIVE',
       profiles: ['PERIODIC_ACTIVITY'],
@@ -211,7 +297,7 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
         'idempotency-key': '01963000-0000-7000-8000-000000000102',
       },
       payload: {
-        login: 'educador.joao@luz.org',
+        loginIdentifier: 'educador.joao@luz.org',
         displayName: 'Outro João',
         password: 'JoaoPassword!123',
         profiles: ['BAZAR'],
@@ -224,9 +310,9 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     const joaoLogin = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: 'educador.joao@luz.org', password: 'JoaoPassword!123' },
+      payload: { loginIdentifier: 'educador.joao@luz.org', password: 'JoaoPassword!123' },
     });
-    const joaoToken = joaoLogin.json().session.token as string;
+    const joaoToken = joaoLogin.json().sessionToken as string;
 
     // ADMIN updates João's profiles to include COORDINATOR + ADMIN
     const updateProfilesRes = await app.inject({
@@ -303,10 +389,9 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     const joaoLoginAfterDeactivate = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
-      payload: { login: 'educador.joao@luz.org', password: 'JoaoPassword!123' },
+      payload: { loginIdentifier: 'educador.joao@luz.org', password: 'JoaoPassword!123' },
     });
     expect(joaoLoginAfterDeactivate.statusCode).toBe(401);
     expect(joaoLoginAfterDeactivate.json()).toMatchObject({ code: 'INVALID_CREDENTIALS' });
   });
 });
-

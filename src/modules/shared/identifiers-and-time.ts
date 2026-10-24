@@ -1,4 +1,14 @@
 import { randomBytes } from 'node:crypto';
+import { validationFailedError } from './errors.ts';
+
+export function validateFactDate(value: string | undefined): void {
+  if (value !== undefined && !isValidIsoCalendarDate(value)) {
+    throw validationFailedError([{
+      field: 'factDate', code: 'INVALID_FORMAT',
+      message: 'A data do fato deve ser uma data de calendário válida no formato AAAA-MM-DD.',
+    }]);
+  }
+}
 
 const UUID_V4_OR_V7_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[47][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -76,4 +86,3 @@ export function currentBusinessDateInSaoPaulo(now: Date = new Date()): string {
   });
   return formatter.format(now);
 }
-

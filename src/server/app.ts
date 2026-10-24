@@ -1,42 +1,29 @@
 import { randomUUID } from 'node:crypto';
 import fastifyStatic from '@fastify/static';
 import Fastify, { LogController } from 'fastify';
-import {
-  AccessService,
-  type AccessRepositoryPort,
-} from '../modules/access/application/access-service.ts';
+import { AccessService } from '../modules/access/application/access-service.ts';
+import { accessSecurity } from '../modules/access/infrastructure/password-hasher.ts';
 import type { SecurityPolicyConfig } from '../modules/access/domain/access-types.ts';
 import { createAuthGuard, registerAccessRoutes } from '../modules/access/http/access-routes.ts';
-import {
-  InMemoryAccessRepository,
-  type SeedUserInput,
-} from '../modules/access/infrastructure/in-memory-access-repository.ts';
-import {
-  ProjectsService,
-  type ProjectsRepositoryPort,
-} from '../modules/activities/application/projects-service.ts';
+import type { SeedUserInput } from '../modules/access/infrastructure/in-memory-access-repository.ts';
+import { ProjectsService } from '../modules/activities/application/projects-service.ts';
 import { registerProjectsRoutes } from '../modules/activities/http/projects-routes.ts';
-import { InMemoryProjectsRepository } from '../modules/activities/infrastructure/in-memory-projects-repository.ts';
-import {
-  InMemoryAuditTrail,
-  InMemoryIdempotencyStore,
-  type AuditTrailPort,
-  type IdempotencyPort,
-} from '../modules/shared/audit-and-idempotency.ts';
+import type { InMemoryAuditTrail } from '../modules/shared/infrastructure/in-memory-audit-and-idempotency.ts';
+import { createInMemoryPersistence, type Persistence } from './persistence.ts';
 import { ApplicationError } from '../modules/shared/errors.ts';
 import { createProblem, createProblemFromError } from './problem-details.ts';
+import { translatePersistenceError } from './persistence-errors.ts';
 
 export interface AppOptions {
   checkDatabase: () => Promise<void>;
   clientDirectory?: string;
   logger?: boolean;
+  secureCookies?: boolean;
   clock?: () => Date;
   securityConfig?: Partial<SecurityPolicyConfig>;
   seedUsers?: readonly SeedUserInput[];
-  accessRepository?: AccessRepositoryPort;
-  projectsRepository?: ProjectsRepositoryPort;
-  auditTrail?: AuditTrailPort;
-  idempotencyStore?: IdempotencyPort;
+  persistence?: Persistence;
+  auditTrail?: InMemoryAuditTrail;
 }
 
 export function createApp(options: AppOptions) {
@@ -49,14 +36,15 @@ export function createApp(options: AppOptions) {
     app.register(fastifyStatic, { root: options.clientDirectory, wildcard: false });
   }
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof ApplicationError) {
-      if (error.retryAfterSeconds !== undefined) {
-        reply.header('Retry-After', String(error.retryAfterSeconds));
+    const applicationError = error instanceof ApplicationError ? error : translatePersistenceError(error);
+    if (applicationError) {
+      if (applicationError.retryAfterSeconds !== undefined) {
+        reply.header('Retry-After', String(applicationError.retryAfterSeconds));
       }
       return reply
-        .code(error.status)
+        .code(applicationError.status)
         .type('application/problem+json')
-        .send(createProblemFromError(error, request.id));
+        .send(createProblemFromError(applicationError, request.id));
     }
     const status = error instanceof Error && 'statusCode' in error && error.statusCode === 400 ? 400 : 500;
     if (status === 500) request.log.error({ traceId: request.id }, 'Unhandled request failure');
@@ -84,28 +72,18 @@ export function createApp(options: AppOptions) {
   });
 
   const clock = options.clock ?? (() => new Date());
-  const auditTrail = options.auditTrail ?? new InMemoryAuditTrail(clock);
-  const idempotencyStore = options.idempotencyStore ?? new InMemoryIdempotencyStore();
-  const accessRepository =
-    options.accessRepository ?? new InMemoryAccessRepository(options.seedUsers ?? []);
-  const projectsRepository = options.projectsRepository ?? new InMemoryProjectsRepository();
-
+  const persistence = options.persistence ?? createInMemoryPersistence(options.seedUsers ?? [], clock, options.auditTrail);
   const accessService = new AccessService({
-    repository: accessRepository,
-    auditTrail,
-    idempotency: idempotencyStore,
-    clock,
+    security: accessSecurity,
+    repository: persistence.accessRepository, transactions: persistence.accessTransactions, clock,
     ...(options.securityConfig ? { securityConfig: options.securityConfig } : {}),
   });
   const projectsService = new ProjectsService({
-    repository: projectsRepository,
-    auditTrail,
-    idempotency: idempotencyStore,
-    clock,
+    repository: persistence.projectsRepository, transactions: persistence.projectTransactions, clock,
   });
 
   const authGuard = createAuthGuard(accessService);
-  registerAccessRoutes(app, accessService, authGuard);
+  registerAccessRoutes(app, accessService, authGuard, options.secureCookies ?? false);
   registerProjectsRoutes(app, projectsService, authGuard);
 
   return app;

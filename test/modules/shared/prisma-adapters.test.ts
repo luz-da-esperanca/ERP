@@ -56,8 +56,9 @@ describe('Prisma persistence adapters (C-02 / C-03 / PB-12)', () => {
   });
 
   it('persists and replays idempotent confirmations through PrismaIdempotencyStore', async () => {
-    const stored = new Map<string, { payloadDigest: string; statusCode: number; responseBody: unknown }>();
+    const stored = new Map<string, { payloadDigest: string; statusCode: number; responseBody: unknown; secretHash: string | null }>();
     const fakeClient = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       operationConfirmation: {
         findUnique: vi.fn().mockImplementation(async ({ where }) => {
           const key = `${where.operationType_actorId_operationId.operationType}:${where.operationType_actorId_operationId.actorId}:${where.operationType_actorId_operationId.operationId}`;
@@ -69,6 +70,7 @@ describe('Prisma persistence adapters (C-02 / C-03 / PB-12)', () => {
             payloadDigest: data.payloadDigest,
             statusCode: data.statusCode,
             responseBody: data.responseBody,
+            secretHash: data.secretHash,
           });
           return data;
         }),
@@ -88,14 +90,15 @@ describe('Prisma persistence adapters (C-02 / C-03 / PB-12)', () => {
     });
     const second = await store.execute({
       operationType: 'CREATE_PROJECT',
-      actorId: '01963000-0000-7000-8000-000000000077',
+      actorId: '01963000-0000-7000-8000-000000000001',
       operationId: '01963000-0000-7000-8000-000000000077',
       payload: { name: 'A' },
       run: async () => ({ statusCode: 201, body: { id: 'p-2' } }),
     });
 
     expect(first.replayed).toBe(false);
-    expect(second.replayed).toBe(false);
+    expect(second.replayed).toBe(true);
+    expect(second.body).toEqual(first.body);
   });
 
   it('maps users and projects with optimistic concurrency checks in PrismaAccessRepository and PrismaProjectsRepository', async () => {
@@ -144,4 +147,3 @@ describe('Prisma persistence adapters (C-02 / C-03 / PB-12)', () => {
     expect(institutes[0]!.code).toBe('CRIANCA');
   });
 });
-

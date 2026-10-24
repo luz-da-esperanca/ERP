@@ -1,4 +1,6 @@
-import type { AuditTrailPort, IdempotencyPort } from '../../shared/audit-and-idempotency.ts';
+import { requireChangeReason } from '../../shared/change-reason.ts';
+import { buildPage, DEFAULT_PAGINATION, type Page, type Pagination } from '../../shared/pagination.ts';
+import type { MutationContext, TransactionRunner } from '../../shared/transactions.ts';
 import {
   resourceNotFoundError,
   staleVersionError,
@@ -10,6 +12,7 @@ import {
   isUuidV4OrV7,
   isValidIsoCalendarDate,
   isValidPeriod,
+  validateFactDate,
 } from '../../shared/identifiers-and-time.ts';
 import {
   validateCreateProjectFields,
@@ -21,13 +24,17 @@ import {
   type ProjectView,
 } from '../domain/project-types.ts';
 
-export interface ProjectsRepositoryPort {
-  listInstitutes(): Promise<readonly InstituteView[]>;
-  listProjects(filter?: {
+export interface ProjectFilter {
     readonly status?: ProjectStatus;
     readonly instituteId?: string;
     readonly search?: string;
-  }): Promise<readonly ProjectRecord[]>;
+
+}
+
+export interface ProjectsRepositoryPort {
+  listInstitutes(): Promise<readonly InstituteView[]>;
+  listProjects(filter?: ProjectFilter, pagination?: Pagination): Promise<readonly ProjectRecord[]>;
+  countProjects(filter?: ProjectFilter): Promise<number>;
   findProjectById(id: string): Promise<ProjectRecord | null>;
   createProject(record: ProjectRecord): Promise<ProjectRecord>;
   updateProject(record: ProjectRecord, expectedVersion: number): Promise<ProjectRecord | null>;
@@ -35,21 +42,18 @@ export interface ProjectsRepositoryPort {
 
 export interface ProjectsServiceDependencies {
   readonly repository: ProjectsRepositoryPort;
-  readonly auditTrail: AuditTrailPort;
-  readonly idempotency: IdempotencyPort;
+  readonly transactions: TransactionRunner<MutationContext<ProjectsRepositoryPort>>;
   readonly clock?: () => Date;
 }
 
 export class ProjectsService {
   private readonly repository: ProjectsRepositoryPort;
-  private readonly auditTrail: AuditTrailPort;
-  private readonly idempotency: IdempotencyPort;
+  private readonly transactions: TransactionRunner<MutationContext<ProjectsRepositoryPort>>;
   private readonly clock: () => Date;
 
   constructor(deps: ProjectsServiceDependencies) {
     this.repository = deps.repository;
-    this.auditTrail = deps.auditTrail;
-    this.idempotency = deps.idempotency;
+    this.transactions = deps.transactions;
     this.clock = deps.clock ?? (() => new Date());
   }
 
@@ -57,17 +61,14 @@ export class ProjectsService {
     return this.repository.listInstitutes();
   }
 
-  async listProjects(filter?: {
-    readonly status?: ProjectStatus;
-    readonly instituteId?: string;
-    readonly search?: string;
-  }): Promise<readonly ProjectView[]> {
-    const [institutes, records] = await Promise.all([
+  async listProjects(filter?: ProjectFilter, pagination: Pagination = DEFAULT_PAGINATION): Promise<Page<ProjectView>> {
+    const [institutes, records, total] = await Promise.all([
       this.repository.listInstitutes(),
-      this.repository.listProjects(filter),
+      this.repository.listProjects(filter, pagination),
+      this.repository.countProjects(filter),
     ]);
     const institutesById = this.buildInstituteMap(institutes);
-    return records.map((record) => this.toProjectView(record, institutesById));
+    return buildPage(records.map((record) => this.toProjectView(record, institutesById)), total, pagination);
   }
 
   async getProjectById(id: string): Promise<ProjectView> {
@@ -95,11 +96,12 @@ export class ProjectsService {
     readonly instituteIds?: unknown;
     readonly factDate?: string;
   }): Promise<{ readonly statusCode: number; readonly body: ProjectView }> {
+    validateFactDate(input.factDate);
     const institutes = await this.repository.listInstitutes();
     const institutesById = this.buildInstituteMap(institutes);
     const validated = validateCreateProjectFields(input, institutesById);
 
-    const result = await this.idempotency.execute({
+    const result = await this.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
       operationType: 'CREATE_PROJECT',
       actorId: input.actorId,
       operationId: input.operationId,
@@ -129,10 +131,10 @@ export class ProjectsService {
           closedAt: null,
         };
 
-        const saved = await this.repository.createProject(record);
+        const saved = await repository.createProject(record);
         const view = this.toProjectView(saved, institutesById);
 
-        await this.auditTrail.record({
+        await auditTrail.record({
           actorId: input.actorId,
           ...(input.factDate !== undefined ? { factDate: input.factDate } : {}),
           entityType: 'PROJECT',
@@ -145,7 +147,7 @@ export class ProjectsService {
 
         return { statusCode: 201, body: view };
       },
-    });
+    }));
 
     return { statusCode: result.statusCode, body: result.body };
   }
@@ -164,16 +166,14 @@ export class ProjectsService {
     readonly reason: unknown;
     readonly factDate?: string;
   }): Promise<ProjectView> {
+    validateFactDate(input.factDate);
     if (!isUuidV4OrV7(input.projectId)) {
       throw resourceNotFoundError('Projeto não encontrado.');
     }
     const expectedVersion = this.requirePositiveIntegerVersion(input.version);
-    const reason = this.requireNonEmptyReason(
-      input.reason,
-      'A justificativa da alteração do projeto é obrigatória.',
-    );
+    const reason = requireChangeReason(input.reason);
 
-    const result = await this.idempotency.execute({
+    const result = await this.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
       operationType: 'UPDATE_PROJECT',
       actorId: input.actorId,
       operationId: input.operationId,
@@ -191,8 +191,8 @@ export class ProjectsService {
       },
       run: async () => {
         const [institutes, current] = await Promise.all([
-          this.repository.listInstitutes(),
-          this.repository.findProjectById(input.projectId),
+          repository.listInstitutes(),
+          repository.findProjectById(input.projectId),
         ]);
         if (!current) {
           throw resourceNotFoundError('Projeto não encontrado.');
@@ -326,7 +326,7 @@ export class ProjectsService {
           updatedAt: nowIso,
         };
 
-        const saved = await this.repository.updateProject(updatedRecord, expectedVersion);
+        const saved = await repository.updateProject(updatedRecord, expectedVersion);
         if (!saved) {
           throw staleVersionError();
         }
@@ -334,7 +334,7 @@ export class ProjectsService {
         const beforeView = this.toProjectView(current, institutesById);
         const afterView = this.toProjectView(saved, institutesById);
 
-        await this.auditTrail.record({
+        await auditTrail.record({
           actorId: input.actorId,
           ...(input.factDate !== undefined ? { factDate: input.factDate } : {}),
           entityType: 'PROJECT',
@@ -348,7 +348,7 @@ export class ProjectsService {
 
         return { statusCode: 200, body: afterView };
       },
-    });
+    }));
 
     return result.body;
   }
@@ -362,16 +362,14 @@ export class ProjectsService {
     readonly reason: unknown;
     readonly factDate?: string;
   }): Promise<ProjectView> {
+    validateFactDate(input.factDate);
     if (!isUuidV4OrV7(input.projectId)) {
       throw resourceNotFoundError('Projeto não encontrado.');
     }
     const expectedVersion = this.requirePositiveIntegerVersion(input.version);
-    const reason = this.requireNonEmptyReason(
-      input.reason,
-      'A justificativa do encerramento do projeto é obrigatória.',
-    );
+    const reason = requireChangeReason(input.reason);
 
-    const result = await this.idempotency.execute({
+    const result = await this.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
       operationType: 'CLOSE_PROJECT',
       actorId: input.actorId,
       operationId: input.operationId,
@@ -384,8 +382,8 @@ export class ProjectsService {
       },
       run: async () => {
         const [institutes, current] = await Promise.all([
-          this.repository.listInstitutes(),
-          this.repository.findProjectById(input.projectId),
+          repository.listInstitutes(),
+          repository.findProjectById(input.projectId),
         ]);
         if (!current) {
           throw resourceNotFoundError('Projeto não encontrado.');
@@ -428,7 +426,7 @@ export class ProjectsService {
           updatedAt: nowIso,
         };
 
-        const saved = await this.repository.updateProject(closedRecord, expectedVersion);
+        const saved = await repository.updateProject(closedRecord, expectedVersion);
         if (!saved) {
           throw staleVersionError();
         }
@@ -436,7 +434,7 @@ export class ProjectsService {
         const beforeView = this.toProjectView(current, institutesById);
         const afterView = this.toProjectView(saved, institutesById);
 
-        await this.auditTrail.record({
+        await auditTrail.record({
           actorId: input.actorId,
           ...(input.factDate !== undefined ? { factDate: input.factDate } : {}),
           entityType: 'PROJECT',
@@ -450,7 +448,7 @@ export class ProjectsService {
 
         return { statusCode: 200, body: afterView };
       },
-    });
+    }));
 
     return result.body;
   }
@@ -509,18 +507,4 @@ export class ProjectsService {
     return version;
   }
 
-  private requireNonEmptyReason(reason: unknown, message: string): string {
-    const trimmed = typeof reason === 'string' ? reason.trim() : '';
-    if (trimmed.length === 0) {
-      throw validationFailedError([
-        {
-          field: 'reason',
-          code: 'REQUIRED_FIELD',
-          message,
-        },
-      ]);
-    }
-    return trimmed;
-  }
 }
-

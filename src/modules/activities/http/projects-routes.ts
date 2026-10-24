@@ -1,10 +1,9 @@
+import { readEnumFilter, readFactDate, readIdentifierFilter, readJsonBody, readPagination, readQuery, readRouteIdentifier, readStringFilter } from '../../shared/http/request-validation.ts';
 import type { FastifyInstance } from 'fastify';
 import type { AccessProfile } from '../../access/domain/access-types.ts';
 import type { AuthGuard } from '../../access/http/access-routes.ts';
 import { requireIdempotencyKey } from '../../shared/audit-and-idempotency.ts';
-import { invalidRequestError } from '../../shared/errors.ts';
 import type { ProjectsService } from '../application/projects-service.ts';
-import type { ProjectStatus } from '../domain/project-types.ts';
 
 const READ_PROJECTS_PROFILES: readonly AccessProfile[] = [
   'COORDINATOR',
@@ -15,13 +14,6 @@ const READ_PROJECTS_PROFILES: readonly AccessProfile[] = [
 ];
 
 const WRITE_PROJECTS_PROFILES: readonly AccessProfile[] = ['COORDINATOR'];
-
-function asObjectRecord(body: unknown): Record<string, unknown> {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    throw invalidRequestError('O corpo da requisição deve ser um objeto JSON válido.');
-  }
-  return body as Record<string, unknown>;
-}
 
 export function registerProjectsRoutes(
   app: FastifyInstance,
@@ -36,42 +28,22 @@ export function registerProjectsRoutes(
 
   app.get('/api/v1/projects', async (request, reply) => {
     await authGuard.requireProfiles(request, READ_PROJECTS_PROFILES);
-    const query = (request.query ?? {}) as Record<string, unknown>;
-    const rawStatus = typeof query.status === 'string' ? query.status : undefined;
-    const statusFilter: ProjectStatus | undefined =
-      rawStatus === 'PLANNED' || rawStatus === 'ACTIVE' || rawStatus === 'CLOSED'
-        ? rawStatus
-        : undefined;
-    const instituteId = typeof query.instituteId === 'string' ? query.instituteId : undefined;
-    const search = typeof query.search === 'string' ? query.search : undefined;
+    const query = readQuery(request.query, ['status', 'instituteId', 'search', 'page', 'pageSize']);
+    const statusFilter = readEnumFilter(query.status, ['PLANNED', 'ACTIVE', 'CLOSED'] as const);
+    const instituteId = readIdentifierFilter(query.instituteId);
+    const search = readStringFilter(query.search, 150);
 
-    const page = Math.max(1, Number(query.page ?? 1) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize ?? 20) || 20));
-
-    const allMatching = await projectsService.listProjects({
+    const page = await projectsService.listProjects({
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(instituteId ? { instituteId } : {}),
       ...(search ? { search } : {}),
-    });
-
-    const totalItems = allMatching.length;
-    const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
-    const startIndex = (page - 1) * pageSize;
-    const items = allMatching.slice(startIndex, startIndex + pageSize);
-
-    return reply.code(200).send({
-      items,
-      page,
-      pageSize,
-      totalItems,
-      totalPages,
-    });
+    }, readPagination(query));
+    return reply.code(200).send(page);
   });
 
   app.get('/api/v1/projects/:id', async (request, reply) => {
     await authGuard.requireProfiles(request, READ_PROJECTS_PROFILES);
-    const params = (request.params ?? {}) as Record<string, unknown>;
-    const projectId = typeof params.id === 'string' ? params.id : '';
+    const projectId = readRouteIdentifier(request.params);
     const project = await projectsService.getProjectById(projectId);
     return reply.code(200).send(project);
   });
@@ -79,8 +51,8 @@ export function registerProjectsRoutes(
   app.post('/api/v1/projects', async (request, reply) => {
     const principal = await authGuard.requireProfiles(request, WRITE_PROJECTS_PROFILES);
     const operationId = requireIdempotencyKey(request.headers['idempotency-key']);
-    const body = asObjectRecord(request.body);
-    const factDate = typeof body.factDate === 'string' ? body.factDate : undefined;
+    const body = readJsonBody(request.body, ["name","description","startDate","endDate","status","instituteIds","factDate"]);
+    const factDate = readFactDate(body);
 
     const result = await projectsService.createProject({
       actorId: principal.user.id,
@@ -100,10 +72,9 @@ export function registerProjectsRoutes(
   app.patch('/api/v1/projects/:id', async (request, reply) => {
     const principal = await authGuard.requireProfiles(request, WRITE_PROJECTS_PROFILES);
     const operationId = requireIdempotencyKey(request.headers['idempotency-key']);
-    const params = (request.params ?? {}) as Record<string, unknown>;
-    const projectId = typeof params.id === 'string' ? params.id : '';
-    const body = asObjectRecord(request.body);
-    const factDate = typeof body.factDate === 'string' ? body.factDate : undefined;
+    const projectId = readRouteIdentifier(request.params);
+    const body = readJsonBody(request.body, ["version","name","description","startDate","endDate","status","instituteIds","reason","factDate"]);
+    const factDate = readFactDate(body);
 
     const updated = await projectsService.updateProject({
       actorId: principal.user.id,
@@ -126,10 +97,9 @@ export function registerProjectsRoutes(
   app.post('/api/v1/projects/:id/close', async (request, reply) => {
     const principal = await authGuard.requireProfiles(request, WRITE_PROJECTS_PROFILES);
     const operationId = requireIdempotencyKey(request.headers['idempotency-key']);
-    const params = (request.params ?? {}) as Record<string, unknown>;
-    const projectId = typeof params.id === 'string' ? params.id : '';
-    const body = asObjectRecord(request.body);
-    const factDate = typeof body.factDate === 'string' ? body.factDate : undefined;
+    const projectId = readRouteIdentifier(request.params);
+    const body = readJsonBody(request.body, ["version","endDate","reason","factDate"]);
+    const factDate = readFactDate(body);
 
     const closed = await projectsService.closeProject({
       actorId: principal.user.id,
@@ -144,4 +114,3 @@ export function registerProjectsRoutes(
     return reply.code(200).send(closed);
   });
 }
-

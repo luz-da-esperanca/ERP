@@ -1,4 +1,6 @@
-import type { PrismaClient } from '../../../server/generated/prisma/client.ts';
+import { DEFAULT_PAGINATION, type Pagination } from '../../shared/pagination.ts';
+import type { UserFilter } from '../application/access-service.ts';
+import type { Prisma } from '../../../server/generated/prisma/client.ts';
 import type { AccessRepositoryPort } from '../application/access-service.ts';
 import {
   normalizeLoginIdentifier,
@@ -38,10 +40,19 @@ function mapUserRow(row: PrismaUserWithProfiles): UserRecord {
 }
 
 export class PrismaAccessRepository implements AccessRepositoryPort {
-  private readonly client: PrismaClient;
+  private readonly client: Prisma.TransactionClient;
 
-  constructor(client: PrismaClient) {
+  constructor(client: Prisma.TransactionClient) {
     this.client = client;
+  }
+
+  async lockLoginState(login: string): Promise<void> {
+    const scope = `login:${normalizeLoginIdentifier(login)}`;
+    await this.client.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${scope}, 0))::text`;
+  }
+
+  async lockInitialUserProvisioning(): Promise<void> {
+    await this.client.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended('access:initial-administrator', 0))::text`;
   }
 
   async findUserByLogin(login: string): Promise<UserRecord | null> {
@@ -61,19 +72,13 @@ export class PrismaAccessRepository implements AccessRepositoryPort {
     return row ? mapUserRow(row) : null;
   }
 
-  async listUsers(filter?: {
-    readonly status?: UserStatus;
-    readonly profile?: AccessProfile;
-  }): Promise<readonly UserRecord[]> {
+  async listUsers(filter?: UserFilter, pagination: Pagination = DEFAULT_PAGINATION): Promise<readonly UserRecord[]> {
     const rows = await this.client.user.findMany({
-      where: {
-        ...(filter?.status ? { status: filter.status } : {}),
-        ...(filter?.profile
-          ? { profiles: { some: { profile: filter.profile } } }
-          : {}),
-      },
+      where: this.buildFilter(filter),
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
       include: { profiles: true },
-      orderBy: { displayName: 'asc' },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
     });
     return rows.map((row) => mapUserRow(row));
   }
@@ -104,42 +109,41 @@ export class PrismaAccessRepository implements AccessRepositoryPort {
   }
 
   async updateUser(record: UserRecord, expectedVersion: number): Promise<UserRecord | null> {
-    return this.client.$transaction(async (tx) => {
-      const updatedCount = await tx.user.updateMany({
-        where: { id: record.id, version: expectedVersion },
+    const tx = this.client;
+    const updatedCount = await tx.user.updateMany({
+      where: { id: record.id, version: expectedVersion },
+      data: {
+        displayName: record.displayName,
+        status: record.status,
+        version: record.version,
+        updatedAt: new Date(record.updatedAt),
+        deactivatedAt: record.deactivatedAt ? new Date(record.deactivatedAt) : null,
+      },
+    });
+    if (updatedCount.count === 0) {
+      return null;
+    }
+
+    await tx.userProfileAssignment.deleteMany({
+      where: { userId: record.id },
+    });
+
+    const assignedAt = new Date(record.updatedAt);
+    for (const profile of record.profiles) {
+      await tx.userProfileAssignment.create({
         data: {
-          displayName: record.displayName,
-          status: record.status,
-          version: record.version,
-          updatedAt: new Date(record.updatedAt),
-          deactivatedAt: record.deactivatedAt ? new Date(record.deactivatedAt) : null,
+          userId: record.id,
+          profile,
+          assignedAt,
         },
       });
-      if (updatedCount.count === 0) {
-        return null;
-      }
+    }
 
-      await tx.userProfileAssignment.deleteMany({
-        where: { userId: record.id },
-      });
-
-      const assignedAt = new Date(record.updatedAt);
-      for (const profile of record.profiles) {
-        await tx.userProfileAssignment.create({
-          data: {
-            userId: record.id,
-            profile,
-            assignedAt,
-          },
-        });
-      }
-
-      const fresh = await tx.user.findUnique({
-        where: { id: record.id },
-        include: { profiles: true },
-      });
-      return fresh ? mapUserRow(fresh) : null;
+    const fresh = await tx.user.findUnique({
+      where: { id: record.id },
+      include: { profiles: true },
     });
+    return fresh ? mapUserRow(fresh) : null;
   }
 
   async createSession(session: SessionRecord): Promise<SessionRecord> {
@@ -239,5 +243,17 @@ export class PrismaAccessRepository implements AccessRepositoryPort {
       where: { login: normalized },
     });
   }
-}
+  async countUsers(filter?: UserFilter): Promise<number> {
+    return this.client.user.count({ where: this.buildFilter(filter) });
+  }
 
+  private buildFilter(filter?: UserFilter) {
+    return {
+        ...(filter?.status ? { status: filter.status } : {}),
+        ...(filter?.profile
+          ? { profiles: { some: { profile: filter.profile } } }
+          : {}),
+
+    };
+  }
+}

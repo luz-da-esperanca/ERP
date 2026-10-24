@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { InMemoryAuditTrail } from '../../../src/modules/shared/audit-and-idempotency.ts';
+import { InMemoryAuditTrail } from '../../../src/modules/shared/infrastructure/in-memory-audit-and-idempotency.ts';
 import { createApp } from '../../../src/server/app.ts';
 
 const ADMIN_ID = '01963000-0000-7000-8000-000000000001';
@@ -8,6 +8,27 @@ const EDUCATOR_ID = '01963000-0000-7000-8000-000000000003';
 const BAZAR_ID = '01963000-0000-7000-8000-000000000004';
 
 describe('Institutes and Projects HTTP API (PB-12 / RF-ATV-01 / RF-ATV-02 / RF-ATV-08 / LAC-04 / AC-58)', () => {
+  it.each(['status=UNKNOWN', 'instituteId=invalid', 'search=' + 'x'.repeat(151), 'unexpected=value', 'page=0', 'pageSize=101'])('rejects invalid list query parameters (%s)', async (query) => {
+    const { app, coordToken } = await setupAuthenticatedClients();
+    const response = await app.inject({ method: 'GET', url: `/api/v1/projects?${query}`, headers: { authorization: `Bearer ${coordToken}` } });
+    expect(response.statusCode).toBe(400);
+  });
+  it.each([123, null, {}, ['2026-10-01']].map((factDate) => ({ factDate })))('rejects an invalid factDate type (%j)', async ({ factDate }) => {
+    const { app, coordToken } = await setupAuthenticatedClients();
+    const response = await app.inject({ method: 'POST', url: '/api/v1/projects',
+      headers: { authorization: `Bearer ${coordToken}`, 'idempotency-key': '01963000-0000-7000-8000-000000000902' },
+      payload: { name: 'Synthetic Project', startDate: '2026-10-01', factDate } });
+    expect(response.statusCode).toBe(422);
+  });
+  it('rejects client identifiers and unknown fields instead of silently discarding them', async () => {
+    const { app, coordToken } = await setupAuthenticatedClients();
+    for (const additional of [{ id: COORD_ID }, { unexpectedField: 'unexpected' }]) {
+      const response = await app.inject({ method: 'POST', url: '/api/v1/projects',
+        headers: { authorization: `Bearer ${coordToken}`, 'idempotency-key': '01963000-0000-7000-8000-000000000901' },
+        payload: { name: 'Synthetic Project', startDate: '2026-10-01', ...additional } });
+      expect(response.statusCode).toBe(400);
+    }
+  });
   async function setupAuthenticatedClients() {
     const fixedClock = () => new Date('2026-04-14T15:00:00.000Z');
     const auditTrail = new InMemoryAuditTrail(fixedClock);
@@ -18,28 +39,28 @@ describe('Institutes and Projects HTTP API (PB-12 / RF-ATV-01 / RF-ATV-02 / RF-A
       seedUsers: [
         {
           id: ADMIN_ID,
-          login: 'admin@luz.org',
+          loginIdentifier: 'admin@luz.org',
           displayName: 'Admin',
           password: 'Password!123',
           profiles: ['ADMIN'],
         },
         {
           id: COORD_ID,
-          login: 'coord@luz.org',
+          loginIdentifier: 'coord@luz.org',
           displayName: 'Coordenadora',
           password: 'Password!123',
           profiles: ['COORDINATOR'],
         },
         {
           id: EDUCATOR_ID,
-          login: 'educador@luz.org',
+          loginIdentifier: 'educador@luz.org',
           displayName: 'Educador',
           password: 'Password!123',
           profiles: ['PERIODIC_ACTIVITY'],
         },
         {
           id: BAZAR_ID,
-          login: 'bazar@luz.org',
+          loginIdentifier: 'bazar@luz.org',
           displayName: 'Operador Bazar',
           password: 'Password!123',
           profiles: ['BAZAR'],
@@ -52,9 +73,9 @@ describe('Institutes and Projects HTTP API (PB-12 / RF-ATV-01 / RF-ATV-02 / RF-A
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/auth/login',
-        payload: { login, password: 'Password!123' },
+        payload: { loginIdentifier: login, password: 'Password!123' },
       });
-      return res.json().session.token as string;
+      return res.json().sessionToken as string;
     };
 
     return {

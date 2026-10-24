@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from '../../server/generated/prisma/client.ts';
+import { Prisma } from '../../server/generated/prisma/client.ts';
 import {
   computePayloadDigest,
   validateAndBuildAuditEntry,
@@ -12,12 +12,13 @@ import {
 } from './audit-and-idempotency.ts';
 import { idempotencyConflictError, invalidRequestError } from './errors.ts';
 import { isUuidV4OrV7 } from './identifiers-and-time.ts';
+import { hashPassword, matchesSecret } from './infrastructure/secret-hasher.ts';
 
 export class PrismaAuditTrail implements AuditTrailPort {
-  private readonly client: PrismaClient;
+  private readonly client: Prisma.TransactionClient;
   private readonly clock: () => Date;
 
-  constructor(client: PrismaClient, clock: () => Date = () => new Date()) {
+  constructor(client: Prisma.TransactionClient, clock: () => Date = () => new Date()) {
     this.client = client;
     this.clock = clock;
   }
@@ -77,15 +78,16 @@ export class PrismaAuditTrail implements AuditTrailPort {
 }
 
 export class PrismaIdempotencyStore implements IdempotencyPort {
-  private readonly client: PrismaClient;
+  private readonly client: Prisma.TransactionClient;
   private readonly clock: () => Date;
 
-  constructor(client: PrismaClient, clock: () => Date = () => new Date()) {
+  constructor(client: Prisma.TransactionClient, clock: () => Date = () => new Date()) {
     this.client = client;
     this.clock = clock;
   }
 
   async execute<T>(request: IdempotentExecutionRequest<T>): Promise<IdempotentExecutionResult<T>> {
+    const client = this.client;
     if (!isUuidV4OrV7(request.operationId)) {
       throw invalidRequestError(
         'O cabeçalho Idempotency-Key é obrigatório e deve ser um UUID v4 ou v7 válido.',
@@ -95,7 +97,11 @@ export class PrismaIdempotencyStore implements IdempotencyPort {
     const operationId = request.operationId.toLowerCase();
     const payloadDigest = computePayloadDigest(request.payload);
 
-    const existing = await this.client.operationConfirmation.findUnique({
+    // Transaction-scoped locks serialize this actor/operation identity across processes.
+    const scope = JSON.stringify([request.operationType, request.actorId, operationId]);
+    await client.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${scope}, 0))::text`;
+
+    const existing = await client.operationConfirmation.findUnique({
       where: {
         operationType_actorId_operationId: {
           operationType: request.operationType,
@@ -106,11 +112,12 @@ export class PrismaIdempotencyStore implements IdempotencyPort {
     });
 
     if (existing) {
-      if (existing.payloadDigest !== payloadDigest) {
+      if (existing.payloadDigest !== payloadDigest || !matchesSecret(existing.secretHash, request.secret)) {
         throw idempotencyConflictError();
       }
       return {
         statusCode: existing.statusCode,
+        // The matching operation scope/digest binds the stored result to its original response contract; Prisma JSON erases T.
         body: existing.responseBody as T,
         replayed: true,
       };
@@ -118,13 +125,15 @@ export class PrismaIdempotencyStore implements IdempotencyPort {
 
     const outcome = await request.run();
 
-    await this.client.operationConfirmation.create({
+    await client.operationConfirmation.create({
       data: {
         operationType: request.operationType,
         actorId: request.actorId,
         operationId,
         payloadDigest,
+        secretHash: request.secret === undefined ? null : hashPassword(request.secret),
         statusCode: outcome.statusCode,
+        // Application responses are validated JSON DTOs; the generic port cannot retain Prisma-specific JSON typing.
         responseBody: outcome.body as Prisma.InputJsonValue,
         createdAt: this.clock(),
       },
@@ -137,4 +146,3 @@ export class PrismaIdempotencyStore implements IdempotencyPort {
     };
   }
 }
-

@@ -118,6 +118,7 @@ model AuditEntryRecord {
 }
 
 model OperationConfirmation {
+  secretHash    String?  @map("secret_hash")
   operationType String   @map("operation_type") @db.VarChar(64)
   actorId       String   @map("actor_id") @db.Uuid
   operationId   String   @map("operation_id") @db.Uuid

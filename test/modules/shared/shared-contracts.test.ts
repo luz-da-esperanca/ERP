@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   InMemoryAuditTrail,
   InMemoryIdempotencyStore,
-} from '../../../src/modules/shared/audit-and-idempotency.ts';
+} from '../../../src/modules/shared/infrastructure/in-memory-audit-and-idempotency.ts';
 import {
   ApplicationError,
   validationFailedError,
@@ -80,6 +80,17 @@ describe('RFC 9457 Problem Details mapping (C-01 / ADR-0002)', () => {
 });
 
 describe('Idempotency store (C-03 / OP-02)', () => {
+  it('executes overlapping confirmations once in the in-memory adapter', async () => {
+    const store = new InMemoryIdempotencyStore();
+    let executions = 0;
+    const outcomes = await Promise.all(Array.from({ length: 8 }, () => store.execute({
+      actorId: '01963000-0000-7000-8000-000000000001', operationType: 'CREATE_PROJECT',
+      operationId: '01963000-0000-7000-8000-000000000098', payload: { name: 'Synthetic Project' },
+      run: async () => { executions++; await Promise.resolve(); return { statusCode: 201, body: { id: 'one-project' } }; },
+    })));
+    expect(executions).toBe(1);
+    expect(outcomes.filter((outcome) => !outcome.replayed)).toHaveLength(1);
+  });
   it('replays identical operations and rejects reused keys with different payloads', async () => {
     const store = new InMemoryIdempotencyStore();
     let executions = 0;
@@ -126,6 +137,19 @@ describe('Idempotency store (C-03 / OP-02)', () => {
 });
 
 describe('Audit trail (C-03 / RF-ACS-04 / RF-ACS-05 / VAL-10)', () => {
+  it('removes secrets recursively from nested objects and arrays', async () => {
+    const audit = new InMemoryAuditTrail();
+    const entry = await audit.record({ actorId: 'actor', entityType: 'PROJECT', entityId: 'project', action: 'CREATE',
+      after: { users: [{ name: 'Synthetic Operator', password: 'SyntheticSecret', nested: [{ sessionToken: 'SyntheticToken', allowed: true }] }] } });
+    expect(entry.after).toEqual({ users: [{ name: 'Synthetic Operator', nested: [{ allowed: true }] }] });
+    expect(JSON.stringify(entry)).not.toContain('SyntheticSecret');
+    expect(JSON.stringify(entry)).not.toContain('SyntheticToken');
+  });
+  it('rejects change reasons beyond the documented 1000-character bound', async () => {
+    const audit = new InMemoryAuditTrail();
+    await expect(audit.record({ actorId: 'actor', entityType: 'PROJECT', entityId: 'project', action: 'UPDATE', reason: 'x'.repeat(1001) }))
+      .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
+  });
   it('records factDate separately from recordedAt, enforces reason on changes, and strips secret fields', async () => {
     const audit = new InMemoryAuditTrail(() => new Date('2026-04-14T18:30:00.000Z'));
 
@@ -163,4 +187,3 @@ describe('Audit trail (C-03 / RF-ACS-04 / RF-ACS-05 / VAL-10)', () => {
     });
   });
 });
-
