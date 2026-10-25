@@ -4,6 +4,7 @@ export type ProblemCode =
   | 'INVALID_REQUEST'
   | 'AUTH_REQUIRED'
   | 'INVALID_CREDENTIALS'
+  | 'CSRF_REJECTED'
   | 'FORBIDDEN'
   | 'RESOURCE_NOT_FOUND'
   | 'CONFLICT'
@@ -99,6 +100,16 @@ export function forbiddenError(
   return new ApplicationError({
     status: 403,
     code: 'FORBIDDEN',
+    detail,
+  });
+}
+
+export function csrfRejectedError(
+  detail = 'A verificação de segurança da solicitação falhou.',
+): ApplicationError {
+  return new ApplicationError({
+    status: 403,
+    code: 'CSRF_REJECTED',
     detail,
   });
 }

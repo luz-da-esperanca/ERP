@@ -4,7 +4,7 @@ import Fastify, { LogController } from 'fastify';
 import { AccessService } from '../modules/access/application/access-service.ts';
 import { accessSecurity } from '../modules/access/infrastructure/password-hasher.ts';
 import type { SecurityPolicyConfig } from '../modules/access/domain/access-types.ts';
-import { createAuthGuard, registerAccessRoutes } from '../modules/access/http/access-routes.ts';
+import { createAuthGuard, registerAccessRoutes, registerCsrfProtection } from '../modules/access/http/access-routes.ts';
 import type { SeedUserInput } from '../modules/access/infrastructure/in-memory-access-repository.ts';
 import { ProjectsService } from '../modules/activities/application/projects-service.ts';
 import { registerProjectsRoutes } from '../modules/activities/http/projects-routes.ts';
@@ -83,6 +83,7 @@ export function createApp(options: AppOptions) {
   });
 
   const authGuard = createAuthGuard(accessService);
+  registerCsrfProtection(app, accessService, options.secureCookies ?? false);
   registerAccessRoutes(app, accessService, authGuard, options.secureCookies ?? false);
   registerProjectsRoutes(app, projectsService, authGuard);
 

@@ -292,3 +292,57 @@ it('returns safe service-unavailable details when the protected login dependency
   expect(response.body).not.toContain('Prisma');
   expect(response.body).not.toContain('P1001');
 });
+
+it('recovers an expired browser cookie and preserves CSRF, audited retries, and logout with PostgreSQL', async () => {
+  const database = createDatabase(connectionString);
+  const actorId = randomUUID();
+  const loginIdentifier = `browser-${actorId}`;
+  const createdLogin = `created-${actorId}`;
+  const password = 'SyntheticBrowserPassword!123';
+  let now = new Date('2026-10-25T12:00:00.000Z');
+  const app = createApp({ checkDatabase: database.check, persistence: createPrismaPersistence(database.client), clock: () => now });
+  onTestFinished(async () => {
+    await app.close();
+    await database.client.auditEntryRecord.deleteMany({ where: { actorId } });
+    await database.client.operationConfirmation.deleteMany({ where: { actorId } });
+    await database.client.loginAttemptState.deleteMany({ where: { login: { in: [loginIdentifier, createdLogin] } } });
+    await database.client.user.deleteMany({ where: { login: { in: [loginIdentifier, createdLogin] } } });
+    await database.close();
+  });
+  await database.client.user.create({ data: { id: actorId, login: loginIdentifier,
+    displayName: 'Synthetic Browser Administrator', passwordHash: hashPassword(password), status: 'ACTIVE',
+    version: 1, createdAt: now, updatedAt: now, profiles: { create: { profile: 'ADMIN', assignedAt: now } } } });
+  const originHeaders = { host: '127.0.0.1:5173', origin: 'http://127.0.0.1:5173' };
+  const credentials = { loginIdentifier, password };
+  const initial = await app.inject({ method: 'POST', url: '/api/v1/auth/login', headers: originHeaders, payload: credentials });
+  expect(initial.statusCode).toBe(200);
+  const expiredCookie = String(initial.headers['set-cookie']).split(';')[0] ?? '';
+  now = new Date('2026-10-25T12:31:00.000Z');
+  expect((await app.inject({ method: 'GET', url: '/api/v1/auth/session', headers: { cookie: expiredCookie } })).statusCode).toBe(401);
+
+  const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+    headers: { ...originHeaders, cookie: expiredCookie }, payload: credentials });
+  expect(login.statusCode).toBe(200);
+  const cookie = String(login.headers['set-cookie']).split(';')[0] ?? '';
+  const session = await app.inject({ method: 'GET', url: '/api/v1/auth/session', headers: { cookie } });
+  expect(session.statusCode).toBe(200);
+  const csrfToken = String(session.json().csrfToken);
+  const operationId = randomUUID();
+  const create = { method: 'POST' as const, url: '/api/v1/users', headers: { ...originHeaders, cookie, 'idempotency-key': operationId },
+    payload: { loginIdentifier: createdLogin, displayName: 'Synthetic Operator', password, profiles: ['PERIODIC_ACTIVITY'] } };
+  expect((await app.inject(create)).statusCode).toBe(403);
+  expect(await database.client.user.count({ where: { login: createdLogin } })).toBe(0);
+  expect(await database.client.auditEntryRecord.count({ where: { actorId } })).toBe(0);
+  expect(await database.client.operationConfirmation.count({ where: { actorId } })).toBe(0);
+
+  const authorizedCreate = { ...create, headers: { ...create.headers, 'x-csrf-token': csrfToken } };
+  const first = await app.inject(authorizedCreate);
+  expect(first.statusCode).toBe(201);
+  expect((await app.inject(authorizedCreate)).json()).toEqual(first.json());
+  expect(await database.client.user.count({ where: { login: createdLogin } })).toBe(1);
+  expect(await database.client.auditEntryRecord.count({ where: { actorId } })).toBe(1);
+  expect(await database.client.operationConfirmation.count({ where: { actorId } })).toBe(1);
+  expect((await app.inject({ method: 'POST', url: '/api/v1/auth/logout',
+    headers: { ...originHeaders, cookie, 'x-csrf-token': csrfToken } })).statusCode).toBe(204);
+  expect((await app.inject({ method: 'GET', url: '/api/v1/auth/session', headers: { cookie } })).statusCode).toBe(401);
+});

@@ -75,6 +75,75 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
       expect(String(response.headers['set-cookie'])).toContain('SameSite=Lax');
     }
   });
+  it('requires a trusted origin and synchronizer token for cookie-authenticated mutations without changing a rejected session', async () => {
+    let currentNow = new Date('2026-04-14T12:00:00.000Z');
+    const app = createApp({
+      checkDatabase: async () => {},
+      clock: () => currentNow,
+      securityConfig: { sessionIdleTimeoutSeconds: 60 },
+      seedUsers: [{
+        id: ADMIN_ID, loginIdentifier: 'csrf@example.invalid', displayName: 'Synthetic Admin',
+        password: 'SyntheticPassword!123', profiles: ['ADMIN'],
+      }],
+    });
+    onTestFinished(() => app.close());
+
+    const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+      payload: { loginIdentifier: 'csrf@example.invalid', password: 'SyntheticPassword!123' } });
+    const sessionToken = login.json().sessionToken as string;
+    const csrfToken = login.json().csrfToken as string;
+    const cookie = String(login.headers['set-cookie']).split(';')[0] as string;
+
+    for (const headers of [
+      { cookie, host: '127.0.0.1:5173', origin: 'http://127.0.0.1:5173' },
+      { cookie, host: '127.0.0.1:5173', origin: 'https://attacker.example', 'x-csrf-token': csrfToken },
+      { cookie, host: '127.0.0.1:5173', origin: 'http://127.0.0.1:5173', 'x-csrf-token': 'wrong-token' },
+    ]) {
+      const response = await app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers });
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toMatchObject({ code: 'CSRF_REJECTED' });
+      expect(response.body).not.toContain(sessionToken);
+      expect(response.body).not.toContain(csrfToken);
+      expect(response.headers['set-cookie']).toBeUndefined();
+    }
+
+    currentNow = new Date('2026-04-14T12:01:01.000Z');
+    const expired = await app.inject({ method: 'GET', url: '/api/v1/auth/session', headers: { cookie } });
+    expect(expired.statusCode).toBe(401);
+  });
+  it('accepts a valid same-origin synchronizer token for cookie-authenticated logout', async () => {
+    const app = createApp({ checkDatabase: async () => {}, seedUsers: [{
+      id: ADMIN_ID, loginIdentifier: 'csrf-success@example.invalid', displayName: 'Synthetic Admin',
+      password: 'SyntheticPassword!123', profiles: ['ADMIN'],
+    }] });
+    onTestFinished(() => app.close());
+
+    const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+      payload: { loginIdentifier: 'csrf-success@example.invalid', password: 'SyntheticPassword!123' } });
+    const cookie = String(login.headers['set-cookie']).split(';')[0] as string;
+    const csrfToken = login.json().csrfToken as string;
+    const logout = await app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: {
+      cookie, host: '127.0.0.1:5173', origin: 'http://127.0.0.1:5173', 'x-csrf-token': csrfToken,
+    } });
+
+    expect(logout.statusCode).toBe(204);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/auth/session', headers: { cookie } })).statusCode).toBe(401);
+  });
+  it('rejects cross-origin browser login without issuing a session', async () => {
+    const app = createApp({ checkDatabase: async () => {}, seedUsers: [{
+      id: ADMIN_ID, loginIdentifier: 'login-csrf@example.invalid', displayName: 'Synthetic Admin',
+      password: 'SyntheticPassword!123', profiles: ['ADMIN'],
+    }] });
+    onTestFinished(() => app.close());
+
+    const response = await app.inject({ method: 'POST', url: '/api/v1/auth/login', headers: {
+      host: '127.0.0.1:5173', origin: 'https://attacker.example',
+    }, payload: { loginIdentifier: 'login-csrf@example.invalid', password: 'SyntheticPassword!123' } });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: 'CSRF_REJECTED' });
+    expect(response.headers['set-cookie']).toBeUndefined();
+  });
   it('accepts the published loginIdentifier contract and returns sessionToken and expiresAt', async () => {
     const app = createApp({ checkDatabase: async () => {}, seedUsers: [{
       id: ADMIN_ID, loginIdentifier: 'contract@example.invalid', displayName: 'Synthetic Admin',
@@ -86,12 +155,15 @@ describe('Server authentication, session lifecycle, RBAC, and user administratio
     });
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(body).toMatchObject({ sessionToken: expect.any(String), expiresAt: expect.any(String),
+    expect(body).toMatchObject({ sessionToken: expect.any(String), csrfToken: expect.any(String), expiresAt: expect.any(String),
       user: { loginIdentifier: 'contract@example.invalid' } });
     expect(body).not.toHaveProperty('session');
+    const cookie = String(response.headers['set-cookie']).split(';')[0] as string;
     const session = await app.inject({ method: 'GET', url: '/api/v1/auth/session',
       headers: { authorization: `Bearer ${body.sessionToken as string}` } });
-    expect(session.json()).toMatchObject({ expiresAt: expect.any(String), user: { id: ADMIN_ID } });
+    expect(session.json()).toMatchObject({ csrfToken: body.csrfToken, expiresAt: expect.any(String), user: { id: ADMIN_ID } });
+    const cookieSession = await app.inject({ method: 'GET', url: '/api/v1/auth/session', headers: { cookie } });
+    expect(cookieSession.json()).toMatchObject({ csrfToken: body.csrfToken, user: { id: ADMIN_ID } });
   });
   it('authenticates with normalized login, issues HttpOnly cookie and bearer session, and rejects unknown/wrong/deactivated credentials without enumeration (RF-ACS-01 / VAL-11)', async () => {
     let currentNow = new Date('2026-04-14T12:00:00.000Z');

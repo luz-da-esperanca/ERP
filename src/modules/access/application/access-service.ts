@@ -3,6 +3,7 @@ import { buildPage, DEFAULT_PAGINATION, type Page, type Pagination } from '../..
 import type { MutationContext, TransactionRunner } from '../../shared/transactions.ts';
 import {
   authRequiredError,
+  csrfRejectedError,
   duplicateResourceError,
   invalidCredentialsError,
   rateLimitedError,
@@ -63,6 +64,7 @@ export interface AuthenticatedPrincipal {
     readonly issuedAt: string;
     readonly lastActivityAt: string;
     readonly idleExpiresAt: string;
+    readonly csrfToken: string;
   };
 }
 
@@ -176,6 +178,7 @@ export class AccessService {
           issuedAt: sessionRecord.issuedAt,
           lastActivityAt: sessionRecord.lastActivityAt,
           idleExpiresAt: sessionRecord.idleExpiresAt,
+          csrfToken: sessionRecord.tokenHash,
         },
       } };
     });
@@ -220,8 +223,21 @@ export class AccessService {
         issuedAt: session.issuedAt,
         lastActivityAt,
         idleExpiresAt,
+        csrfToken: session.tokenHash,
       },
     };
+  }
+
+  async verifyCsrfToken(rawSessionToken: string | undefined, csrfToken: unknown): Promise<void> {
+    if (!rawSessionToken || typeof csrfToken !== 'string' || csrfToken.length === 0) {
+      throw csrfRejectedError();
+    }
+    const session = await this.repository.findSessionByTokenHash(
+      this.security.hashSessionToken(rawSessionToken),
+    );
+    if (!session || !this.security.isCsrfTokenValid(csrfToken, session.tokenHash)) {
+      throw csrfRejectedError();
+    }
   }
 
   async logout(rawToken: string | undefined): Promise<void> {

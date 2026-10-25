@@ -1,7 +1,7 @@
 import { readEnumFilter, readFactDate, readJsonBody, readPagination, readQuery, readRouteIdentifier } from '../../shared/http/request-validation.ts';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { requireIdempotencyKey } from '../../shared/audit-and-idempotency.ts';
-import { forbiddenError } from '../../shared/errors.ts';
+import { csrfRejectedError, forbiddenError } from '../../shared/errors.ts';
 import type { AccessService, AuthenticatedPrincipal } from '../application/access-service.ts';
 import {
   ACCESS_PROFILES,
@@ -9,14 +9,22 @@ import {
 } from '../domain/access-types.ts';
 
 const SESSION_COOKIE_NAME = 'erp_session';
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export function extractSessionToken(request: FastifyRequest): string | undefined {
+  return extractBearerSessionToken(request) ?? extractSessionCookieToken(request);
+}
+
+function extractBearerSessionToken(request: FastifyRequest): string | undefined {
   const authHeader = request.headers.authorization;
   if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
     const token = authHeader.slice(7).trim();
     if (token.length > 0) return token;
   }
+  return undefined;
+}
 
+function extractSessionCookieToken(request: FastifyRequest): string | undefined {
   const cookieHeader = request.headers.cookie;
   if (typeof cookieHeader === 'string') {
     for (const part of cookieHeader.split(';')) {
@@ -32,6 +40,36 @@ export function extractSessionToken(request: FastifyRequest): string | undefined
   }
 
   return undefined;
+}
+
+export function registerCsrfProtection(app: FastifyInstance, accessService: AccessService, secureCookies: boolean): void {
+  app.addHook('onRequest', async (request) => {
+    if (!UNSAFE_METHODS.has(request.method)) return;
+
+    const cookieToken = extractSessionCookieToken(request);
+    const usesCookieAuthentication = extractBearerSessionToken(request) === undefined && cookieToken !== undefined;
+    const hasOrigin = typeof request.headers.origin === 'string';
+    if ((usesCookieAuthentication || hasOrigin) && !hasSameOrigin(request, secureCookies)) {
+      throw csrfRejectedError();
+    }
+    const isLogin = request.method === 'POST' && request.url.split('?')[0] === '/api/v1/auth/login';
+    if (usesCookieAuthentication && !isLogin) {
+      await accessService.verifyCsrfToken(cookieToken, request.headers['x-csrf-token']);
+    }
+  });
+}
+
+function hasSameOrigin(request: FastifyRequest, secureCookies: boolean): boolean {
+  const origin = request.headers.origin;
+  const host = request.headers.host;
+  if (typeof origin !== 'string' || typeof host !== 'string') return false;
+  try {
+    const parsedOrigin = new URL(origin);
+    const publicProtocol = secureCookies ? 'https:' : 'http:';
+    return parsedOrigin.protocol === publicProtocol && parsedOrigin.host === host && parsedOrigin.origin === origin;
+  } catch {
+    return false;
+  }
 }
 
 export interface AuthGuard {
@@ -85,6 +123,7 @@ export function registerAccessRoutes(
 
     return reply.code(200).send({
       sessionToken: result.session.token,
+      csrfToken: result.session.csrfToken,
       expiresAt: result.session.idleExpiresAt,
       user: result.user,
     });
@@ -102,7 +141,11 @@ export function registerAccessRoutes(
 
   app.get('/api/v1/auth/session', async (request, reply) => {
     const principal = await authGuard.requireAuthenticated(request);
-    return reply.code(200).send({ expiresAt: principal.session.idleExpiresAt, user: principal.user });
+    return reply.code(200).send({
+      csrfToken: principal.session.csrfToken,
+      expiresAt: principal.session.idleExpiresAt,
+      user: principal.user,
+    });
   });
 
   app.get('/api/v1/users', async (request, reply) => {
