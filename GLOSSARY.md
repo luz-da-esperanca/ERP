@@ -102,10 +102,6 @@ _Avoid_: Automatic social record update, inspection
 The inventory of items designated for social assistance distribution, strictly separated from the commercial inventory of the Bazar (`RN-07`).
 _Avoid_: Commercial stock, Bazar inventory
 
-**Stock Origin** (_UI pt-BR_: `Origem de estoque`):
-The catalog entry identifying where items entering Social Stock came from, either an external Donation Origin (individual donor, company donor, campaign, or explicitly unknown) or an internal Bazar Transfer. An internal transfer is never counted as a new external donation (`RF-EST-02`, `RF-EST-03`, `RF-BAZ-04`).
-_Avoid_: Financial donor account, CRM contact, estimated value
-
 **Donation Origin** (_UI pt-BR_: `Origem de doação`):
 The external source of items entering Social Stock: individual donor (`doador pessoa física`), company donor (`doador empresa`), campaign (`campanha`), or explicitly unknown origin (`RF-EST-02`, `RF-EST-03`). Identifying an item donor does not create financial CRM records.
 _Avoid_: Financial donor account, CRM contact, Bazar transfer
