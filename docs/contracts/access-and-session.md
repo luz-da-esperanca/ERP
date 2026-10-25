@@ -1,7 +1,7 @@
 # Access, Authentication, Session, and Server-Side Authorization Contract (`C-02` / `TF-01-04` / `TF-01-05`)
 
 - **Status:** Implementation candidate — independent approval pending
-- **Version:** 1.0-rc.1
+- **Version:** 1.1-rc.1
 - **Owner:** Alan (`@alanrcastro100`, server-side auth, profiles, and user lifecycle) with Kauã (`@Kaua-cel`, client-side login, session handling, and protected navigation)
 - **Reviewers:** Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`)
 - **Source:** `C-02`, `TF-01-04`, `TF-01-05`
@@ -51,6 +51,7 @@ Every authenticated user (`Operator`) has one or more explicit profiles, as requ
   - On successful login, the server issues an opaque high-entropy session token (`256-bit` random token, stored hashed with SHA-256 on the server) via:
     1. An `HttpOnly; SameSite=Lax; Path=/` cookie (`erp_session`, always adding `Secure` when `NODE_ENV=production`; use `AUTH_COOKIE_SECURE=true` for other shared HTTPS environments); and
     2. The response body (`sessionToken`) so API clients and tests can also authenticate via `Authorization: Bearer <sessionToken>`.
+  - Browser clients discard `sessionToken` and use the cookie transport. They keep the separately returned `csrfToken` only in memory.
 - **Inactivity expiration (`RNF-SEG-03`, `LAC-10`):**
   - Controlled on the server (`expiresAt` updated on authenticated activity; configurable via `AUTH_SESSION_IDLE_TIMEOUT_SECONDS`, default proposed `1800` / 30 minutes).
 - **Immediate revocation (`RF-ACS-06`, `AC-53`, `OP-09`):**
@@ -58,6 +59,18 @@ Every authenticated user (`Operator`) has one or more explicit profiles, as requ
     - If the session is missing, expired, or logged out → `401 AUTH_REQUIRED`.
     - If the user was deactivated (`status = DEACTIVATED`) after the session started → the session is immediately rejected with `401 AUTH_REQUIRED` (`AC-53`).
     - If the user's profiles were modified after the session started → the updated profiles take effect immediately on the next request (`RF-ACS-02`, `AC-53`).
+
+### 4.1 Browser CSRF defense
+
+Cookie-authenticated browser mutations use a session-bound synchronizer token together with an origin check. This is a technical security decision for C-02; it does not approve any pending institutional policy.
+
+- **Protected requests:** Every `POST`, `PUT`, `PATCH`, and `DELETE` that authenticates through `erp_session`, including `POST /api/v1/auth/logout`, user mutations, project mutations, and future browser-facing mutations.
+- **Token:** Successful `POST /api/v1/auth/login` and `GET /api/v1/auth/session` return `csrfToken`. It is an opaque, session-bound 256-bit verifier, rotated when a new session is issued. It is not a session credential and the server never accepts it as a cookie or `Authorization` value.
+- **Browser request shape:** Use relative `/api` URLs with `credentials: 'same-origin'`. The browser sends `Origin`; the client sends the current token in `X-CSRF-Token` for every protected mutation. Keep the token in memory only. Do not persist it, log it, or place it in URLs.
+- **Validation:** Before authentication activity, route handling, idempotency, audit, or persistence effects, the server requires `Origin` to match the request `Host` and compares `X-CSRF-Token` to the session-bound verifier in constant time. Missing, malformed, cross-origin, or mismatched values return `403 CSRF_REJECTED` using safe Problem Details. The response does not set or clear cookies and exposes no token, cookie, stack trace, or server internals.
+- **Login and bootstrap:** Browser login has no prior synchronizer token. A browser-supplied `Origin` must match the request `Host`; cross-origin login returns `403 CSRF_REJECTED` without issuing a cookie. Non-browser API clients may omit `Origin` and use the documented bearer flow. `GET /api/v1/auth/session` is a safe bootstrap request: it needs the active cookie, does not require `X-CSRF-Token`, and returns the current `csrfToken`.
+- **Bearer clients:** A request authenticated only through `Authorization: Bearer` is not cookie-authenticated and does not require `X-CSRF-Token`. Browser application code must use the cookie flow, not the bearer token. Cross-origin credentialed browser requests are unsupported.
+- **Environments:** Development uses Vite's relative `/api` proxy with `changeOrigin: false`, preserving the browser `Host` and `Origin` (`http://127.0.0.1:5173`). The deployed monolith serves client and API from one HTTPS origin. A reverse proxy, if introduced, must preserve the public `Host`; it must not add CORS or permit cross-origin credentials. `HttpOnly`, `Secure`, `SameSite=Lax`, expiry, and revocation rules remain unchanged.
 
 ## 5. Endpoints
 
@@ -77,6 +90,7 @@ Authenticates an active operator with individual credentials.
   ```json
   {
     "sessionToken": "<opaque-token>",
+    "csrfToken": "<opaque-session-bound-verifier>",
     "expiresAt": "2026-10-23T15:30:00.000Z",
     "user": {
       "id": "0192f5b6-7c8a-7def-8123-456789abcdef",
@@ -88,7 +102,7 @@ Authenticates an active operator with individual credentials.
     }
   }
   ```
-- **Errors:** `400 INVALID_REQUEST`, `422 VALIDATION_FAILED`, `401 INVALID_CREDENTIALS`, `429 RATE_LIMITED`.
+- **Errors:** `400 INVALID_REQUEST`, `401 INVALID_CREDENTIALS`, `403 CSRF_REJECTED`, `422 VALIDATION_FAILED`, `429 RATE_LIMITED`.
 
 ### 5.2 `POST /api/v1/auth/logout`
 
@@ -96,7 +110,7 @@ Terminates the current authenticated session (`RNF-SEG-03`).
 
 - **Authentication:** Required (any active authenticated user)
 - **Response `204 No Content`:** Clears `erp_session` cookie and revokes the server session.
-- **Errors:** `401 AUTH_REQUIRED`.
+- **Errors:** `401 AUTH_REQUIRED`, `403 CSRF_REJECTED` for cookie-authenticated browser requests.
 
 ### 5.3 `GET /api/v1/auth/session`
 
@@ -106,6 +120,7 @@ Returns the current authenticated operator and active profiles for client sessio
 - **Response `200 OK`:**
   ```json
   {
+    "csrfToken": "<opaque-session-bound-verifier>",
     "expiresAt": "2026-10-23T15:30:00.000Z",
     "user": {
       "id": "0192f5b6-7c8a-7def-8123-456789abcdef",
@@ -135,7 +150,7 @@ Creates a new user account with explicit profiles (`RF-ACS-02`, `VAL-11`). Recor
   }
   ```
 - **Response `201 Created`:** Returns user representation (`id`, `loginIdentifier`, `displayName`, `profiles`, `status`, `version`, `createdAt`, `updatedAt`, `deactivatedAt`). Never includes password or hash.
-- **Errors:** `401 AUTH_REQUIRED`, `403 FORBIDDEN`, `409 DUPLICATE_RESOURCE`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
+- **Errors:** `401 AUTH_REQUIRED`, `403 CSRF_REJECTED`, `403 FORBIDDEN`, `409 DUPLICATE_RESOURCE`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
 
 ### 5.5 `GET /api/v1/users`
 
@@ -160,7 +175,7 @@ Replaces a user's assigned profiles with optimistic concurrency (`OP-03`), audit
   }
   ```
 - **Response `200 OK`:** Updated user with incremented `version`.
-- **Errors:** `401`, `403`, `404 RESOURCE_NOT_FOUND`, `409 STALE_VERSION`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
+- **Errors:** `401`, `403 CSRF_REJECTED`, `403 FORBIDDEN`, `404 RESOURCE_NOT_FOUND`, `409 STALE_VERSION`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
 
 ### 5.7 `POST /api/v1/users/:id/deactivate`
 
@@ -176,7 +191,7 @@ Deactivates a user account while preserving historical authorship on all previou
   }
   ```
 - **Response `200 OK`:** Updated user with `status: "DEACTIVATED"` and incremented `version`.
-- **Errors:** `401`, `403`, `404 RESOURCE_NOT_FOUND`, `409 STALE_VERSION`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
+- **Errors:** `401`, `403 CSRF_REJECTED`, `403 FORBIDDEN`, `404 RESOURCE_NOT_FOUND`, `409 STALE_VERSION`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_FAILED`.
 
 
 ## 6. Provisioning, validation, and atomicity
