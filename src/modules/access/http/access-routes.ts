@@ -42,14 +42,14 @@ function extractSessionCookieToken(request: FastifyRequest): string | undefined 
   return undefined;
 }
 
-export function registerCsrfProtection(app: FastifyInstance, accessService: AccessService): void {
+export function registerCsrfProtection(app: FastifyInstance, accessService: AccessService, secureCookies: boolean): void {
   app.addHook('onRequest', async (request) => {
     if (!UNSAFE_METHODS.has(request.method)) return;
 
     const cookieToken = extractSessionCookieToken(request);
     const usesCookieAuthentication = extractBearerSessionToken(request) === undefined && cookieToken !== undefined;
     const hasOrigin = typeof request.headers.origin === 'string';
-    if ((usesCookieAuthentication || hasOrigin) && !hasSameOrigin(request)) {
+    if ((usesCookieAuthentication || hasOrigin) && !hasSameOrigin(request, secureCookies)) {
       throw csrfRejectedError();
     }
     const isLogin = request.method === 'POST' && request.url.split('?')[0] === '/api/v1/auth/login';
@@ -59,13 +59,14 @@ export function registerCsrfProtection(app: FastifyInstance, accessService: Acce
   });
 }
 
-function hasSameOrigin(request: FastifyRequest): boolean {
+function hasSameOrigin(request: FastifyRequest, secureCookies: boolean): boolean {
   const origin = request.headers.origin;
   const host = request.headers.host;
   if (typeof origin !== 'string' || typeof host !== 'string') return false;
   try {
     const parsedOrigin = new URL(origin);
-    return ['http:', 'https:'].includes(parsedOrigin.protocol) && parsedOrigin.host === host;
+    const publicProtocol = secureCookies ? 'https:' : 'http:';
+    return parsedOrigin.protocol === publicProtocol && parsedOrigin.host === host && parsedOrigin.origin === origin;
   } catch {
     return false;
   }

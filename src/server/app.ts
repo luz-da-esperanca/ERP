@@ -83,7 +83,7 @@ export function createApp(options: AppOptions) {
   });
 
   const authGuard = createAuthGuard(accessService);
-  registerCsrfProtection(app, accessService);
+  registerCsrfProtection(app, accessService, options.secureCookies ?? false);
   registerAccessRoutes(app, accessService, authGuard, options.secureCookies ?? false);
   registerProjectsRoutes(app, projectsService, authGuard);
 

@@ -56,4 +56,20 @@ describe('Browser login recovery', () => {
     expect(response.json().code).toBe('CSRF_REJECTED');
     expect(response.headers['set-cookie']).toBeUndefined();
   });
+
+  it.each([
+    { origin: 'https://erp.example', expectedStatus: 200 },
+    { origin: 'http://erp.example', expectedStatus: 403 },
+    { origin: 'https://erp.example/path', expectedStatus: 403 },
+  ])('validates the complete public origin behind HTTPS termination ($origin)', async ({ origin, expectedStatus }) => {
+    const app = createApp({ checkDatabase: async () => {}, secureCookies: true, seedUsers: [{
+      id: '01963000-0000-7000-8000-000000000001', ...credentials,
+      displayName: 'Synthetic Administrator', profiles: ['ADMIN'],
+    }] });
+    onTestFinished(() => app.close());
+    const response = await app.inject({ method: 'POST', url: '/api/v1/auth/login',
+      headers: { host: 'erp.example', origin }, payload: credentials });
+    expect(response.statusCode).toBe(expectedStatus);
+    if (expectedStatus === 403) expect(response.headers['set-cookie']).toBeUndefined();
+  });
 });
