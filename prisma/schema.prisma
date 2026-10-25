@@ -130,13 +130,3 @@ model OperationConfirmation {
   @@id([operationType, actorId, operationId])
   @@map("operation_confirmations")
 }
-
-model StockOrigin {
-  id        String   @id @db.Uuid
-  kind      String   @db.VarChar(32)
-  name      String   @db.VarChar(150)
-  createdAt DateTime @map("created_at") @db.Timestamptz(3)
-
-  @@index([kind])
-  @@map("stock_origins")
-}

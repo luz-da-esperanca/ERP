@@ -7,4 +7,3 @@ coverage/
 src/server/generated/
 *.tsbuildinfo
 *.pt-BR.md
-docs/temp/*
