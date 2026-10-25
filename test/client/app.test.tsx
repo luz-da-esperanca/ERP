@@ -152,6 +152,20 @@ it('validates required login fields before requesting authentication', () => {
   expect(signIn).not.toHaveBeenCalled();
 });
 
+it('presents the institutional login and lets the operator reveal the password temporarily', () => {
+  window.history.replaceState({}, '', '/login');
+  render(<App authService={unauthenticatedAuthService} hubRoute={hubRoute} />);
+
+  expect(screen.getByRole('img', { name: 'Luz da Esperança' })).toBeTruthy();
+  const passwordInput = screen.getByLabelText('Senha') as HTMLInputElement;
+  const passwordVisibility = screen.getByRole('button', { name: 'Mostrar senha' });
+
+  expect(passwordInput.type).toBe('password');
+  fireEvent.click(passwordVisibility);
+  expect(passwordInput.type).toBe('text');
+  expect(screen.getByRole('button', { name: 'Ocultar senha' })).toBeTruthy();
+});
+
 it('preserves invalid field values and identifies the login field to correct', () => {
   window.history.replaceState({}, '', '/login');
   const signIn = vi.fn();

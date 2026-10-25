@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app.tsx';
+import './login.css';
 import { createHttpAuthService } from './auth/http-auth-service.ts';
 import type { ProtectedRouteDefinition } from './navigation/protected-route.tsx';
 
