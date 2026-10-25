@@ -10,6 +10,17 @@ export default tseslint.config(
     rules: { '@typescript-eslint/consistent-type-imports': 'error' },
   },
   {
+    files: ['src/modules/*/application/**/*.ts', 'src/modules/*/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/infrastructure/**', '**/http/**', '**/server/**', 'react', 'react-dom', 'react-dom/*', 'fastify', '@fastify/*', '@prisma/*', 'redis', 'ioredis'],
+          message: 'Define dependencies inward and inject infrastructure from the composition boundary.',
+        }],
+      }],
+    },
+  },
+  {
     files: ['src/client/**/*.tsx'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,

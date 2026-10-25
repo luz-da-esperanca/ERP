@@ -53,6 +53,8 @@ Covers common technical contracts. Does not define endpoint-specific schemas, bu
 | `If-Match` / version header | For updates with optimistic concurrency | When applicable |
 
 ### 6.2 Idempotency
+- Protected business changes, their audit entries, and operation confirmations must share one transaction. Claim the scoped operation identity before effects; verify rollback and concurrent retries against PostgreSQL.
+- Secret-bearing inputs use the dedicated salted verifier rather than an ordinary payload digest or audit snapshot.
 - Operations that create facts or movements must support idempotency via `Idempotency-Key` (UUID as per common identifiers)
 - Same key + same scope + same normalized content → return previous result
 - Same key + different content → `409 IDEMPOTENCY_CONFLICT`
@@ -67,8 +69,8 @@ Covers common technical contracts. Does not define endpoint-specific schemas, bu
 ### 6.4 Pagination
 - List endpoints must support pagination
 - Recommended: cursor-based or offset-based; if offset, must include total only when cheap/safe
-- Standard params: `limit` (default/max defined), `cursor` or `offset`
-- Response includes pagination metadata (e.g., `hasMore`, `nextCursor`, `total` when provided)
+- S1 access/project lists use `page` and `pageSize` (default `1` / `20`, maximum size `100`), validated before persistence. Other pagination schemes require an explicit module contract.
+- Access/project responses include `items`, `page`, `pageSize`, `totalItems`, and `totalPages`. Bound database queries rather than loading every matching row and slicing in transport.
 
 ### 6.5 Filtering and sorting
 - Filtering by explicit allowed fields only
