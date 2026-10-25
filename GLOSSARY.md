@@ -106,6 +106,22 @@ _Avoid_: Commercial stock, Bazar inventory
 The external source of items entering Social Stock: individual donor (`doador pessoa física`), company donor (`doador empresa`), campaign (`campanha`), or explicitly unknown origin (`RF-EST-02`, `RF-EST-03`). Identifying an item donor does not create financial CRM records.
 _Avoid_: Financial donor account, CRM contact, Bazar transfer
 
+**Item** (_UI pt-BR_: `Item`):
+A Social Stock catalog entry with a name, Category, Unit of Measure, and optional Size Option. Item registration defines what can be tracked; it creates no quantity, receipt, lot, or balance (`RF-EST-01`, `TG-01-02`).
+_Avoid_: Donation receipt, stock lot, balance
+
+**Unit of Measure** (_UI pt-BR_: `Unidade de medida`):
+An identified catalog option with explicit decimal precision; precision zero represents an indivisible unit. Equal precision does not permit addition across different units. Institutional unit settings remain pending under `LAC-06` (`RF-EST-08`).
+_Avoid_: Implicit conversion factor, floating-point quantity
+
+**Size Option** (_UI pt-BR_: `Tamanho ou numeração`):
+An identified size/numbering label for an Item, retaining its standard when applicable. Missing size is unknown or not applicable, never zero (`RF-EST-01`, `RN-14`).
+_Avoid_: Presumed size, automatic incompatibility
+
+**Item Revision** (_UI pt-BR_: `Versão do item`):
+An immutable historical representation of an Item's name, Category, Unit of Measure, precision, and Size Option. Later facts must retain the applicable revision rather than reinterpret their quantities through the current catalog (`RF-EST-01`, `AC-50`).
+_Avoid_: Current catalog lookup for past facts
+
 **Bazar Transfer** (_UI pt-BR_: `Transferência do Bazar`):
 An internal transfer of items from the commercial Bazar to Social Stock identified by a unique reference, tracking informed, received, and accepted quantities (`RF-BAZ-01` to `RF-BAZ-04`, `RN-17`). It is never counted as new external donation fundraising.
 _Avoid_: External donation, commercial sale
