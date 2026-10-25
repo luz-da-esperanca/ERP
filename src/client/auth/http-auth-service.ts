@@ -6,6 +6,7 @@ import type {
   AuthenticatedOperator,
   SignInResult,
 } from './auth-state.ts';
+import { hasValidSessionExpiry } from './auth-state.ts';
 
 const AUTH_PROFILES: readonly AuthProfile[] = [
   'COORDINATOR',
@@ -67,13 +68,14 @@ export function createHttpAuthService(options: HttpAuthServiceOptions = {}): Aut
       }
     },
 
-    async getSession(): Promise<AuthSession | null> {
+    async getSession(signal?: AbortSignal): Promise<AuthSession | null> {
       const sessionVersion = authOperationVersion;
 
       try {
         const response = await fetchClient('/api/v1/auth/session', {
           method: 'GET',
           credentials: 'same-origin',
+          ...(signal === undefined ? {} : { signal }),
         });
         if (response.status === 401 && await hasProblemCode(response, 'AUTH_REQUIRED')) {
           if (authOperationVersion === sessionVersion) csrfToken = null;
@@ -124,10 +126,11 @@ async function readAuthenticatedResponse(response: Response): Promise<Authentica
 
   const operator = readOperator(body.user);
   if (operator === null) return null;
+  if (typeof body.expiresAt !== 'string' || !hasValidSessionExpiry(body.expiresAt)) return null;
 
   return {
     csrfToken: body.csrfToken,
-    session: { operator },
+    session: { operator, expiresAt: body.expiresAt },
   };
 }
 

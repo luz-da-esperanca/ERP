@@ -7,7 +7,7 @@ import {
 const authenticatedResponse = {
   sessionToken: 'opaque-session-token',
   csrfToken: 'opaque-csrf-token',
-  expiresAt: '2026-10-25T12:30:00.000Z',
+  expiresAt: '2099-10-25T12:30:00.000Z',
   user: {
     id: '01963000-0000-7000-8000-000000000001',
     loginIdentifier: 'coord@example.invalid',
@@ -48,6 +48,7 @@ describe('HTTP auth service', () => {
     expect(result).toEqual({
       status: 'authenticated',
       session: {
+        expiresAt: '2099-10-25T12:30:00.000Z',
         operator: {
           loginIdentifier: 'coord@example.invalid',
           displayName: 'Synthetic Coordinator',
@@ -95,6 +96,19 @@ describe('HTTP auth service', () => {
     const fetchClient = vi.fn<FetchClient>()
       .mockResolvedValueOnce(jsonResponse(200, { user: authenticatedResponse.user }))
       .mockResolvedValueOnce(jsonResponse(503, { code: 'SERVICE_UNAVAILABLE' }));
+    const authService = createHttpAuthService({ fetchClient });
+
+    await expect(authService.signIn({
+      loginIdentifier: 'coord@example.invalid',
+      password: 'SyntheticPassword!123',
+    })).resolves.toEqual({ status: 'unavailable' });
+    await expect(authService.getSession()).rejects.toThrow('Authentication service is unavailable.');
+  });
+
+  it('fails closed when a successful response lacks a valid future expiry', async () => {
+    const fetchClient = vi.fn<FetchClient>()
+      .mockResolvedValueOnce(jsonResponse(200, { ...authenticatedResponse, expiresAt: 'not-a-date' }))
+      .mockResolvedValueOnce(jsonResponse(200, { ...authenticatedResponse, expiresAt: '2020-10-25T12:30:00.000Z' }));
     const authService = createHttpAuthService({ fetchClient });
 
     await expect(authService.signIn({

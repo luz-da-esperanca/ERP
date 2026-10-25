@@ -42,6 +42,20 @@ function createIntegratedFetch(app: ReturnType<typeof createApp>): FetchClient {
   };
 }
 
+function readSessionToken(body: unknown): string {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new Error('Expected a login response object.');
+  }
+  if (!('sessionToken' in body)) {
+    throw new Error('Expected a session token in the login response.');
+  }
+  const sessionToken = body.sessionToken;
+  if (typeof sessionToken !== 'string' || sessionToken.length === 0) {
+    throw new Error('Expected a session token in the login response.');
+  }
+  return sessionToken;
+}
+
 afterEach(() => {
   cleanup();
   window.history.replaceState({}, '', '/login');
@@ -116,6 +130,118 @@ describe('C-02 client adapter proof', () => {
 
     render(<App authService={authService} hubRoute={hubRoute} />);
 
+    expect(await screen.findByRole('heading', { name: 'Acesso não permitido' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+  });
+
+  it('removes protected content when Fastify revokes an active browser session', async () => {
+    const operatorId = '01963000-0000-7000-8000-000000000003';
+    const app = createApp({
+      checkDatabase: async () => {},
+      seedUsers: [
+        {
+          id: '01963000-0000-7000-8000-000000000004',
+          loginIdentifier: 'admin@example.invalid',
+          displayName: 'Synthetic Administrator',
+          password: 'SyntheticPassword!123',
+          profiles: ['ADMIN'],
+        },
+        {
+          id: operatorId,
+          loginIdentifier: 'coord@example.invalid',
+          displayName: 'Synthetic Coordinator',
+          password: 'SyntheticPassword!123',
+          profiles: ['COORDINATOR'],
+        },
+      ],
+    });
+    onTestFinished(() => app.close());
+    const authService = createHttpAuthService({ fetchClient: createIntegratedFetch(app) });
+    window.history.replaceState({}, '', '/hub');
+    render(<App authService={authService} hubRoute={hubRoute} />);
+
+    expect(await screen.findByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Identificador de acesso'), { target: { value: 'coord@example.invalid' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'SyntheticPassword!123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+    expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+
+    const adminLogin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { loginIdentifier: 'admin@example.invalid', password: 'SyntheticPassword!123' },
+    });
+    const adminToken = readSessionToken(adminLogin.json());
+    const deactivation = await app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${operatorId}/deactivate`,
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'idempotency-key': '01963000-0000-7000-8000-000000000105',
+      },
+      payload: { version: 1, reason: 'Synthetic access review.' },
+    });
+    expect(deactivation.statusCode).toBe(200);
+
+    fireEvent(document, new Event('visibilitychange'));
+    expect(await screen.findByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+  });
+
+  it('routes to access denied when Fastify removes the active route profile', async () => {
+    const operatorId = '01963000-0000-7000-8000-000000000005';
+    const app = createApp({
+      checkDatabase: async () => {},
+      seedUsers: [
+        {
+          id: '01963000-0000-7000-8000-000000000006',
+          loginIdentifier: 'admin@example.invalid',
+          displayName: 'Synthetic Administrator',
+          password: 'SyntheticPassword!123',
+          profiles: ['ADMIN'],
+        },
+        {
+          id: operatorId,
+          loginIdentifier: 'coord@example.invalid',
+          displayName: 'Synthetic Coordinator',
+          password: 'SyntheticPassword!123',
+          profiles: ['COORDINATOR'],
+        },
+      ],
+    });
+    onTestFinished(() => app.close());
+    const authService = createHttpAuthService({ fetchClient: createIntegratedFetch(app) });
+    window.history.replaceState({}, '', '/hub');
+    render(<App authService={authService} hubRoute={hubRoute} />);
+
+    expect(await screen.findByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Identificador de acesso'), { target: { value: 'coord@example.invalid' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'SyntheticPassword!123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+    expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+
+    const adminLogin = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { loginIdentifier: 'admin@example.invalid', password: 'SyntheticPassword!123' },
+    });
+    const adminToken = readSessionToken(adminLogin.json());
+    const profileUpdate = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/users/${operatorId}/profiles`,
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'idempotency-key': '01963000-0000-7000-8000-000000000106',
+      },
+      payload: {
+        version: 1,
+        profiles: ['PERIODIC_ACTIVITY'],
+        reason: 'Synthetic route access review.',
+      },
+    });
+    expect(profileUpdate.statusCode).toBe(200);
+
+    fireEvent(document, new Event('visibilitychange'));
     expect(await screen.findByRole('heading', { name: 'Acesso não permitido' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
   });

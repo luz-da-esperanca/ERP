@@ -1,13 +1,28 @@
+import { act } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { App } from '../../src/client/app.tsx';
-import type { AuthService } from '../../src/client/auth/auth-state.ts';
+import type { AuthService, AuthSession } from '../../src/client/auth/auth-state.ts';
 import type { ProtectedRouteDefinition } from '../../src/client/navigation/protected-route.tsx';
 
 const hubRoute: ProtectedRouteDefinition = {
   destination: '/hub',
   requiredProfile: 'COORDINATOR',
 };
+
+function createSession(
+  profiles: readonly AuthSession['operator']['profiles'][number][] = ['COORDINATOR'],
+  expiresAt = '2099-10-25T12:30:00.000Z',
+): AuthSession {
+  return {
+    expiresAt,
+    operator: {
+      loginIdentifier: 'kaua.silva',
+      displayName: 'Kauã Silva',
+      profiles,
+    },
+  };
+}
 
 const unauthenticatedAuthService: AuthService = {
   signIn: async () => ({ status: 'invalid-credentials' }),
@@ -18,26 +33,15 @@ const unauthenticatedAuthService: AuthService = {
 const authenticatedAuthService: AuthService = {
   signIn: async () => ({
     status: 'authenticated',
-    session: {
-      operator: {
-        loginIdentifier: 'kaua.silva',
-        displayName: 'Kauã Silva',
-        profiles: ['COORDINATOR'],
-      },
-    },
+    session: createSession(),
   }),
-  getSession: async () => ({
-    operator: {
-      loginIdentifier: 'kaua.silva',
-      displayName: 'Kauã Silva',
-      profiles: ['COORDINATOR'],
-    },
-  }),
+  getSession: async () => createSession(),
   signOut: vi.fn(async () => undefined),
 };
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   window.history.replaceState({}, '', '/login');
 });
 
@@ -156,17 +160,11 @@ it('opens the hub after valid sign-in without rendering the submitted password',
   window.history.replaceState({}, '', '/login');
   const signIn = vi.fn(async () => ({
     status: 'authenticated' as const,
-    session: {
-      operator: {
-        loginIdentifier: 'kaua.silva',
-        displayName: 'Kauã Silva',
-        profiles: ['COORDINATOR'] as const,
-      },
-    },
+    session: createSession(),
   }));
   const authService: AuthService = {
     signIn,
-    getSession: async () => null,
+    getSession: async () => createSession(),
     signOut: async () => undefined,
   };
   render(<App authService={authService} hubRoute={hubRoute} />);
@@ -181,21 +179,14 @@ it('opens the hub after valid sign-in without rendering the submitted password',
   expect(window.location.pathname).toBe('/hub');
 });
 
-it('keeps a new session when an earlier session lookup resolves after sign-in', async () => {
+it('revalidates before mounting protected content after sign-in', async () => {
   window.history.replaceState({}, '', '/login');
-  let resolveSession: ((session: null) => void) | undefined;
   const authService: AuthService = {
     signIn: async () => ({
       status: 'authenticated',
-      session: {
-        operator: {
-          loginIdentifier: 'kaua.silva',
-          displayName: 'Kauã Silva',
-          profiles: ['COORDINATOR'],
-        },
-      },
+      session: createSession(),
     }),
-    getSession: async () => new Promise<null>((resolve) => { resolveSession = resolve; }),
+    getSession: async () => createSession(),
     signOut: async () => undefined,
   };
   render(<App authService={authService} hubRoute={hubRoute} />);
@@ -205,9 +196,6 @@ it('keeps a new session when an earlier session lookup resolves after sign-in', 
   fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
   expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
-  resolveSession?.(null);
-
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Área inicial' })).toBeTruthy());
   expect(window.location.pathname).toBe('/hub');
 });
 
@@ -251,13 +239,7 @@ it('routes an authenticated operator without the required profile to access deni
   window.history.replaceState({}, '', '/hub');
   const authService: AuthService = {
     signIn: async () => ({ status: 'invalid-credentials' }),
-    getSession: async () => ({
-      operator: {
-        loginIdentifier: 'kaua.silva',
-        displayName: 'Kauã Silva',
-        profiles: ['PERIODIC_ACTIVITY'],
-      },
-    }),
+    getSession: async () => createSession(['PERIODIC_ACTIVITY']),
     signOut: async () => undefined,
   };
   render(<App authService={authService} hubRoute={hubRoute} />);
@@ -278,4 +260,127 @@ it('hides protected content when session verification is unavailable', async () 
 
   expect(await screen.findByRole('heading', { name: 'Não foi possível verificar o acesso' })).toBeTruthy();
   expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+});
+
+it('removes protected content when the published session expiry is reached', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-25T12:00:00.000Z'));
+  window.history.replaceState({}, '', '/hub');
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession: async () => createSession(['COORDINATOR'], '2026-10-25T12:01:00.000Z'),
+    signOut: async () => undefined,
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+
+  expect(screen.getByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+  expect(window.location.pathname).toBe('/login');
+});
+
+it('removes protected content when foreground revalidation loses the session', async () => {
+  window.history.replaceState({}, '', '/hub');
+  const getSession = vi.fn<() => Promise<AuthSession | null>>()
+    .mockResolvedValueOnce(createSession())
+    .mockResolvedValueOnce(null);
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession,
+    signOut: async () => undefined,
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  fireEvent(document, new Event('visibilitychange'));
+
+  expect(await screen.findByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+  expect(getSession).toHaveBeenCalledTimes(2);
+});
+
+it('routes to access denied when foreground revalidation removes the required profile', async () => {
+  window.history.replaceState({}, '', '/hub');
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession: vi.fn<() => Promise<AuthSession | null>>()
+      .mockResolvedValueOnce(createSession())
+      .mockResolvedValueOnce(createSession(['PERIODIC_ACTIVITY'])),
+    signOut: async () => undefined,
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  fireEvent(document, new Event('visibilitychange'));
+
+  expect(await screen.findByRole('heading', { name: 'Acesso não permitido' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+});
+
+it('shows safe recovery when foreground revalidation is unavailable or malformed', async () => {
+  window.history.replaceState({}, '', '/hub');
+  const malformedSession = Object.assign(createSession(), { expiresAt: 'not-a-date' });
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession: vi.fn<() => Promise<AuthSession | null>>()
+      .mockResolvedValueOnce(createSession())
+      .mockResolvedValueOnce(malformedSession),
+    signOut: async () => undefined,
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  fireEvent(document, new Event('visibilitychange'));
+
+  expect(await screen.findByRole('heading', { name: 'Não foi possível verificar o acesso' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+});
+
+it('ignores a stale foreground response after a newer session response', async () => {
+  window.history.replaceState({}, '', '/hub');
+  let resolveEarlier: ((session: AuthSession | null) => void) | undefined;
+  const getSession = vi.fn<() => Promise<AuthSession | null>>()
+    .mockResolvedValueOnce(createSession())
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveEarlier = resolve; }))
+    .mockResolvedValueOnce(createSession(['COORDINATOR'], '2099-10-25T13:30:00.000Z'));
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession,
+    signOut: async () => undefined,
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  fireEvent(document, new Event('visibilitychange'));
+  fireEvent(document, new Event('visibilitychange'));
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+
+  resolveEarlier?.(null);
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Área inicial' })).toBeTruthy());
+  expect(getSession).toHaveBeenCalledTimes(3);
+});
+
+it('cancels an older expiry timer after a newer session response', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-25T12:00:00.000Z'));
+  window.history.replaceState({}, '', '/hub');
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession: vi.fn<() => Promise<AuthSession | null>>()
+      .mockResolvedValueOnce(createSession(['COORDINATOR'], '2026-10-25T12:01:00.000Z'))
+      .mockResolvedValueOnce(createSession(['COORDINATOR'], '2026-10-25T12:10:00.000Z')),
+    signOut: async () => undefined,
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  await act(async () => { await Promise.resolve(); });
+  fireEvent(document, new Event('visibilitychange'));
+  await act(async () => { await Promise.resolve(); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+
+  expect(screen.getByRole('heading', { name: 'Área inicial' })).toBeTruthy();
 });

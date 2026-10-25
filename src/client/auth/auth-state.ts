@@ -32,6 +32,7 @@ export interface AuthenticatedOperator {
  */
 export interface AuthSession {
   readonly operator: AuthenticatedOperator;
+  readonly expiresAt: string;
 }
 
 export type SignInResult =
@@ -45,7 +46,7 @@ export type SignInResult =
  */
 export interface AuthService {
   signIn(credentials: AuthCredentials): Promise<SignInResult>;
-  getSession(): Promise<AuthSession | null>;
+  getSession(signal?: AbortSignal): Promise<AuthSession | null>;
   signOut(): Promise<void>;
 }
 
@@ -65,8 +66,14 @@ export function createInitialAuthState(): AuthState {
  */
 export function resolveAuthSession(session: AuthSession | null): AuthState {
   if (session === null) return { status: 'unauthenticated' };
+  if (!hasValidSessionExpiry(session.expiresAt)) return { status: 'unavailable' };
 
   return { status: 'authenticated', session };
+}
+
+export function hasValidSessionExpiry(expiresAt: string): boolean {
+  const expiresAtMilliseconds = Date.parse(expiresAt);
+  return Number.isFinite(expiresAtMilliseconds) && expiresAtMilliseconds > Date.now();
 }
 
 /**
