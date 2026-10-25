@@ -157,6 +157,10 @@ Allowed types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `buil
 
 Suggest a suitable commit after each implementation; for this guide, an example is `docs(agents): define project development rules`.
 
+### Pull request descriptions
+
+When creating or updating a PR description, use the canonical [pull request template](.github/pull_request_template.md) and its [usage guide](.github/README.md). Keep descriptions in English, proportional to the change, and explicit about actual verification and merge impact.
+
 ## Definition of Done and completion report
 
 Consider an implementation complete only when:
