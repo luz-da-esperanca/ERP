@@ -15,8 +15,8 @@ function validateCredentials(loginIdentifier: string, password: string): FieldEr
   const normalizedLogin = loginIdentifier.trim();
   const loginError = normalizedLogin.length === 0
     ? 'Informe seu identificador de acesso.'
-    : normalizedLogin.length < 3 || normalizedLogin.length > 120 || /\s/.test(normalizedLogin)
-      ? 'Informe um identificador entre 3 e 120 caracteres, sem espaços.'
+    : normalizedLogin.length < 3 || normalizedLogin.length > 120
+      ? 'Informe um identificador entre 3 e 120 caracteres.'
       : undefined;
   const passwordError = password.length === 0
     ? 'Informe sua senha.'

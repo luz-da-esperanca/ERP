@@ -1,0 +1,122 @@
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
+import { App } from '../../../src/client/app.tsx';
+import { createHttpAuthService, type FetchClient } from '../../../src/client/auth/http-auth-service.ts';
+import type { ProtectedRouteDefinition } from '../../../src/client/navigation/protected-route.tsx';
+import { createApp } from '../../../src/server/app.ts';
+
+const hubRoute: ProtectedRouteDefinition = {
+  destination: '/hub',
+  requiredProfile: 'COORDINATOR',
+};
+
+function createIntegratedFetch(app: ReturnType<typeof createApp>): FetchClient {
+  let cookie: string | undefined;
+
+  return async (input, init) => {
+    const url = new URL(input, 'http://127.0.0.1:5173');
+    const headers = new Headers(init.headers);
+    headers.set('host', '127.0.0.1:5173');
+    if (init.method !== 'GET') headers.set('origin', 'http://127.0.0.1:5173');
+    if (cookie !== undefined) headers.set('cookie', cookie);
+
+    const payload = typeof init.body === 'string' ? init.body : undefined;
+    const response = await app.inject({
+      method: init.method === 'POST' ? 'POST' : 'GET',
+      url: `${url.pathname}${url.search}`,
+      headers: Object.fromEntries(headers.entries()),
+      ...(payload === undefined ? {} : { payload }),
+    });
+    const setCookie = response.headers['set-cookie'];
+    if (typeof setCookie === 'string') cookie = setCookie.split(';')[0];
+
+    const responseHeaders = new Headers();
+    for (const [name, value] of Object.entries(response.headers)) {
+      if (value !== undefined) responseHeaders.set(name, Array.isArray(value) ? value.join(', ') : String(value));
+    }
+
+    return new Response(response.body === '' ? null : response.body, {
+      status: response.statusCode,
+      headers: responseHeaders,
+    });
+  };
+}
+
+afterEach(() => {
+  cleanup();
+  window.history.replaceState({}, '', '/login');
+});
+
+describe('C-02 client adapter proof', () => {
+  it('uses the integrated server for successful login, bootstrap, logout, and invalid session', async () => {
+    const app = createApp({
+      checkDatabase: async () => {},
+      seedUsers: [{
+        id: '01963000-0000-7000-8000-000000000001',
+        loginIdentifier: 'coord@example.invalid',
+        displayName: 'Synthetic Coordinator',
+        password: 'SyntheticPassword!123',
+        profiles: ['COORDINATOR'],
+      }],
+    });
+    onTestFinished(() => app.close());
+    const authService = createHttpAuthService({ fetchClient: createIntegratedFetch(app) });
+
+    await expect(authService.getSession()).resolves.toBeNull();
+    render(<App authService={authService} hubRoute={hubRoute} />);
+
+    fireEvent.change(screen.getByLabelText('Identificador de acesso'), { target: { value: 'coord@example.invalid' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'SyntheticPassword!123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+    expect(screen.getByText('Synthetic Coordinator')).toBeTruthy();
+    await expect(authService.getSession()).resolves.toMatchObject({
+      operator: { loginIdentifier: 'coord@example.invalid', profiles: ['COORDINATOR'] },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sair' }));
+    expect(await screen.findByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
+    await expect(authService.getSession()).resolves.toBeNull();
+  });
+
+  it('shows neutral invalid credentials and never renders protected content', async () => {
+    const app = createApp({ checkDatabase: async () => {} });
+    onTestFinished(() => app.close());
+    const authService = createHttpAuthService({ fetchClient: createIntegratedFetch(app) });
+    render(<App authService={authService} hubRoute={hubRoute} />);
+
+    fireEvent.change(screen.getByLabelText('Identificador de acesso'), { target: { value: 'unknown@example.invalid' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'WrongSyntheticPassword!123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+    expect((await screen.findByRole('alert')).textContent)
+      .toBe('Não foi possível acessar com os dados informados. Confira e tente novamente.');
+    expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+  });
+
+  it('routes an authenticated operator without the required profile to access denied', async () => {
+    const app = createApp({
+      checkDatabase: async () => {},
+      seedUsers: [{
+        id: '01963000-0000-7000-8000-000000000002',
+        loginIdentifier: 'activity@example.invalid',
+        displayName: 'Synthetic Activity Operator',
+        password: 'SyntheticPassword!123',
+        profiles: ['PERIODIC_ACTIVITY'],
+      }],
+    });
+    onTestFinished(() => app.close());
+    const authService = createHttpAuthService({ fetchClient: createIntegratedFetch(app) });
+    await authService.signIn({
+      loginIdentifier: 'activity@example.invalid',
+      password: 'SyntheticPassword!123',
+    });
+    window.history.replaceState({}, '', '/hub');
+
+    render(<App authService={authService} hubRoute={hubRoute} />);
+
+    expect(await screen.findByRole('heading', { name: 'Acesso não permitido' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+  });
+});

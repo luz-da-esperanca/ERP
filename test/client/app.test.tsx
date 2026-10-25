@@ -97,9 +97,29 @@ it('preserves invalid field values and identifies the login field to correct', (
   fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'senha-secreta' } });
   fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
-  expect(screen.getByText('Informe um identificador entre 3 e 120 caracteres, sem espaços.')).toBeTruthy();
+  expect(screen.getByText('Informe um identificador entre 3 e 120 caracteres.')).toBeTruthy();
   expect(loginInput.value).toBe('ab');
   expect(signIn).not.toHaveBeenCalled();
+});
+
+it('submits a login identifier with internal spaces allowed by C-02', async () => {
+  window.history.replaceState({}, '', '/login');
+  const signIn = vi.fn(async () => ({ status: 'invalid-credentials' as const }));
+  const authService: AuthService = {
+    signIn,
+    getSession: async () => null,
+    signOut: async () => undefined,
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  fireEvent.change(screen.getByLabelText('Identificador de acesso'), { target: { value: 'synthetic operator' } });
+  fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'SyntheticPassword!123' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+  await waitFor(() => expect(signIn).toHaveBeenCalledWith({
+    loginIdentifier: 'synthetic operator',
+    password: 'SyntheticPassword!123',
+  }));
 });
 
 it('uses credential autocomplete fields and shows loading until authentication resolves', async () => {
