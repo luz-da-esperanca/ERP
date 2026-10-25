@@ -13,6 +13,8 @@ import { createInMemoryPersistence, type Persistence } from './persistence.ts';
 import { ApplicationError } from '../modules/shared/errors.ts';
 import { createProblem, createProblemFromError } from './problem-details.ts';
 import { translatePersistenceError } from './persistence-errors.ts';
+import { StockCatalogService } from '../modules/social-stock/application/stock-catalog-service.ts';
+import { registerStockCatalogRoutes } from '../modules/social-stock/http/stock-catalog-routes.ts';
 
 export interface AppOptions {
   checkDatabase: () => Promise<void>;
@@ -85,6 +87,8 @@ export function createApp(options: AppOptions) {
   const authGuard = createAuthGuard(accessService);
   registerAccessRoutes(app, accessService, authGuard, options.secureCookies ?? false);
   registerProjectsRoutes(app, projectsService, authGuard);
+  registerStockCatalogRoutes(app, new StockCatalogService({ repository: persistence.stockCatalogRepository,
+    transactions: persistence.stockCatalogTransactions, clock }), authGuard);
 
   return app;
 }

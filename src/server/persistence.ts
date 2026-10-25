@@ -9,8 +9,13 @@ import { PrismaAuditTrail, PrismaIdempotencyStore } from '../modules/shared/pris
 import type { MutationContext, TransactionRunner } from '../modules/shared/transactions.ts';
 import type { Prisma, PrismaClient } from './generated/prisma/client.ts';
 import { translatePersistenceError } from './persistence-errors.ts';
+import type { StockCatalogRepositoryPort } from '../modules/social-stock/application/stock-catalog-service.ts';
+import { InMemoryStockCatalogRepository } from '../modules/social-stock/infrastructure/in-memory-stock-catalog-repository.ts';
+import { PrismaStockCatalogRepository } from '../modules/social-stock/infrastructure/prisma-stock-catalog-repository.ts';
 
 export interface Persistence {
+  readonly stockCatalogRepository: StockCatalogRepositoryPort;
+  readonly stockCatalogTransactions: TransactionRunner<MutationContext<StockCatalogRepositoryPort>>;
   readonly accessRepository: AccessRepositoryPort;
   readonly projectsRepository: ProjectsRepositoryPort;
   readonly accessTransactions: TransactionRunner<MutationContext<AccessRepositoryPort>>;
@@ -29,6 +34,12 @@ export function createPrismaPersistence(client: PrismaClient, clock: () => Date 
     }
   }
   return {
+    stockCatalogRepository: new PrismaStockCatalogRepository(client),
+    stockCatalogTransactions: (work) => run((transaction) => work({
+      repository: new PrismaStockCatalogRepository(transaction),
+      auditTrail: new PrismaAuditTrail(transaction, clock),
+      idempotency: new PrismaIdempotencyStore(transaction, clock),
+    })),
     accessRepository,
     projectsRepository,
     accessTransactions: (work) => run((transaction) => work({
@@ -51,8 +62,9 @@ export function createInMemoryPersistence(
 ): Persistence {
   const accessRepository = new InMemoryAccessRepository(seedUsers);
   const projectsRepository = new InMemoryProjectsRepository();
+  const stockCatalogRepository = new InMemoryStockCatalogRepository();
   const idempotency = new InMemoryIdempotencyStore();
-  const participants = [accessRepository, projectsRepository, auditTrail, idempotency];
+  const participants = [accessRepository, projectsRepository, stockCatalogRepository, auditTrail, idempotency];
   let pending: Promise<unknown> = Promise.resolve();
   function runner<Repository>(repository: Repository): TransactionRunner<MutationContext<Repository>> {
     return (work) => {
@@ -69,6 +81,6 @@ export function createInMemoryPersistence(
       return result;
     };
   }
-  return { accessRepository, projectsRepository,
+  return { accessRepository, projectsRepository, stockCatalogRepository, stockCatalogTransactions: runner(stockCatalogRepository),
     accessTransactions: runner(accessRepository), projectTransactions: runner(projectsRepository) };
 }

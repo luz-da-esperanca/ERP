@@ -7,6 +7,82 @@ datasource db {
   provider = "postgresql"
 }
 
+model StockCategory {
+  id        String              @id @db.Uuid
+  name      String              @db.VarChar(150)
+  isActive  Boolean             @map("is_active")
+  version   Int
+  createdAt DateTime            @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime            @map("updated_at") @db.Timestamptz(3)
+  revisions StockItemRevision[]
+
+  @@index([name, id])
+  @@map("stock_categories")
+}
+
+model StockUnit {
+  id        String              @id @db.Uuid
+  name      String              @db.VarChar(150)
+  precision Int
+  isActive  Boolean             @map("is_active")
+  version   Int
+  createdAt DateTime            @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime            @map("updated_at") @db.Timestamptz(3)
+  revisions StockItemRevision[]
+
+  @@index([name, id])
+  @@map("stock_units")
+}
+
+model StockSize {
+  id        String              @id @db.Uuid
+  name      String              @db.VarChar(150)
+  isActive  Boolean             @map("is_active")
+  version   Int
+  createdAt DateTime            @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime            @map("updated_at") @db.Timestamptz(3)
+  revisions StockItemRevision[]
+
+  @@index([name, id])
+  @@map("stock_sizes")
+}
+
+model StockItem {
+  id        String              @id @db.Uuid
+  version   Int
+  createdAt DateTime            @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime            @map("updated_at") @db.Timestamptz(3)
+  revisions StockItemRevision[]
+
+  @@map("stock_items")
+}
+
+model StockItemRevision {
+  id            String        @id @db.Uuid
+  itemId        String        @map("item_id") @db.Uuid
+  version       Int
+  name          String        @db.VarChar(150)
+  categoryId    String        @map("category_id") @db.Uuid
+  categoryName  String        @map("category_name") @db.VarChar(150)
+  unitId        String        @map("unit_id") @db.Uuid
+  unitName      String        @map("unit_name") @db.VarChar(150)
+  unitPrecision Int           @map("unit_precision")
+  sizeId        String?       @map("size_id") @db.Uuid
+  sizeName      String?       @map("size_name") @db.VarChar(150)
+  isActive      Boolean       @map("is_active")
+  recordedAt    DateTime      @map("recorded_at") @db.Timestamptz(3)
+  item          StockItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  category      StockCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  unit          StockUnit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  size          StockSize?    @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+
+  @@unique([itemId, version])
+  @@index([categoryId])
+  @@index([unitId])
+  @@index([sizeId])
+  @@map("stock_item_revisions")
+}
+
 model User {
   id            String                  @id @db.Uuid
   login         String                  @unique @db.VarChar(120)
