@@ -136,6 +136,8 @@ Proposed baseline codes:
 
 Item 3 may add endpoint-specific codes, but it must reuse this envelope and naming rule. A central registry must prevent duplicated or conflicting codes.
 
+The S1 access/project field-code registry additionally contains `REQUIRED_FIELD`, `INVALID_FORMAT`, `INVALID_LENGTH`, `INVALID_ENUM`, `DUPLICATE_VALUE`, `INVALID_PERIOD`, and `PROJECT_CLOSED`, all under `422 VALIDATION_FAILED`. They describe field-level failures; they do not replace the top-level error code. `REFERENCE_NOT_FOUND` is reused for unavailable institute references. Public field paths use `loginIdentifier`, even though persistence uses a `login` column.
+
 ## 6. Validation failures
 
 - Validation is mandatory on the server and in persistence, not only in the interface (OP-01, VAL-12).

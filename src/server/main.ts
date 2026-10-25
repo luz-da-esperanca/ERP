@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { createPrismaPersistence } from './persistence.ts';
 import { createApp } from './app.ts';
 import { readConfig } from './config.ts';
 import { createDatabase } from './database.ts';
@@ -7,13 +8,15 @@ const config = readConfig(process.env);
 const database = createDatabase(config.databaseUrl);
 const app = createApp({
   checkDatabase: database.check,
+  persistence: createPrismaPersistence(database.client),
+  securityConfig: config.securityConfig,
+  secureCookies: config.secureCookies,
   logger: true,
   ...(process.argv.includes('--serve-client')
     ? { clientDirectory: resolve(import.meta.dirname, '../client') }
     : {}),
 });
 
-// Register business-module HTTP adapters here and inject their infrastructure dependencies.
 app.addHook('onClose', () => database.close());
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

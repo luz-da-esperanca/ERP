@@ -2,7 +2,7 @@
 
 ## Scope and priorities
 
-This is the canonical development guide for the entire repository. `CLAUDE.md` points here; keep one owner for these rules.
+This is the canonical development guide for the entire repository. `CLAUDE.md` and `GEMINI.md` point here for their supported agents, including AGY/Antigravity; keep one owner for these rules.
 
 - Follow explicit task requirements and these mandatory project rules. Apply subtree instructions within their scope. Skills provide supporting procedures and must not silently relax project requirements.
 - Resolve conflicts using the current user direction and the authoritative source for the affected concern. Surface any unresolved conflict before implementing behavior that depends on it.
@@ -21,7 +21,7 @@ The repository uses one npm package and lockfile. `src/client/` contains React; 
 | Issue classification | Read the five-label mapping in [triage labels](docs/agents/triage-labels.md) before classifying issues |
 | Domain terminology and architecture decisions | Follow [domain documentation instructions](docs/agents/domain.md) before domain exploration |
 
-- The domain layout is `single-context`: root `GLOSSARY.md` and `docs/adr/`. These are designated locations, not existing files. Read them when present; follow `GLOSSARY-MAP.md` if introduced. Explain any proposed departure from an applicable ADR.
+- The domain layout is `single-context`: root `GLOSSARY.md` and `docs/adr/`. Read the relevant existing glossary and ADRs; follow `GLOSSARY-MAP.md` if introduced. Explain any proposed departure from an applicable ADR.
 - Read the requirements and acceptance criteria relevant to the task. Institutional decisions marked as pending remain pending; never invent policy thresholds, permissions, or approval. Required technical validation and integrity controls still apply.
 - `.agents/skills/` contains agent guidance, examples, and helper scripts; it does not define application dependencies or tooling.
 - Before running application commands, inspect the actual manifest, lockfile, scripts, and configurations. Do not invent a package manager, dependency version, command, or directory layout. Add missing setup only when required by the authorized task.
@@ -52,6 +52,7 @@ Apply Clean Code, SOLID, Clean Architecture, DRY, KISS, YAGNI, Separation of Con
 - Direct code dependencies inward: presentation, transport, and infrastructure depend on application contracts; application code depends on the domain. Domain rules must not import React, Fastify, Prisma, Redis clients, or other external frameworks, libraries, and persistence mechanisms.
 - Keep business rules, use-case orchestration, presentation, and infrastructure responsibilities distinct. Prevent circular dependencies and access other modules through deliberate contracts rather than their internals.
 - Use interfaces and abstractions where they provide real isolation, substitution, or testability. Define required dependency contracts inward and inject implementations from the composition boundary, using ordinary parameters or constructors where sufficient.
+- Application/domain imports must pass the configured dependency-boundary lint rules. Inject cryptographic capabilities and transaction runners through inward contracts rather than importing their infrastructure implementations.
 - Do not create interfaces, services, repositories, factories, generic frameworks, or design patterns solely to satisfy a template. Avoid premature abstraction, unnecessary generalization, and speculative features.
 - Prefer composition to inheritance. Keep modules cohesive and minimize the responsibilities and dependencies exposed by each public interface.
 - Keep React presentation components separate from business rules and infrastructure access where meaningful; use existing application boundaries for data access.
@@ -103,6 +104,7 @@ Never implement a feature before its behavior tests. Documentation-only or confi
 - Keep tests deterministic, independent, and reproducible. Control time, randomness, external state, and cleanup where relevant.
 - Avoid unnecessary mocks. Use mocks or fakes to isolate external dependencies when appropriate; prefer real dependencies in isolated integration environments when feasible. Never point tests at production services or data.
 - If essential tooling or services are missing, report the prerequisite; do not claim a RED or GREEN result without executing it. A missing test setup does not waive TDD.
+- Test published request/response shapes at the HTTP boundary. For persistence or security changes, include relevant PostgreSQL rollback, retry, and concurrency scenarios; a readiness query or mocked adapter is not evidence that these behaviors work.
 
 ## Persistence and cache
 
@@ -110,7 +112,7 @@ Never implement a feature before its behavior tests. Documentation-only or confi
 
 - Centralize persistence access in the appropriate infrastructure adapters or repositories. Expose application/domain contracts, and avoid coupling domain models to Prisma persistence models.
 - Version schema changes through Prisma migrations. Review their data impact and consistency requirements. Never change production data or schema directly without an approved procedure.
-- Use transactions when operations must be atomic. Preserve database constraints and translate integrity violations and persistence failures into consistent application errors.
+- Commit protected business changes, their audit entries, and idempotency confirmations in the same transaction. Claim operation identities atomically before effects; share the transaction through the composition boundary. Verify rollback and concurrent retries when changing this path. Preserve database constraints and translate integrity violations and persistence failures into consistent application errors.
 - Avoid N+1 queries and unnecessary loading. Select required fields and add indexes according to actual query patterns rather than speculation.
 - Store only data required by the product; do not persist credentials or sensitive information unnecessarily.
 
@@ -125,6 +127,7 @@ Never implement a feature before its behavior tests. Documentation-only or confi
 - Validate untrusted input at application boundaries and enforce business invariants in the responsible inner layer. Use secure mechanisms provided by the existing frameworks and libraries.
 - Handle errors explicitly and consistently. Public responses must not expose stack traces, credentials, or internal implementation details; keep actionable diagnostics in appropriately protected logs.
 - Never commit secrets, tokens, or passwords. Use environment variables for sensitive configuration and apply least privilege to service accounts and data access. Redact sensitive values from logs and test artifacts.
+- Validate security configuration and verify its effect through the running entrypoint. Keep secret-bearing idempotency inputs out of ordinary payload digests and audit snapshots; use the dedicated salted verifier when required. Initial administrator provisioning is a controlled local command, not a public registration endpoint.
 - Authenticate protected operations and enforce authorization on the server, including searches, reports, and exports. Interface visibility is not an access-control boundary.
 - Follow the documented restrictions on personal and sensitive data. Until the relevant institutional decisions are approved, keep restricted health/religion fields disabled and use synthetic development and test data.
 - When changing registration, preserve the requirement for a person's own valid, unique CPF from creation. Missing information must not silently become zero, false, absence, or an adverse eligibility decision.
@@ -146,6 +149,7 @@ Never implement a feature before its behavior tests. Documentation-only or confi
 
 - Use the specified branch prefixes and kebab-case descriptive names. Verify available branches before starting branch work; if `develop` is absent, report the prerequisite instead of silently substituting `main` or bootstrapping a new workflow.
 - Prefer small, cohesive changes that are easy to review. Preserve existing user changes.
+- Before creating or updating a pull request, verify its actual target against the table above and compare against that integration branch. A feature PR targets `develop`; a successful CI run does not authorize integration into `main`.
 - Do not push, merge, perform destructive rebases, or delete branches without explicit authorization. Never force-push shared branches.
 - Do not create commits automatically; explicit authorization is required. Finishing implementation never authorizes production promotion or deployment.
 
@@ -156,6 +160,10 @@ Use `type(scope): message`, with an English imperative description and a scope i
 Allowed types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `build`, `ci`, `style`. Use `refactor` for behavior-preserving restructuring and `style` for formatting-only changes. Avoid generic messages such as `fix stuff`, `update code`, or `changes`.
 
 Suggest a suitable commit after each implementation; for this guide, an example is `docs(agents): define project development rules`.
+
+### Pull request descriptions
+
+When creating or updating a PR description, use the canonical [pull request template](.github/pull_request_template.md) and its [usage guide](.github/README.md). Keep descriptions in English, proportional to the change, and explicit about actual verification and merge impact.
 
 ## Definition of Done and completion report
 

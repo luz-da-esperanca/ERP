@@ -16,7 +16,10 @@ Technical documentation for the C-01 common contracts. All canonical documents a
 | Pending LAC decisions (C-01 item 8) | [`pending-institutional-decisions.md`](./pending-institutional-decisions.md) | 1.0-rc.1 | Review candidate — all LAC items remain `PENDING` | Alan (@alanrcastro100) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), Felipe (@FelipeeMartinns) | Covers `LAC-01`, `02`, `04`, `07`, `11` and `03`..`13`. |
 | Review & S1 scope boundary (C-01 items 9–10) | [`c-01-review-and-approval-evidence.md`](./c-01-review-and-approval-evidence.md) | 1.0-rc.1 | In review — awaiting independent sign-off and integration | Alan (@alanrcastro100) & Felipe (@FelipeeMartinns) | Fabricio (@Fabricio-Fontenele), Gabriel (lead) (@Gabriel-afk-9), with independent review of Fabricio's bootstrap | Tracks executor alignment, reviewer sign-off, and S1 boundary. |
 
-Local copies (not committed): [`common-identifiers.pt-BR.md`](./common-identifiers.pt-BR.md), [`common-errors.pt-BR.md`](./common-errors.pt-BR.md).
+| Access and session (C-02) | [`access-and-session.md`](./access-and-session.md) | 1.0-rc.1 | Implementation candidate; review pending | Alan, with Kaua | Fabricio and Gabriel (lead) | Public authentication contract, explicit profiles, initial provisioning, secure transport, and server session lifecycle. |
+| Institutes and projects (PB-12) | [`institutes-and-projects.md`](./institutes-and-projects.md) | 1.0-rc.1 | Implementation candidate; review pending | Alan | Fabricio and Kaua | Optional non-exclusive institute links, validity, history, and protected operations. |
+
+Local `.pt-BR.md` translations are excluded from version control and are not canonical contract files.
 
 ## Rules
 

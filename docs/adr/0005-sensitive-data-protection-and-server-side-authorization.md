@@ -23,3 +23,8 @@ The paper registration form (`Ficha de Cadastro de Famílias 2025`) contains sen
 - When `LAC-05` and `LAC-08` are resolved, an update to this ADR will record the approved legal basis, retention schedule, access matrix, and storage protection controls (`RNF-SEG-05`).
 - Pending ratification by Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`) under `C-01`.
 
+## C-02 implementation proposal
+
+The access implementation proposes Node.js built-in `scrypt` instead of adding an Argon2id/bcrypt dependency. New hashes encode `N=16384`, `r=8`, and `p=5`, with a random 16-byte salt and a 64-byte key; these parameters follow an [OWASP scrypt configuration](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt). Verification retains the earlier three-part encoding (`N=16384`, `r=8`, `p=1`) so the change does not invalidate existing credentials. Parameters are accepted from known encodings rather than arbitrary database-provided work factors. Dedicated salted verifiers also bind secret-bearing operation confirmations without recording plaintext passwords or including password values in ordinary digests.
+
+This is a documented proposed departure from the algorithm alternatives above, subject to the same independent technical review. It does not approve any pending institutional access or session policy.
