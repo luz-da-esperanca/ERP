@@ -141,4 +141,43 @@ describe('HTTP auth service', () => {
       headers: { 'X-CSRF-Token': 'opaque-csrf-token' },
     });
   });
+
+  it('treats an already-invalid server session as completed logout', async () => {
+    const fetchClient = vi.fn<FetchClient>()
+      .mockResolvedValueOnce(jsonResponse(200, authenticatedResponse))
+      .mockResolvedValueOnce(jsonResponse(401, { code: 'AUTH_REQUIRED' }));
+    const authService = createHttpAuthService({ fetchClient });
+
+    await authService.signIn({
+      loginIdentifier: 'coord@example.invalid',
+      password: 'SyntheticPassword!123',
+    });
+    await expect(authService.signOut()).resolves.toBeUndefined();
+
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it('maps CSRF rejection and malformed logout responses to one safe internal failure', async () => {
+    const fetchClient = vi.fn<FetchClient>()
+      .mockResolvedValueOnce(jsonResponse(200, authenticatedResponse))
+      .mockResolvedValueOnce(jsonResponse(403, { code: 'CSRF_REJECTED', detail: 'opaque-csrf-token' }))
+      .mockResolvedValueOnce(jsonResponse(200, authenticatedResponse))
+      .mockResolvedValueOnce(jsonResponse(200, { unsafe: 'logout response' }));
+    const authService = createHttpAuthService({ fetchClient });
+
+    await authService.signIn({
+      loginIdentifier: 'coord@example.invalid',
+      password: 'SyntheticPassword!123',
+    });
+    await expect(authService.signOut()).rejects.toThrow('Authentication service is unavailable.');
+    await authService.signIn({
+      loginIdentifier: 'coord@example.invalid',
+      password: 'SyntheticPassword!123',
+    });
+    await expect(authService.signOut()).rejects.toThrow('Authentication service is unavailable.');
+
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
 });

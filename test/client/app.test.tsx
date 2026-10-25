@@ -10,6 +10,8 @@ const hubRoute: ProtectedRouteDefinition = {
   requiredProfile: 'COORDINATOR',
 };
 
+const LOGOUT_RECOVERY_MESSAGE = 'Não foi possível concluir a saída. Tente acessar novamente.';
+
 function createSession(
   profiles: readonly AuthSession['operator']['profiles'][number][] = ['COORDINATOR'],
   expiresAt = '2099-10-25T12:30:00.000Z',
@@ -67,6 +69,70 @@ it('shows the authenticated operator and clears local access before logout navig
   expect(await screen.findByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
   expect(authenticatedAuthService.signOut).toHaveBeenCalledOnce();
   expect(window.location.pathname).toBe('/login');
+});
+
+it('removes protected content before a pending failed logout shows neutral recovery', async () => {
+  window.history.replaceState({}, '', '/hub');
+  let rejectSignOut: ((reason?: unknown) => void) | undefined;
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession: async () => createSession(),
+    signOut: () => new Promise((_resolve, reject) => { rejectSignOut = reject; }),
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Sair' }));
+
+  expect(screen.getByRole('heading', { name: 'Acessar sistema' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
+  expect(window.location.pathname).toBe('/login');
+
+  rejectSignOut?.(new Error('Synthetic unavailable logout.'));
+
+  expect((await screen.findByRole('alert')).textContent).toBe(LOGOUT_RECOVERY_MESSAGE);
+});
+
+it('keeps the same neutral logout recovery for CSRF rejection without rendering secrets', async () => {
+  window.history.replaceState({}, '', '/hub');
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'invalid-credentials' }),
+    getSession: async () => createSession(),
+    signOut: async () => { throw new Error('CSRF_REJECTED synthetic-csrf-verifier'); },
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Sair' }));
+
+  expect((await screen.findByRole('alert')).textContent).toBe(LOGOUT_RECOVERY_MESSAGE);
+  expect(screen.queryByText('CSRF_REJECTED')).toBeNull();
+  expect(screen.queryByText('synthetic-csrf-verifier')).toBeNull();
+  expect(window.localStorage.length).toBe(0);
+  expect(window.sessionStorage.length).toBe(0);
+});
+
+it('keeps a later authenticated login after a delayed failed logout', async () => {
+  window.history.replaceState({}, '', '/hub');
+  let rejectSignOut: ((reason?: unknown) => void) | undefined;
+  const authService: AuthService = {
+    signIn: async () => ({ status: 'authenticated', session: createSession() }),
+    getSession: async () => createSession(),
+    signOut: () => new Promise((_resolve, reject) => { rejectSignOut = reject; }),
+  };
+  render(<App authService={authService} hubRoute={hubRoute} />);
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Sair' }));
+  fireEvent.change(screen.getByLabelText('Identificador de acesso'), { target: { value: 'kaua.silva' } });
+  fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'senha-secreta' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+  expect(await screen.findByRole('heading', { name: 'Área inicial' })).toBeTruthy();
+  rejectSignOut?.(new Error('Synthetic unavailable logout.'));
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Área inicial' })).toBeTruthy());
+  expect(screen.queryByText(LOGOUT_RECOVERY_MESSAGE)).toBeNull();
+  expect(window.location.pathname).toBe('/hub');
 });
 
 it('validates required login fields before requesting authentication', () => {

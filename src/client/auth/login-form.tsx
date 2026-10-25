@@ -8,6 +8,7 @@ interface FieldErrors {
 
 interface LoginFormProps {
   readonly authService?: AuthService;
+  readonly recoveryMessage?: string;
   readonly onAuthenticated: (session: AuthSession) => void;
 }
 
@@ -30,7 +31,7 @@ function validateCredentials(loginIdentifier: string, password: string): FieldEr
   };
 }
 
-export function LoginForm({ authService, onAuthenticated }: LoginFormProps) {
+export function LoginForm({ authService, recoveryMessage, onAuthenticated }: LoginFormProps) {
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -122,7 +123,7 @@ export function LoginForm({ authService, onAuthenticated }: LoginFormProps) {
             <span id="password-error" role="alert">{fieldErrors.password}</span>
           )}
         </p>
-        {submissionError === null ? null : <p role="alert">{submissionError}</p>}
+        {(submissionError ?? recoveryMessage) === undefined ? null : <p role="alert">{submissionError ?? recoveryMessage}</p>}
         <button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar'}</button>
       </form>
     </main>

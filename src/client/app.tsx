@@ -14,6 +14,8 @@ import {
   type ProtectedRouteDefinition,
 } from './navigation/protected-route.tsx';
 
+const LOGOUT_RECOVERY_MESSAGE = 'Não foi possível concluir a saída. Tente acessar novamente.';
+
 export interface AppProps {
   readonly authService?: AuthService;
   readonly hubRoute?: ProtectedRouteDefinition;
@@ -159,6 +161,8 @@ function HubPage({ displayName, onSignOut }: HubPageProps) {
 
 export function App({ authService, hubRoute }: AppProps) {
   const [path, setPath] = useState(() => window.location.pathname);
+  const [logoutRecoveryMessage, setLogoutRecoveryMessage] = useState<string | null>(null);
+  const logoutOperationVersion = useRef(0);
   const isProtectedRoute = hubRoute !== undefined && path === hubRoute.destination;
   const {
     authState,
@@ -193,12 +197,23 @@ export function App({ authService, hubRoute }: AppProps) {
   };
 
   const signOut = () => {
+    const currentLogoutVersion = logoutOperationVersion.current + 1;
+    logoutOperationVersion.current = currentLogoutVersion;
+    setLogoutRecoveryMessage(null);
     clearSession();
     navigate('/login');
-    if (authService !== undefined) void authService.signOut().catch(() => undefined);
+    if (authService !== undefined) {
+      void authService.signOut().catch(() => {
+        if (logoutOperationVersion.current === currentLogoutVersion) {
+          setLogoutRecoveryMessage(LOGOUT_RECOVERY_MESSAGE);
+        }
+      });
+    }
   };
 
   const authenticate = (session: AuthSession) => {
+    logoutOperationVersion.current += 1;
+    setLogoutRecoveryMessage(null);
     replaceAuthState(resolveAuthSession(session));
     navigate(hubRoute === undefined ? '/access-denied' : hubRoute.destination);
   };
@@ -223,6 +238,7 @@ export function App({ authService, hubRoute }: AppProps) {
   return (
     <LoginForm
       {...(authService === undefined ? {} : { authService })}
+      {...(logoutRecoveryMessage === null ? {} : { recoveryMessage: logoutRecoveryMessage })}
       onAuthenticated={authenticate}
     />
   );
