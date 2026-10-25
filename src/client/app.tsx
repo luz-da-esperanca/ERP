@@ -14,7 +14,10 @@ import {
   type ProtectedRouteDefinition,
 } from './navigation/protected-route.tsx';
 
-const LOGOUT_RECOVERY_MESSAGE = 'Não foi possível concluir a saída. Tente acessar novamente.';
+const LOGOUT_RECOVERY_MESSAGE = 'Não foi possível concluir a saída. Tente sair novamente.';
+const DEFAULT_HUB_ROUTE: ProtectedRouteDefinition = { destination: '/hub' };
+
+type LogoutStatus = 'idle' | 'pending' | 'failed';
 
 export interface AppProps {
   readonly authService?: AuthService;
@@ -135,11 +138,24 @@ function useAuthState(authService: AuthService | undefined, isProtectedRoute: bo
   };
 }
 
-function AccessDeniedPage() {
+function AccessDeniedPage({ onSignOut }: { readonly onSignOut: () => void }) {
   return (
     <main>
       <h1>Acesso não permitido</h1>
       <p>Seu perfil não possui acesso a esta área.</p>
+      <button type="button" onClick={onSignOut}>Sair</button>
+    </main>
+  );
+}
+
+function LogoutPage({ status, onRetry }: { readonly status: 'pending' | 'failed'; readonly onRetry: () => void }) {
+  return (
+    <main aria-busy={status === 'pending'}>
+      <h1>{status === 'pending' ? 'Encerrando sessão' : 'Saída não concluída'}</h1>
+      {status === 'failed' ? <>
+        <p role="alert">{LOGOUT_RECOVERY_MESSAGE}</p>
+        <button type="button" onClick={onRetry}>Tentar sair novamente</button>
+      </> : <p>Aguarde a confirmação da saída.</p>}
     </main>
   );
 }
@@ -159,11 +175,10 @@ function HubPage({ displayName, onSignOut }: HubPageProps) {
   );
 }
 
-export function App({ authService, hubRoute }: AppProps) {
+export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE }: AppProps) {
   const [path, setPath] = useState(() => window.location.pathname);
-  const [logoutRecoveryMessage, setLogoutRecoveryMessage] = useState<string | null>(null);
-  const logoutOperationVersion = useRef(0);
-  const isProtectedRoute = hubRoute !== undefined && path === hubRoute.destination;
+  const [logoutStatus, setLogoutStatus] = useState<LogoutStatus>(() => authService?.hasPendingSignOut() ? 'failed' : 'idle');
+  const isProtectedRoute = logoutStatus === 'idle' && path === hubRoute.destination;
   const {
     authState,
     replaceAuthState,
@@ -174,7 +189,7 @@ export function App({ authService, hubRoute }: AppProps) {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (hubRoute !== undefined && window.location.pathname === hubRoute.destination) {
+      if (logoutStatus === 'idle' && window.location.pathname === hubRoute.destination) {
         beginProtectedRouteResolution();
       } else {
         cancelSessionResolution();
@@ -183,11 +198,11 @@ export function App({ authService, hubRoute }: AppProps) {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [beginProtectedRouteResolution, cancelSessionResolution, hubRoute]);
+  }, [beginProtectedRouteResolution, cancelSessionResolution, hubRoute, logoutStatus]);
 
   const navigate = (destination: string) => {
     if (window.location.pathname === destination) return;
-    if (hubRoute !== undefined && destination === hubRoute.destination) {
+    if (destination === hubRoute.destination) {
       beginProtectedRouteResolution();
     } else {
       cancelSessionResolution();
@@ -197,32 +212,30 @@ export function App({ authService, hubRoute }: AppProps) {
   };
 
   const signOut = () => {
-    const currentLogoutVersion = logoutOperationVersion.current + 1;
-    logoutOperationVersion.current = currentLogoutVersion;
-    setLogoutRecoveryMessage(null);
+    if (logoutStatus === 'pending') return;
+    setLogoutStatus('pending');
     clearSession();
     navigate('/login');
-    if (authService !== undefined) {
-      void authService.signOut().catch(() => {
-        if (logoutOperationVersion.current === currentLogoutVersion) {
-          setLogoutRecoveryMessage(LOGOUT_RECOVERY_MESSAGE);
-        }
-      });
-    }
+    void (authService?.signOut() ?? Promise.resolve())
+      .then(() => {
+        setLogoutStatus('idle');
+        navigate('/login');
+      })
+      .catch(() => { setLogoutStatus('failed'); });
   };
 
   const authenticate = (session: AuthSession) => {
-    logoutOperationVersion.current += 1;
-    setLogoutRecoveryMessage(null);
     replaceAuthState(resolveAuthSession(session));
-    navigate(hubRoute === undefined ? '/access-denied' : hubRoute.destination);
+    navigate(hubRoute.destination);
   };
 
   const displayName = authState.status === 'authenticated'
     ? authState.session.operator.displayName
     : '';
 
-  if (hubRoute !== undefined && path === hubRoute.destination) {
+  if (logoutStatus !== 'idle') return <LogoutPage status={logoutStatus} onRetry={signOut} />;
+
+  if (path === hubRoute.destination) {
     return (
       <ProtectedRoute
         requiredProfile={hubRoute.requiredProfile}
@@ -234,11 +247,10 @@ export function App({ authService, hubRoute }: AppProps) {
     );
   }
 
-  if (path === '/access-denied') return <AccessDeniedPage />;
+  if (path === '/access-denied') return <AccessDeniedPage onSignOut={signOut} />;
   return (
     <LoginForm
       {...(authService === undefined ? {} : { authService })}
-      {...(logoutRecoveryMessage === null ? {} : { recoveryMessage: logoutRecoveryMessage })}
       onAuthenticated={authenticate}
     />
   );

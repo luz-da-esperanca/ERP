@@ -41,10 +41,10 @@ export type SignInResult =
   | { readonly status: 'unavailable' };
 
 /**
- * Client port for the published C-02 endpoints. An HTTP adapter is deferred
- * to the later integration task.
+ * Client port for C-02. Pending logout prevents automatic session restoration.
  */
 export interface AuthService {
+  hasPendingSignOut(): boolean;
   signIn(credentials: AuthCredentials): Promise<SignInResult>;
   getSession(signal?: AbortSignal): Promise<AuthSession | null>;
   signOut(): Promise<void>;
@@ -84,8 +84,7 @@ export function markSessionUnavailable(): AuthState {
 }
 
 /**
- * Logout callers clear this state before they navigate. Request-failure
- * handling remains deferred until C-02 defines that behavior.
+ * Logout callers clear this state before waiting for server revocation.
  */
 export function clearAuthSession(state: AuthState): AuthState {
   if (state.status === 'unauthenticated') return state;

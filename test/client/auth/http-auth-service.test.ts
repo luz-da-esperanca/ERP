@@ -166,18 +166,20 @@ describe('HTTP auth service', () => {
       .mockResolvedValueOnce(jsonResponse(200, { unsafe: 'logout response' }));
     const authService = createHttpAuthService({ fetchClient });
 
-    await authService.signIn({
+    await expect(authService.signIn({
       loginIdentifier: 'coord@example.invalid',
       password: 'SyntheticPassword!123',
-    });
+    })).resolves.toEqual({ status: 'authenticated', session: expect.any(Object) });
     await expect(authService.signOut()).rejects.toThrow('Authentication service is unavailable.');
-    await authService.signIn({
+    await expect(authService.signIn({
       loginIdentifier: 'coord@example.invalid',
       password: 'SyntheticPassword!123',
-    });
+    })).resolves.toEqual({ status: 'unavailable' });
+    await expect(authService.getSession()).rejects.toThrow('Authentication service is unavailable.');
     await expect(authService.signOut()).rejects.toThrow('Authentication service is unavailable.');
 
     expect(window.localStorage.length).toBe(0);
-    expect(window.sessionStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(1);
+    expect(window.sessionStorage.getItem(window.sessionStorage.key(0) ?? '')).toBe('pending');
   });
 });

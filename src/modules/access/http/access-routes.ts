@@ -52,7 +52,8 @@ export function registerCsrfProtection(app: FastifyInstance, accessService: Acce
     if ((usesCookieAuthentication || hasOrigin) && !hasSameOrigin(request)) {
       throw csrfRejectedError();
     }
-    if (usesCookieAuthentication) {
+    const isLogin = request.method === 'POST' && request.url.split('?')[0] === '/api/v1/auth/login';
+    if (usesCookieAuthentication && !isLogin) {
       await accessService.verifyCsrfToken(cookieToken, request.headers['x-csrf-token']);
     }
   });

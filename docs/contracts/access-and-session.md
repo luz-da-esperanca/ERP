@@ -1,7 +1,7 @@
 # Access, Authentication, Session, and Server-Side Authorization Contract (`C-02` / `TF-01-04` / `TF-01-05`)
 
 - **Status:** Implementation candidate — independent approval pending
-- **Version:** 1.1-rc.1
+- **Version:** 1.1-rc.2
 - **Owner:** Alan (`@alanrcastro100`, server-side auth, profiles, and user lifecycle) with Kauã (`@Kaua-cel`, client-side login, session handling, and protected navigation)
 - **Reviewers:** Fabricio (`@Fabricio-Fontenele`) and Gabriel (lead) (`@Gabriel-afk-9`)
 - **Source:** `C-02`, `TF-01-04`, `TF-01-05`
@@ -68,9 +68,17 @@ Cookie-authenticated browser mutations use a session-bound synchronizer token to
 - **Token:** Successful `POST /api/v1/auth/login` and `GET /api/v1/auth/session` return `csrfToken`. It is an opaque, session-bound 256-bit verifier, rotated when a new session is issued. It is not a session credential and the server never accepts it as a cookie or `Authorization` value.
 - **Browser request shape:** Use relative `/api` URLs with `credentials: 'same-origin'`. The browser sends `Origin`; the client sends the current token in `X-CSRF-Token` for every protected mutation. Keep the token in memory only. Do not persist it, log it, or place it in URLs.
 - **Validation:** Before authentication activity, route handling, idempotency, audit, or persistence effects, the server requires `Origin` to match the request `Host` and compares `X-CSRF-Token` to the session-bound verifier in constant time. Missing, malformed, cross-origin, or mismatched values return `403 CSRF_REJECTED` using safe Problem Details. The response does not set or clear cookies and exposes no token, cookie, stack trace, or server internals.
-- **Login and bootstrap:** Browser login has no prior synchronizer token. A browser-supplied `Origin` must match the request `Host`; cross-origin login returns `403 CSRF_REJECTED` without issuing a cookie. Non-browser API clients may omit `Origin` and use the documented bearer flow. `GET /api/v1/auth/session` is a safe bootstrap request: it needs the active cookie, does not require `X-CSRF-Token`, and returns the current `csrfToken`.
+- **Login and bootstrap:** Public `POST /api/v1/auth/login` never requires a prior synchronizer token, including when an active, expired, revoked, or unknown session cookie is present. The origin check still applies: cookie-bearing login requires a matching `Origin`, and any browser-supplied `Origin` must match the request `Host`; cross-origin login returns `403 CSRF_REJECTED` without issuing a cookie. Non-browser API clients may omit `Origin` and use the documented bearer flow. `GET /api/v1/auth/session` is a safe bootstrap request: it needs the active cookie, does not require `X-CSRF-Token`, and returns the current `csrfToken`.
 - **Bearer clients:** A request authenticated only through `Authorization: Bearer` is not cookie-authenticated and does not require `X-CSRF-Token`. Browser application code must use the cookie flow, not the bearer token. Cross-origin credentialed browser requests are unsupported.
 - **Environments:** Development uses Vite's relative `/api` proxy with `changeOrigin: false`, preserving the browser `Host` and `Origin` (`http://127.0.0.1:5173`). The deployed monolith serves client and API from one HTTPS origin. A reverse proxy, if introduced, must preserve the public `Host`; it must not add CORS or permit cross-origin credentials. `HttpOnly`, `Secure`, `SameSite=Lax`, expiry, and revocation rules remain unchanged.
+
+### 4.2 Browser navigation and logout recovery
+
+- The default `/hub` landing page accepts authenticated operators with any explicit C-02 profile. Feature routes still require their assigned profiles; `ADMIN` grants no implicit operational access. Denial pages provide logout without rendering protected identity or feature content.
+- Logout immediately removes protected content. Until server revocation is confirmed, the client shows a pending or failed-logout page, blocks new logins and automatic session restoration, and offers an explicit retry after failure. History navigation and foreground checks cannot restore the previous operator while logout is unresolved.
+- The adapter serializes concurrent logout attempts and refreshes the session-bound CSRF verifier when retrying a failed request or resuming after reload. Bootstrap during logout recovery is used only to complete revocation, never to restore protected UI. Completion requires `204` or the documented `401 AUTH_REQUIRED`; transport failures, CSRF rejection, and malformed responses leave recovery pending.
+- The only persisted client auth-flow value is `sessionStorage['erp.logout-intent'] = 'pending'`, a per-tab marker containing no credentials, token, operator identity, or business data. It survives reload/direct navigation in that tab and is removed after confirmed completion. Session credentials remain in the HttpOnly cookie; CSRF verifiers and display session data remain in memory. No tokens are stored in localStorage or sessionStorage.
+- If browser storage is unavailable, the in-memory guard and server logout still operate, but the pending marker cannot survive a reload. Server revocation remains authoritative, and a failed logout is never reported as completed. The marker does not revoke other server sessions or replace authorization.
 
 ## 5. Endpoints
 

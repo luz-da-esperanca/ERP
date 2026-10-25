@@ -66,6 +66,7 @@ function readSessionToken(body: unknown): string {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
   window.history.replaceState({}, '', '/login');
 });
 
@@ -178,12 +179,13 @@ describe('C-02 client adapter proof', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sair' }));
 
-    expect((await screen.findByRole('alert')).textContent).toBe('Não foi possível concluir a saída. Tente acessar novamente.');
+    expect((await screen.findByRole('alert')).textContent).toBe('Não foi possível concluir a saída. Tente sair novamente.');
     expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
     expect(screen.queryByText('CSRF_REJECTED')).toBeNull();
     expect(screen.queryByText('synthetic-invalid-csrf-verifier')).toBeNull();
     expect(window.localStorage.length).toBe(0);
-    expect(window.sessionStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(1);
+    expect(window.sessionStorage.getItem(window.sessionStorage.key(0) ?? '')).toBe('pending');
   });
 
   it('shows neutral recovery when logout transport becomes unavailable', async () => {
@@ -214,7 +216,7 @@ describe('C-02 client adapter proof', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sair' }));
 
-    expect((await screen.findByRole('alert')).textContent).toBe('Não foi possível concluir a saída. Tente acessar novamente.');
+    expect((await screen.findByRole('alert')).textContent).toBe('Não foi possível concluir a saída. Tente sair novamente.');
     expect(screen.queryByRole('heading', { name: 'Área inicial' })).toBeNull();
     expect(screen.queryByText('Synthetic logout transport failure.')).toBeNull();
   });

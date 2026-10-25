@@ -18,6 +18,8 @@ const AUTH_PROFILES: readonly AuthProfile[] = [
   'ADMIN',
 ];
 
+const LOGOUT_INTENT_KEY = 'erp.logout-intent';
+
 export type FetchClient = (input: string, init: RequestInit) => Promise<Response>;
 
 export interface HttpAuthServiceOptions {
@@ -37,9 +39,45 @@ export function createHttpAuthService(options: HttpAuthServiceOptions = {}): Aut
   const fetchClient = options.fetchClient ?? globalThis.fetch.bind(globalThis);
   let csrfToken: string | null = null;
   let authOperationVersion = 0;
+  let isSignOutPending = readLogoutIntent();
+  let activeSignOut: Promise<void> | null = null;
+
+  async function readServerSession(signal?: AbortSignal): Promise<AuthenticatedResponse | null> {
+    const response = await fetchClient('/api/v1/auth/session', {
+      method: 'GET', credentials: 'same-origin', ...(signal === undefined ? {} : { signal }),
+    });
+    if (response.status === 401 && await hasProblemCode(response, 'AUTH_REQUIRED')) return null;
+    if (!response.ok) throw unavailableError();
+    const authenticated = await readAuthenticatedResponse(response);
+    if (authenticated === null) throw unavailableError();
+    return authenticated;
+  }
+
+  async function completeSignOut(): Promise<void> {
+    try {
+      // A fresh adapter or a failed request must bootstrap the current cookie's verifier.
+      const verifier = csrfToken ?? (await readServerSession())?.csrfToken;
+      if (verifier !== undefined) {
+        const response = await fetchClient('/api/v1/auth/logout', {
+          method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': verifier },
+        });
+        if (response.status !== 204
+          && !(response.status === 401 && await hasProblemCode(response, 'AUTH_REQUIRED'))) throw unavailableError();
+      }
+      csrfToken = null;
+      isSignOutPending = false;
+      writeLogoutIntent(false);
+    } catch {
+      csrfToken = null;
+      throw unavailableError();
+    }
+  }
 
   return {
+    hasPendingSignOut: () => isSignOutPending,
+
     async signIn(credentials: AuthCredentials): Promise<SignInResult> {
+      if (isSignOutPending) return { status: 'unavailable' };
       const signInVersion = authOperationVersion + 1;
       authOperationVersion = signInVersion;
 
@@ -69,51 +107,46 @@ export function createHttpAuthService(options: HttpAuthServiceOptions = {}): Aut
     },
 
     async getSession(signal?: AbortSignal): Promise<AuthSession | null> {
+      if (isSignOutPending) throw unavailableError();
       const sessionVersion = authOperationVersion;
 
       try {
-        const response = await fetchClient('/api/v1/auth/session', {
-          method: 'GET',
-          credentials: 'same-origin',
-          ...(signal === undefined ? {} : { signal }),
-        });
-        if (response.status === 401 && await hasProblemCode(response, 'AUTH_REQUIRED')) {
+        const authenticated = await readServerSession(signal);
+        if (authenticated === null) {
           if (authOperationVersion === sessionVersion) csrfToken = null;
           return null;
         }
-        if (!response.ok) throw unavailableError();
-
-        const authenticated = await readAuthenticatedResponse(response);
-        if (authenticated === null) throw unavailableError();
-
-        if (authOperationVersion === sessionVersion) csrfToken = authenticated.csrfToken;
+        if (authOperationVersion !== sessionVersion || isSignOutPending) throw unavailableError();
+        csrfToken = authenticated.csrfToken;
         return authenticated.session;
       } catch {
         throw unavailableError();
       }
     },
 
-    async signOut(): Promise<void> {
-      const csrfTokenForRequest = csrfToken;
+    signOut(): Promise<void> {
+      if (activeSignOut !== null) return activeSignOut;
       authOperationVersion += 1;
-      csrfToken = null;
-      if (csrfTokenForRequest === null) return;
-
-      try {
-        const response = await fetchClient('/api/v1/auth/logout', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'X-CSRF-Token': csrfTokenForRequest },
-        });
-        if (response.status === 204 || (response.status === 401 && await hasProblemCode(response, 'AUTH_REQUIRED'))) {
-          return;
-        }
-        throw unavailableError();
-      } catch {
-        throw unavailableError();
-      }
+      isSignOutPending = true;
+      writeLogoutIntent(true);
+      activeSignOut = completeSignOut().finally(() => { activeSignOut = null; });
+      return activeSignOut;
     },
   };
+}
+
+function readLogoutIntent(): boolean {
+  try { return globalThis.sessionStorage?.getItem(LOGOUT_INTENT_KEY) === 'pending'; }
+  catch { return false; }
+}
+
+function writeLogoutIntent(isPending: boolean): void {
+  try {
+    if (isPending) globalThis.sessionStorage?.setItem(LOGOUT_INTENT_KEY, 'pending');
+    else globalThis.sessionStorage?.removeItem(LOGOUT_INTENT_KEY);
+  } catch {
+    // Restricted browser storage leaves the in-memory guard active; server logout still runs.
+  }
 }
 
 function unavailableError(): Error {

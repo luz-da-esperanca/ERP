@@ -3,13 +3,13 @@ import type { AuthProfile, AuthState } from '../auth/auth-state.ts';
 
 export interface ProtectedRouteDefinition {
   readonly destination: string;
-  readonly requiredProfile: AuthProfile;
+  readonly requiredProfile?: AuthProfile;
 }
 
 type RouteGuardOutcome = 'allowed' | 'loading' | 'unauthenticated' | 'forbidden' | 'unavailable';
 
 export interface ProtectedRouteProps {
-  readonly requiredProfile: AuthProfile;
+  readonly requiredProfile: AuthProfile | undefined;
   readonly authState: AuthState;
   readonly onNavigate: (destination: string) => void;
   readonly children: React.ReactNode;
@@ -17,13 +17,15 @@ export interface ProtectedRouteProps {
 
 export function getRouteGuardOutcome(
   authState: AuthState,
-  requiredProfile: AuthProfile,
+  requiredProfile?: AuthProfile,
 ): RouteGuardOutcome {
   if (authState.status === 'resolving') return 'loading';
   if (authState.status === 'unavailable') return 'unavailable';
   if (authState.status === 'unauthenticated') return 'unauthenticated';
 
-  return authState.session.operator.profiles.includes(requiredProfile) ? 'allowed' : 'forbidden';
+  const profiles = authState.session.operator.profiles;
+  if (profiles.length === 0) return 'forbidden';
+  return requiredProfile === undefined || profiles.includes(requiredProfile) ? 'allowed' : 'forbidden';
 }
 
 export function ProtectedRoute({ requiredProfile, authState, onNavigate, children }: ProtectedRouteProps) {
