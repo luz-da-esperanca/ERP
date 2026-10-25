@@ -18,6 +18,7 @@ Technical documentation for the C-01 common contracts. All canonical documents a
 
 | Access and session (C-02) | [`access-and-session.md`](./access-and-session.md) | 1.0-rc.1 | Implementation candidate; review pending | Alan, with Kaua | Fabricio and Gabriel (lead) | Public authentication contract, explicit profiles, initial provisioning, secure transport, and server session lifecycle. |
 | Institutes and projects (PB-12) | [`institutes-and-projects.md`](./institutes-and-projects.md) | 1.0-rc.1 | Implementation candidate; review pending | Alan | Fabricio and Kaua | Optional non-exclusive institute links, validity, history, and protected operations. |
+| Stock origins (G-02 / RF-EST-02) | [`stock-origins.md`](./stock-origins.md) | 0.1.0 | Implementation candidate; review pending | Samuel (@Zidan-09) | Paulo (@PaulEvezely) | Donation-origin catalog without CRM or valuation; server-side authorization, audit, and idempotent creation. `LAC-08`, `LAC-09`, `LAC-11` remain pending. |
 
 Local `.pt-BR.md` translations are excluded from version control and are not canonical contract files.
 

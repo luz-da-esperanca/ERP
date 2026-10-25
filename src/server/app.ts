@@ -8,6 +8,8 @@ import { createAuthGuard, registerAccessRoutes } from '../modules/access/http/ac
 import type { SeedUserInput } from '../modules/access/infrastructure/in-memory-access-repository.ts';
 import { ProjectsService } from '../modules/activities/application/projects-service.ts';
 import { registerProjectsRoutes } from '../modules/activities/http/projects-routes.ts';
+import { StockOriginsService } from '../modules/social-stock/application/stock-origins-service.ts';
+import { registerStockOriginsRoutes } from '../modules/social-stock/http/stock-origins-routes.ts';
 import type { InMemoryAuditTrail } from '../modules/shared/infrastructure/in-memory-audit-and-idempotency.ts';
 import { createInMemoryPersistence, type Persistence } from './persistence.ts';
 import { ApplicationError } from '../modules/shared/errors.ts';
@@ -81,10 +83,14 @@ export function createApp(options: AppOptions) {
   const projectsService = new ProjectsService({
     repository: persistence.projectsRepository, transactions: persistence.projectTransactions, clock,
   });
+  const stockOriginsService = new StockOriginsService({
+    repository: persistence.stockOriginsRepository, transactions: persistence.stockOriginTransactions, clock,
+  });
 
   const authGuard = createAuthGuard(accessService);
   registerAccessRoutes(app, accessService, authGuard, options.secureCookies ?? false);
   registerProjectsRoutes(app, projectsService, authGuard);
+  registerStockOriginsRoutes(app, stockOriginsService, authGuard);
 
   return app;
 }
