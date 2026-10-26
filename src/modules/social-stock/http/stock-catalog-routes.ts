@@ -62,7 +62,7 @@ export function registerStockCatalogRoutes(app: FastifyInstance, service: StockC
   app.get<{ Params: { id: string; version: string } }>('/api/v1/stock-items/:id/revisions/:version', async (request) => {
     await authGuard.requireProfiles(request, profiles);
     const version = Number(request.params.version);
-    if (!/^\d+$/.test(request.params.version) || !Number.isSafeInteger(version) || version < 1 || version > MAX_CATALOG_INDEX) throw resourceNotFoundError();
+    if (!/^[1-9]\d*$/.test(request.params.version) || !Number.isSafeInteger(version) || version > MAX_CATALOG_INDEX) throw resourceNotFoundError();
     return service.getItem(readRouteIdentifier(request.params), version);
   });
   app.patch('/api/v1/stock-items/:id', async (request, reply) => {
