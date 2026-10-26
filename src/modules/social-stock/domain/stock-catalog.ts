@@ -1,7 +1,12 @@
-import { validationFailedError } from '../../shared/errors.ts';
+import { ApplicationError, validationFailedError } from '../../shared/errors.ts';
 import { MAX_UNIT_PRECISION } from './quantity.ts';
 
 export type CatalogKind = 'CATEGORY' | 'UNIT' | 'SIZE';
+
+export function catalogCodeCapacityError(): ApplicationError {
+  return new ApplicationError({ status: 409, code: 'CONFLICT',
+    detail: 'A numeração deste catálogo atingiu a capacidade suportada. Contate a coordenação.' });
+}
 
 export function requireCatalogName(value: unknown): string {
   if (typeof value !== 'string' || value.trim().length === 0 || value.trim().length > 150) {
@@ -19,6 +24,7 @@ export function requireUnitPrecision(value: unknown): number {
 
 export interface CatalogOption {
   readonly id: string;
+  readonly code: string;
   readonly name: string;
   readonly precision: number | null;
   readonly isActive: boolean;
@@ -29,11 +35,13 @@ export interface CatalogOption {
 
 export interface CatalogReference {
   readonly id: string;
+  readonly code: string;
   readonly name: string;
 }
 
 export interface StockItemView {
   readonly id: string;
+  readonly code: string;
   readonly revisionId: string;
   readonly version: number;
   readonly name: string;
@@ -44,3 +52,16 @@ export interface StockItemView {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export type NewCatalogOption = Omit<CatalogOption, 'code'>;
+export type NewStockItem = Omit<StockItemView, 'code'>;
+
+// Persisted identities always have codes; pre-migration confirmation bodies replay their original DTOs.
+export type CatalogOptionResponse = NewCatalogOption & { readonly code?: string };
+type CatalogReferenceResponse = Omit<CatalogReference, 'code'> & { readonly code?: string };
+export type StockItemResponse = Omit<StockItemView, 'code' | 'category' | 'unit' | 'size'> & {
+  readonly code?: string;
+  readonly category: CatalogReferenceResponse;
+  readonly unit: CatalogReferenceResponse & { readonly precision: number };
+  readonly size: CatalogReferenceResponse | null;
+};

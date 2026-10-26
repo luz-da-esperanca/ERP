@@ -9,6 +9,7 @@ datasource db {
 
 model StockCategory {
   id        String              @id @db.Uuid
+  code      String              @unique @default(dbgenerated("next_stock_catalog_code('CAT'::text, 'stock_category_code_seq'::regclass)")) @db.VarChar(23)
   name      String              @db.VarChar(150)
   isActive  Boolean             @map("is_active")
   version   Int
@@ -22,6 +23,7 @@ model StockCategory {
 
 model StockUnit {
   id        String              @id @db.Uuid
+  code      String              @unique @default(dbgenerated("next_stock_catalog_code('UNIT'::text, 'stock_unit_code_seq'::regclass)")) @db.VarChar(24)
   name      String              @db.VarChar(150)
   precision Int
   isActive  Boolean             @map("is_active")
@@ -36,6 +38,7 @@ model StockUnit {
 
 model StockSize {
   id        String              @id @db.Uuid
+  code      String              @unique @default(dbgenerated("next_stock_catalog_code('SIZE'::text, 'stock_size_code_seq'::regclass)")) @db.VarChar(24)
   name      String              @db.VarChar(150)
   isActive  Boolean             @map("is_active")
   version   Int
@@ -49,6 +52,7 @@ model StockSize {
 
 model StockItem {
   id        String              @id @db.Uuid
+  code      String              @unique @default(dbgenerated("next_stock_catalog_code('ITEM'::text, 'stock_item_code_seq'::regclass)")) @db.VarChar(24)
   version   Int
   createdAt DateTime            @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime            @map("updated_at") @db.Timestamptz(3)

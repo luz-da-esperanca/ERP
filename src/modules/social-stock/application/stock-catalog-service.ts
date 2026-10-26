@@ -1,4 +1,4 @@
-import type { CatalogKind, CatalogOption, StockItemView } from '../domain/stock-catalog.ts';
+import type { CatalogKind, CatalogOption, CatalogOptionResponse, NewCatalogOption, NewStockItem, StockItemResponse, StockItemView } from '../domain/stock-catalog.ts';
 import { requireCatalogName, requireUnitPrecision } from '../domain/stock-catalog.ts';
 import { requireChangeReason } from '../../shared/change-reason.ts';
 import { DEFAULT_PAGINATION, type Page, type Pagination } from '../../shared/pagination.ts';
@@ -10,11 +10,11 @@ export interface StockCatalogRepositoryPort {
   listOptions(kind: CatalogKind, pagination: Pagination): Promise<Page<CatalogOption>>;
   findOption(kind: CatalogKind, id: string): Promise<CatalogOption | null>;
   findOptionForUse(kind: CatalogKind, id: string): Promise<CatalogOption | null>;
-  createOption(kind: CatalogKind, option: CatalogOption): Promise<void>;
+  createOption(kind: CatalogKind, option: NewCatalogOption): Promise<CatalogOption>;
   updateOption(kind: CatalogKind, option: CatalogOption, expectedVersion: number): Promise<boolean>;
   listItems(pagination: Pagination): Promise<Page<StockItemView>>;
   findItem(id: string, version?: number): Promise<StockItemView | null>;
-  createItem(item: StockItemView): Promise<void>;
+  createItem(item: NewStockItem): Promise<StockItemView>;
   updateItem(item: StockItemView, expectedVersion: number): Promise<boolean>;
 }
 
@@ -61,17 +61,17 @@ export class StockCatalogService {
   async createOption(kind: CatalogKind, input: OperationInput & { readonly name: unknown; readonly precision?: unknown }) {
     const name = requireCatalogName(input.name);
     const precision = kind === 'UNIT' ? requireUnitPrecision(input.precision) : null;
-    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
+    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute<CatalogOptionResponse>({
       actorId: input.actorId, operationId: input.operationId, operationType: `CREATE_STOCK_${kind}`,
       payload: { name, precision },
       run: async () => {
         const now = this.dependencies.clock();
-        const option: CatalogOption = { id: generateUuidV7(now.getTime()), name, precision,
+        const option: NewCatalogOption = { id: generateUuidV7(now.getTime()), name, precision,
           isActive: true, version: 1, createdAt: now.toISOString(), updatedAt: now.toISOString() };
-        await repository.createOption(kind, option);
+        const saved = await repository.createOption(kind, option);
         await auditTrail.record({ actorId: input.actorId, operationId: input.operationId,
-          entityType: `STOCK_${kind}`, entityId: option.id, action: 'CREATE', after: { ...option } });
-        return { statusCode: 201, body: option };
+          entityType: `STOCK_${kind}`, entityId: saved.id, action: 'CREATE', after: { ...saved } });
+        return { statusCode: 201, body: saved };
       },
     }));
   }
@@ -86,7 +86,7 @@ export class StockCatalogService {
       throw validationFailedError([{ field: 'isActive', code: 'INVALID_FORMAT', message: 'Informe se a opção está ativa.' }]);
     }
     const isActive = input.isActive;
-    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
+    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute<CatalogOptionResponse>({
       actorId: input.actorId, operationId: input.operationId, operationType: `UPDATE_STOCK_${kind}`,
       payload: { id: input.id, version, reason, isActive },
       run: async () => {
@@ -106,19 +106,19 @@ export class StockCatalogService {
     readonly name: unknown; readonly categoryId: unknown; readonly unitId: unknown; readonly sizeId?: unknown;
   }) {
     const name = requireCatalogName(input.name);
-    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
+    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute<StockItemResponse>({
       actorId: input.actorId, operationId: input.operationId, operationType: 'CREATE_STOCK_ITEM',
       payload: { name, categoryId: input.categoryId, unitId: input.unitId, sizeId: input.sizeId ?? null },
       run: async () => {
         const references = await this.resolveReferences(repository, input);
         const now = this.dependencies.clock();
-        const item: StockItemView = { id: generateUuidV7(now.getTime()), revisionId: generateUuidV7(now.getTime()),
+        const item: NewStockItem = { id: generateUuidV7(now.getTime()), revisionId: generateUuidV7(now.getTime()),
           version: 1, name, ...references, isActive: true,
           createdAt: now.toISOString(), updatedAt: now.toISOString() };
-        await repository.createItem(item);
+        const saved = await repository.createItem(item);
         await auditTrail.record({ actorId: input.actorId, operationId: input.operationId,
-          entityType: 'STOCK_ITEM', entityId: item.id, action: 'CREATE', after: { ...item } });
-        return { statusCode: 201, body: item };
+          entityType: 'STOCK_ITEM', entityId: saved.id, action: 'CREATE', after: { ...saved } });
+        return { statusCode: 201, body: saved };
       },
     }));
   }
@@ -139,7 +139,7 @@ export class StockCatalogService {
       throw validationFailedError([{ field: 'isActive', code: 'INVALID_FORMAT', message: 'Informe se o item está ativo.' }]);
     }
     const isActive = input.isActive;
-    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute({
+    return this.dependencies.transactions(({ repository, auditTrail, idempotency }) => idempotency.execute<StockItemResponse>({
       actorId: input.actorId, operationId: input.operationId, operationType: 'UPDATE_STOCK_ITEM',
       payload: { id: input.id, version, reason, name, categoryId: input.categoryId,
         unitId: input.unitId, sizeId: input.sizeId, isActive },
@@ -174,8 +174,9 @@ export class StockCatalogService {
     const unit = await this.requireOption(repository, 'UNIT', input.unitId, 'unitId');
     const size = input.sizeId == null ? null : await this.requireOption(repository, 'SIZE', input.sizeId, 'sizeId');
     if (unit.precision === null) throw new Error('A stock unit must define precision.');
-    return { category: { id: category.id, name: category.name }, unit: { id: unit.id, name: unit.name, precision: unit.precision },
-      size: size ? { id: size.id, name: size.name } : null };
+    return { category: { id: category.id, code: category.code, name: category.name },
+      unit: { id: unit.id, code: unit.code, name: unit.name, precision: unit.precision },
+      size: size ? { id: size.id, code: size.code, name: size.name } : null };
   }
 
   private async requireOption(repository: StockCatalogRepositoryPort, kind: CatalogKind, value: unknown, field: string) {

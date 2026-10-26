@@ -1,10 +1,22 @@
 import type { StockCatalogRepositoryPort } from '../application/stock-catalog-service.ts';
-import type { CatalogKind, CatalogOption, StockItemView } from '../domain/stock-catalog.ts';
+import type { CatalogKind, CatalogOption, NewCatalogOption, NewStockItem, StockItemView } from '../domain/stock-catalog.ts';
+import { catalogCodeCapacityError } from '../domain/stock-catalog.ts';
 import { buildPage, type Pagination } from '../../shared/pagination.ts';
+
+const MAX_CODE_SEQUENCE_VALUE = 9_223_372_036_854_775_807n;
 
 export class InMemoryStockCatalogRepository implements StockCatalogRepositoryPort {
   private options = new Map<CatalogKind, Map<string, CatalogOption>>();
   private items = new Map<string, StockItemView[]>();
+  // Allocations deliberately remain outside checkpoints, matching PostgreSQL sequence gaps on rollback.
+  private readonly codeCounters = new Map<CatalogKind | 'ITEM', bigint>();
+
+  private nextCode(kind: CatalogKind | 'ITEM') {
+    const next = (this.codeCounters.get(kind) ?? 0n) + 1n;
+    if (next > MAX_CODE_SEQUENCE_VALUE) throw catalogCodeCapacityError();
+    this.codeCounters.set(kind, next);
+    return `${kind === 'CATEGORY' ? 'CAT' : kind}-${next.toString().padStart(6, '0')}`;
+  }
 
   async listOptions(kind: CatalogKind, pagination: Pagination) {
     return this.page([...(this.options.get(kind)?.values() ?? [])], pagination);
@@ -18,15 +30,17 @@ export class InMemoryStockCatalogRepository implements StockCatalogRepositoryPor
     return this.findOption(kind, id);
   }
 
-  async createOption(kind: CatalogKind, option: CatalogOption) {
+  async createOption(kind: CatalogKind, option: NewCatalogOption) {
+    const saved: CatalogOption = { ...option, code: this.nextCode(kind) };
     const options = this.options.get(kind) ?? new Map<string, CatalogOption>();
-    options.set(option.id, structuredClone(option));
+    options.set(option.id, structuredClone(saved));
     this.options.set(kind, options);
+    return saved;
   }
 
   async updateOption(kind: CatalogKind, option: CatalogOption, expectedVersion: number) {
     if (this.options.get(kind)?.get(option.id)?.version !== expectedVersion) return false;
-    await this.createOption(kind, option);
+    this.options.get(kind)?.set(option.id, structuredClone(option));
     return true;
   }
 
@@ -41,8 +55,10 @@ export class InMemoryStockCatalogRepository implements StockCatalogRepositoryPor
     return item ? structuredClone(item) : null;
   }
 
-  async createItem(item: StockItemView) {
-    this.items.set(item.id, [structuredClone(item)]);
+  async createItem(item: NewStockItem) {
+    const saved: StockItemView = { ...item, code: this.nextCode('ITEM') };
+    this.items.set(item.id, [structuredClone(saved)]);
+    return saved;
   }
 
   async updateItem(item: StockItemView, expectedVersion: number) {

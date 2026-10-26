@@ -1,10 +1,12 @@
-import type { Prisma } from '../../../server/generated/prisma/client.ts';
+import { Prisma } from '../../../server/generated/prisma/client.ts';
 import type { StockCatalogRepositoryPort } from '../application/stock-catalog-service.ts';
-import type { CatalogKind, CatalogOption, StockItemView } from '../domain/stock-catalog.ts';
+import type { CatalogKind, CatalogOption, NewCatalogOption, NewStockItem, StockItemView } from '../domain/stock-catalog.ts';
+import { catalogCodeCapacityError } from '../domain/stock-catalog.ts';
 import { buildPage, type Pagination } from '../../shared/pagination.ts';
 
 interface OptionRow {
   readonly id: string;
+  readonly code: string;
   readonly name: string;
   readonly isActive: boolean;
   readonly version: number;
@@ -17,18 +19,29 @@ function optionView(row: OptionRow): CatalogOption {
   return { ...row, precision: row.precision ?? null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
 }
 
-function revisionData(item: StockItemView) {
+function revisionData(item: NewStockItem) {
   return { id: item.revisionId, version: item.version, name: item.name, categoryId: item.category.id,
     categoryName: item.category.name, unitId: item.unit.id, unitName: item.unit.name, unitPrecision: item.unit.precision,
     sizeId: item.size?.id ?? null, sizeName: item.size?.name ?? null, isActive: item.isActive, recordedAt: new Date(item.updatedAt) };
 }
 
-function itemView(row: Prisma.StockItemRevisionGetPayload<object>, createdAt: Date): StockItemView {
-  return { id: row.itemId, revisionId: row.id, version: row.version, name: row.name,
-    category: { id: row.categoryId, name: row.categoryName },
-    unit: { id: row.unitId, name: row.unitName, precision: row.unitPrecision },
-    size: row.sizeId !== null && row.sizeName !== null ? { id: row.sizeId, name: row.sizeName } : null,
+const REVISION_CODE_RELATIONS = {
+  category: { select: { code: true } }, unit: { select: { code: true } }, size: { select: { code: true } },
+} satisfies Prisma.StockItemRevisionInclude;
+
+function itemView(row: Prisma.StockItemRevisionGetPayload<{ include: typeof REVISION_CODE_RELATIONS }>, createdAt: Date, code: string): StockItemView {
+  return { id: row.itemId, code, revisionId: row.id, version: row.version, name: row.name,
+    category: { id: row.categoryId, code: row.category.code, name: row.categoryName },
+    unit: { id: row.unitId, code: row.unit.code, name: row.unitName, precision: row.unitPrecision },
+    size: row.sizeId !== null && row.sizeName !== null && row.size !== null ? { id: row.sizeId, code: row.size.code, name: row.sizeName } : null,
     isActive: row.isActive, createdAt: createdAt.toISOString(), updatedAt: row.recordedAt.toISOString() };
+}
+
+function isCodeSequenceExhaustion(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const adapterError = error.meta?.driverAdapterError;
+  const cause = adapterError !== null && typeof adapterError === 'object' && 'cause' in adapterError ? adapterError.cause : undefined;
+  return cause !== null && typeof cause === 'object' && 'originalCode' in cause && cause.originalCode === '2200H';
 }
 
 export class PrismaStockCatalogRepository implements StockCatalogRepositoryPort {
@@ -64,14 +77,16 @@ export class PrismaStockCatalogRepository implements StockCatalogRepositoryPort 
     return this.findOption(kind, id);
   }
 
-  async createOption(kind: CatalogKind, option: CatalogOption) {
+  async createOption(kind: CatalogKind, option: NewCatalogOption) {
     const data = { id: option.id, name: option.name, isActive: option.isActive, version: option.version,
       createdAt: new Date(option.createdAt), updatedAt: new Date(option.updatedAt) };
-    if (kind === 'CATEGORY') await this.client.stockCategory.create({ data });
-    else if (kind === 'SIZE') await this.client.stockSize.create({ data });
-    else {
+    try {
+      if (kind === 'CATEGORY') return optionView(await this.client.stockCategory.create({ data }));
+      if (kind === 'SIZE') return optionView(await this.client.stockSize.create({ data }));
       if (option.precision === null) throw new Error('A stock unit must define precision.');
-      await this.client.stockUnit.create({ data: { ...data, precision: option.precision } });
+      return optionView(await this.client.stockUnit.create({ data: { ...data, precision: option.precision } }));
+    } catch (error) {
+      throw isCodeSequenceExhaustion(error) ? catalogCodeCapacityError() : error;
     }
   }
 
@@ -86,26 +101,31 @@ export class PrismaStockCatalogRepository implements StockCatalogRepositoryPort 
   async listItems(pagination: Pagination) {
     const [rows, count] = await Promise.all([
       this.client.stockItem.findMany({ skip: (pagination.page - 1) * pagination.pageSize, take: pagination.pageSize,
-        orderBy: { id: 'asc' }, include: { revisions: { orderBy: { version: 'desc' }, take: 1 } } }),
+        orderBy: { id: 'asc' }, include: { revisions: { orderBy: { version: 'desc' }, take: 1, include: REVISION_CODE_RELATIONS } } }),
       this.client.stockItem.count(),
     ]);
     return buildPage(rows.map((row) => {
       const revision = row.revisions[0];
       if (!revision) throw new Error('A persisted stock item must have a revision.');
-      return itemView(revision, row.createdAt);
+      return itemView(revision, row.createdAt, row.code);
     }), count, pagination);
   }
 
   async findItem(id: string, version?: number) {
     const row = await this.client.stockItem.findUnique({ where: { id }, include: { revisions: {
-      ...(version === undefined ? {} : { where: { version } }), orderBy: { version: 'desc' }, take: 1 } } });
+      ...(version === undefined ? {} : { where: { version } }), orderBy: { version: 'desc' }, take: 1, include: REVISION_CODE_RELATIONS } } });
     const revision = row?.revisions[0];
-    return row && revision ? itemView(revision, row.createdAt) : null;
+    return row && revision ? itemView(revision, row.createdAt, row.code) : null;
   }
 
-  async createItem(item: StockItemView) {
-    await this.client.stockItem.create({ data: { id: item.id, version: item.version,
-      createdAt: new Date(item.createdAt), updatedAt: new Date(item.updatedAt), revisions: { create: revisionData(item) } } });
+  async createItem(item: NewStockItem) {
+    try {
+      const created = await this.client.stockItem.create({ data: { id: item.id, version: item.version,
+        createdAt: new Date(item.createdAt), updatedAt: new Date(item.updatedAt), revisions: { create: revisionData(item) } } });
+      return { ...item, code: created.code };
+    } catch (error) {
+      throw isCodeSequenceExhaustion(error) ? catalogCodeCapacityError() : error;
+    }
   }
 
   async updateItem(item: StockItemView, expectedVersion: number) {

@@ -49,6 +49,24 @@ it('creates item references and retrieves the item through the protected catalog
   expect(await auditTrail.listByEntity('STOCK_ITEM', item.id)).toMatchObject([{ actorId: ACTOR_ID, action: 'CREATE', after: item }]);
 });
 
+it('returns independent server-generated codes through catalog creation, references and audit', async () => {
+  const { create, auditTrail } = await setup();
+  const category = await create('stock-categories', { name: 'Category' });
+  expect(category.json()).toMatchObject({ code: 'CAT-000001' });
+  expect((await create('stock-categories', { name: 'Another category' })).json()).toMatchObject({ code: 'CAT-000002' });
+  const unit = await create('stock-units', { name: 'Unit', precision: 0 });
+  expect(unit.json()).toMatchObject({ code: 'UNIT-000001' });
+  const size = await create('stock-sizes', { name: 'Size' });
+  expect(size.json()).toMatchObject({ code: 'SIZE-000001' });
+  const response = await create('stock-items', { name: 'Item', categoryId: category.json<{ id: string }>().id,
+    unitId: unit.json<{ id: string }>().id, sizeId: size.json<{ id: string }>().id });
+  expect(response.statusCode).toBe(201);
+  expect(response.json()).toMatchObject({ code: 'ITEM-000001', category: { code: 'CAT-000001' },
+    unit: { code: 'UNIT-000001' }, size: { code: 'SIZE-000001' } });
+  const item = response.json<StockItemView>();
+  expect(await auditTrail.listByEntity('STOCK_ITEM', item.id)).toMatchObject([{ after: item }]);
+});
+
 it('rejects invalid names, implicit unit precision, invalid references and unexpected input (VAL-06)', async () => {
   const { app, headers, create } = await setup();
   for (const name of ['', '  ', 42, null, 'x'.repeat(151)]) {
