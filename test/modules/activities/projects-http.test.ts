@@ -75,18 +75,46 @@ describe('Institutes and Projects HTTP API (PB-12 / RF-ATV-01 / RF-ATV-02 / RF-A
         url: '/api/v1/auth/login',
         payload: { loginIdentifier: login, password: 'Password!123' },
       });
-      return res.json().sessionToken as string;
+      return res;
     };
+
+    const adminLogin = await loginAs('admin@luz.org');
+    const coordLogin = await loginAs('coord@luz.org');
+    const educatorLogin = await loginAs('educador@luz.org');
+    const bazarLogin = await loginAs('bazar@luz.org');
 
     return {
       app,
       auditTrail,
-      adminToken: await loginAs('admin@luz.org'),
-      coordToken: await loginAs('coord@luz.org'),
-      educatorToken: await loginAs('educador@luz.org'),
-      bazarToken: await loginAs('bazar@luz.org'),
+      adminToken: adminLogin.json().sessionToken as string,
+      coordToken: coordLogin.json().sessionToken as string,
+      educatorToken: educatorLogin.json().sessionToken as string,
+      bazarToken: bazarLogin.json().sessionToken as string,
+      coordCookie: String(coordLogin.headers['set-cookie']).split(';')[0] as string,
+      coordCsrfToken: coordLogin.json().csrfToken as string,
     };
   }
+
+  it('protects project mutations authenticated by a browser cookie before creating an audit event', async () => {
+    const { app, auditTrail, coordCookie, coordCsrfToken } = await setupAuthenticatedClients();
+    const headers = { cookie: coordCookie, host: '127.0.0.1:5173', origin: 'http://127.0.0.1:5173' };
+    const payload = { name: 'Cookie CSRF Project', startDate: '2026-04-14', instituteIds: [] };
+    const rejected = await app.inject({ method: 'POST', url: '/api/v1/projects', headers: {
+      ...headers, 'idempotency-key': '01963000-0000-7000-8000-000000000999',
+    }, payload });
+
+    expect(rejected.statusCode).toBe(403);
+    expect(rejected.json()).toMatchObject({ code: 'CSRF_REJECTED' });
+    expect(auditTrail.all()).toHaveLength(0);
+    const afterRejection = await app.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie: coordCookie } });
+    expect(afterRejection.json().items).not.toContainEqual(expect.objectContaining({ name: payload.name }));
+
+    const accepted = await app.inject({ method: 'POST', url: '/api/v1/projects', headers: {
+      ...headers, 'idempotency-key': '01963000-0000-7000-8000-000000000999', 'x-csrf-token': coordCsrfToken,
+    }, payload });
+    expect(accepted.statusCode).toBe(201);
+    expect(auditTrail.all()).toHaveLength(1);
+  });
 
   it('lists the 6 canonical Institutes and blocks unauthenticated, ADMIN-only, or BAZAR-only access (RF-ATV-01 / AC-52)', async () => {
     const { app, adminToken, coordToken, educatorToken, bazarToken } =

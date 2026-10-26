@@ -1,6 +1,6 @@
 # ERP Social Luz da Esperança
 
-A TypeScript modular monolith for social assistance. Fastify serves the versioned API and the compiled React application from one process; PostgreSQL is managed through one root Prisma schema. This C-01 bootstrap contains operational endpoints and an initial client shell, with business features delivered by their assigned modules.
+A TypeScript modular monolith for social assistance. Fastify serves the versioned API and the compiled React application from one process; PostgreSQL is managed through one root Prisma schema. The shared runtime includes browser authentication, access/session flows, and project APIs; other business capabilities follow their assigned backlog modules.
 
 ## Prerequisites
 
@@ -57,6 +57,10 @@ On other shells or for a compiled deployment, provide the same `BOOTSTRAP_ADMIN_
 ## Authentication and contracts
 
 The [access/session contract](docs/contracts/access-and-session.md) defines the public `loginIdentifier`, `sessionToken`, and `expiresAt` fields. The [institute/project contract](docs/contracts/institutes-and-projects.md) defines protected operations and paginated lists. An ADMIN-only account has no implicit permission to manage projects; assign approved operational profiles explicitly.
+
+The browser uses `/login` and an authenticated `/hub` available to every explicit profile. Feature restrictions still apply, and denial pages provide logout. Browser requests use the HttpOnly session cookie; protected mutations also send the in-memory `csrfToken` from login/session bootstrap in `X-CSRF-Token`. Login remains available with an old cookie and requires no previous CSRF verifier.
+
+Logout hides protected content until the server confirms revocation. Failures offer an explicit retry and block automatic restoration or another login. A per-tab, non-secret logout-intent marker preserves recovery across reload; no credentials, identity, or tokens are stored in browser storage. See the contract for recovery behavior and browser-storage limitations.
 
 `AUTH_MAX_FAILED_ATTEMPTS`, `AUTH_LOCKOUT_DURATION_SECONDS`, and `AUTH_SESSION_IDLE_TIMEOUT_SECONDS` are validated positive integers. Their defaults in `.env.example` are technical proposals under LAC-10. Failure counting is per normalized login and resets after a successful login or expiry of a lock; the proposed lock duration is 900 seconds. All counters and lock transitions are serialized on the server. Production always uses `Secure` cookies; other shared HTTPS environments must set `AUTH_COOKIE_SECURE=true`. Local loopback HTTP uses `false`.
 

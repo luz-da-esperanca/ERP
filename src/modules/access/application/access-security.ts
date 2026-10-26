@@ -3,4 +3,5 @@ export interface AccessSecurityPort {
   verifyPassword(password: string, hash: string | null | undefined): boolean;
   generateSessionToken(): { readonly rawToken: string; readonly tokenHash: string };
   hashSessionToken(token: string): string;
+  isCsrfTokenValid(token: string, expectedToken: string): boolean;
 }
