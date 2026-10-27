@@ -15,6 +15,8 @@ import { createProblem, createProblemFromError } from './problem-details.ts';
 import { translatePersistenceError } from './persistence-errors.ts';
 import { StockCatalogService } from '../modules/social-stock/application/stock-catalog-service.ts';
 import { registerStockCatalogRoutes } from '../modules/social-stock/http/stock-catalog-routes.ts';
+import { StockOriginsService } from '../modules/social-stock/application/stock-origins-service.ts';
+import { registerStockOriginsRoutes } from '../modules/social-stock/http/stock-origins-routes.ts';
 
 export interface AppOptions {
   checkDatabase: () => Promise<void>;
@@ -83,6 +85,9 @@ export function createApp(options: AppOptions) {
   const projectsService = new ProjectsService({
     repository: persistence.projectsRepository, transactions: persistence.projectTransactions, clock,
   });
+  const stockOriginsService = new StockOriginsService({
+    repository: persistence.stockOriginsRepository, transactions: persistence.stockOriginTransactions, clock,
+  });
 
   const authGuard = createAuthGuard(accessService);
   registerCsrfProtection(app, accessService, options.secureCookies ?? false);
@@ -90,6 +95,7 @@ export function createApp(options: AppOptions) {
   registerProjectsRoutes(app, projectsService, authGuard);
   registerStockCatalogRoutes(app, new StockCatalogService({ repository: persistence.stockCatalogRepository,
     transactions: persistence.stockCatalogTransactions, clock }), authGuard);
+  registerStockOriginsRoutes(app, stockOriginsService, authGuard);
 
   return app;
 }
