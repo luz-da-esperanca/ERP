@@ -1,0 +1,56 @@
+# TG-01-02 — Milestone 1 Review Alignment
+
+- **Date:** 2026-10-26.
+- **Scope:** Technical specification and documentation only; no application, schema or migration change.
+- **Executor:** Erick (`@Erick-VP`). **Reviewer:** Felipe (`@FelipeeMartinns`).
+- **Issue:** [#7 — Implementar catálogo de itens e unidades](https://github.com/luz-da-esperanca/ERP/issues/7).
+- **PR:** [#17](https://github.com/luz-da-esperanca/ERP/pull/17), targeting `develop`.
+- **Review source:** [Felipe's complete Request changes](https://github.com/luz-da-esperanca/ERP/pull/17#issuecomment-6408534606), submitted on 2026-10-26 for `2f3c78c..57abfea`.
+- **Refreshed references:** local HEAD and `origin/feature/tg-01-02` = `9ec9ee38eb8dffa893901ed8e3bb18aae43732e5`; `origin/develop` = `70b6417133080dbbbc37c42f146ff1131c66ebfe`. These were read after `git fetch origin`; no branch integration was performed by this milestone.
+
+## Findings and evidence matrix
+
+| Finding | Evidence inspected | Milestone 1 disposition | Remaining proof / owner |
+| --- | --- | --- | --- |
+| **B1 — Readable codes** | [Common identifiers §§2, 6](common-identifiers.md#6-human-readable-codes) assigns the convention to TG-01-02. Current [Prisma schema](../../prisma/schema.prisma), [catalog migration](../../prisma/migrations/20261025162509_add_stock_item_catalog/migration.sql) and [domain DTOs](../../src/modules/social-stock/domain/stock-catalog.ts) have no catalog code field. | [Complete 0.2.0 proposal](stock-item-catalog.md#proposed-readable-code-extension-b1--020) defines format, capacity, generation, uniqueness, immutability, history, API/replays, migration and rationale. No deferral proposed. | Erick implements and tests in Milestone 2; Felipe reviews the concrete result. Documentation does not claim existing code/migration support. |
+| **m1 — Leading zeros in revisions** | [HTTP adapter](../../src/modules/social-stock/http/stock-catalog-routes.ts) accepts `^\d+$` then converts with `Number`; the published contract treats malformed revision identifiers as 404. Existing [HTTP tests](../../test/modules/social-stock/stock-catalog-http.test.ts) lack `/01` regression coverage. | Record a required behavior fix for Milestone 2; do not change the adapter in this documentation milestone. | Erick: RED/GREEN test rejects `/01`, `/001`, `/0` and keeps canonical positive versions working, with existing authorization and capacity bounds. |
+| **m2 — Merge evidence** | PR body still cites `a090637`. Current references are listed above. Felipe recorded a clean simulation against `70b6417`. | Record refreshed SHAs; do not present historical simulation as final evidence for future edits. | Milestone 3: re-fetch and simulate the exact final committed feature/target pair. No merge or push is authorized by a simulation. |
+| **m3 — Pagination snapshots** | [Repository](../../src/modules/social-stock/infrastructure/prisma-stock-catalog-repository.ts) runs `findMany` and `count` independently. [buildPage](../../src/modules/shared/pagination.ts) derives totalPages from totalItems. [Common API §6.4](common-api-contracts.md#64-pagination) specifies no shared snapshot. Felipe explicitly offered documentation as a resolution. | [Document current best-effort semantics](stock-item-catalog.md#pagination-consistency-m3); preserve queries/isolation. `totalPages` derives from the count, not a third observation. | Felipe reviews the documented contract; no query redesign or artificial application test required for this documentation-only disposition. |
+| **m4 — Audit ordering** | [Issue #7](https://github.com/luz-da-esperanca/ERP/issues/7) says “before persisting.” [AGENTS.md](../../AGENTS.md#postgresql-and-prisma), [common API §6.2](common-api-contracts.md#62-idempotency), [ERS RF-ACS-04/OP-01](<../ERS — ERP Social Luz da Esperança.md>) and [ADR-0005](../adr/0005-sensitive-data-protection-and-server-side-authorization.md) establish protected audit and atomic operations, not mandatory audit-first SQL ordering. | [Record atomic commit interpretation](stock-item-catalog.md#atomic-audit-interpretation-m4). Team-lead confirmation was supplied by Erick in the milestone brief; it is not labeled as Felipe's acknowledgment or public approval evidence. | Preserve current execution order and shared C-03 mechanism. Felipe's reviewer acknowledgment remains pending; it does not gate Milestone 2. |
+| **FE1 — Quantity integration** | [Quantity](../../src/modules/social-stock/domain/quantity.ts), [domain tests](../../test/modules/social-stock/quantity.test.ts), catalog scope and Felipe's explicit “no action” finding. | No action; domain quantity proof remains distinct from an operational movement workflow. | Future stock-operation owner integrates the capability in the appropriate task. Do not implement movements, receipts, lots or balances here. |
+| **CI** | GitHub reported `Quality` run 18 / ID `40375382288` as completed/success for the currently published head `9ec9ee38eb8dffa893901ed8e3bb18aae43732e5`; see [historical run](https://github.com/luz-da-esperanca/ERP/actions/runs/40375382288). | Record verified historical status only. Local historical tests and that run are not proof for this uncommitted amendment or future implementation. | Milestone 3: verify the final pushed PR revision/check identity and report failures or unavailable evidence accurately. No CI workflow was triggered or published by Milestone 1. |
+| **TG-01-05 acceptance** | Issue #7 requires interface retrieval; its [team-lead dependency comment](https://github.com/luz-da-esperanca/ERP/issues/7#issuecomment-6333734668) links interface task #10 and shared audit task #8. No catalog-interface demonstration was supplied or found in the inspected issue/PR discussion. | Backend specification is not frontend acceptance; keep this independent evidence pending. | Paulo's interface integration and an actual demonstration/explicit acceptance record. Do not implement Paulo's work or mark G-01 complete. |
+
+## Implementation boundary and consequences
+
+The [catalog contract](stock-item-catalog.md#proposed-readable-code-extension-b1--020) is the specification for Milestone 2. The starting code proposal is retained: `ITEM`, `CAT`, `UNIT`, `SIZE`, one hyphen, minimum six-digit positive decimal suffix, expanding to PostgreSQL BIGINT capacity. UUIDs stay the identities. No consequential choice is deferred to a prior approval meeting.
+
+The strongest compatibility consequences are deliberate:
+
+- Immutable code belongs to the identity, not each revision. A size code identifies the Size Option; it is not the label `BR 39` or a size conversion rule. Old revision names, precision and referenced UUIDs remain untouched.
+- Fresh reads expose identity codes through bounded relation queries. A code assigned by backfill does not pretend to have existed historically. Response enrichment is distinguished from rewriting a business snapshot.
+- Existing confirmation bodies/audit JSON must not be rewritten. A pre-migration replay can omit code fields; an authorized GET retrieves current display metadata. New successful confirmations include generated codes, with no payload-digest or shared idempotency changes.
+- Sequence consumption can leave gaps after rollback. Only the resource/revision/audit/confirmation effects must roll back atomically; do not add counter rollback to the audit contract.
+- A separate additive migration handles empty and populated databases with deterministic backfill, protected allocator initialization and immutable-code constraints. Actual production volumes and maintenance timing need preflight assessment, not fabricated thresholds. The plan grants no production access or deployment authorization.
+
+This extension changes no C-01 identifier family, C-02 permission, C-03 ownership, API route identity or institutional decision. It needs no departure from ADR-0001..0005. Review any migration data impact under the existing migration contract without treating its normal peer review as an implementation gate.
+
+## Reviewer-facing summary — draft, not published
+
+> B1: We propose backend-generated immutable codes `ITEM-000001`, `CAT-000001`, `UNIT-000001`, and `SIZE-000001`, with independent PostgreSQL BIGINT sequences, explicit gaps, database uniqueness, and one stable item code across revisions. The contract specifies additive backfill, exhaustion, historical code projection and exact legacy replay compatibility. This milestone defines the convention; Milestone 2 will supply application/migration changes and tests.
+>
+> m3: We retain the existing queries and explicitly document that items and count need not share a snapshot. totalPages is derived from that count; separate pages are not stable under concurrent writes. This follows the documentation alternative offered in the review.
+>
+> m4: Per team-lead confirmation reported in the implementation brief, the requirement concerns atomic commit. Authorization and scoped operation claiming precede effects; business change, audit and confirmation commit together. We preserve the existing SQL order and rollback mechanism. Your reviewer acknowledgment is still pending.
+>
+> m1 remains a regression-tested Milestone 2 fix. Final merge/CI evidence belongs to Milestone 3. The inspected published head has a successful Quality run, but that is not evidence for later changes. TG-01-05 demonstration remains separate. These proposals are submitted for review without claiming prior institutional or reviewer approval.
+
+## Milestone handoff and verification
+
+Milestone 1 changes documentation only. Review the diff, validate local paths/anchors and `git diff --check`. No application tests, typecheck, lint, build, database writes or migration executions are required or claimed for this documentation amendment. Existing test names and prior results were inspected as evidence, not rerun.
+
+Verification performed on 2026-10-26: reviewed the changed contract and new alignment document; validated 31 local links and anchors; checked whitespace in both tracked/new files and ran `git diff --check`; confirmed `git diff --exit-code -- src test prisma package.json package-lock.json` is empty. GitHub run metadata independently confirmed the historical Quality run's head SHA, PR number, target SHA and successful conclusion. These checks establish documentation consistency, not implementation of B1 or repair of m1.
+
+Milestone 2 proceeds with the specified proposal, not a new approval request to Felipe: implement codes and their additive migration with Vitest RED/GREEN proof, fix m1 at the HTTP boundary, and preserve m3/m4 behavior. Its acceptance includes real PostgreSQL concurrency, rollback, migration/backfill, immutable-code, capacity and legacy-replay tests listed in the contract. No commit, push, merge or publication is authorized by this handoff. Milestone 3 verifies the resulting final diff and updates the PR evidence after the relevant commits actually exist.
+
+There is no identified conflict between authoritative requirements, unresolved institutional code-format policy, or necessary expansion beyond TG-01-02. Real catalog data/deployment details are unavailable; the contract provides the required safe pre-deployment assessment and makes no production-readiness claim.
