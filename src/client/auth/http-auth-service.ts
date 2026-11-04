@@ -75,6 +75,7 @@ export function createHttpAuthService(options: HttpAuthServiceOptions = {}): Aut
 
   return {
     hasPendingSignOut: () => isSignOutPending,
+    getCsrfToken: () => csrfToken,
 
     async signIn(credentials: AuthCredentials): Promise<SignInResult> {
       if (isSignOutPending) return { status: 'unavailable' };
