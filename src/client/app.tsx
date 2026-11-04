@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   clearAuthSession,
   createInitialAuthState,
@@ -13,6 +13,7 @@ import {
   ProtectedRoute,
   type ProtectedRouteDefinition,
 } from './navigation/protected-route.tsx';
+import { matchRoute, type StockRouteName } from './navigation/routes.ts';
 
 const LOGOUT_RECOVERY_MESSAGE = 'Não foi possível concluir a saída. Tente sair novamente.';
 const DEFAULT_HUB_ROUTE: ProtectedRouteDefinition = { destination: '/hub' };
@@ -22,6 +23,7 @@ type LogoutStatus = 'idle' | 'pending' | 'failed';
 export interface AppProps {
   readonly authService?: AuthService;
   readonly hubRoute?: ProtectedRouteDefinition;
+  readonly renderStockRoute?: (name: StockRouteName) => ReactNode;
 }
 
 function useAuthState(authService: AuthService | undefined, isProtectedRoute: boolean) {
@@ -175,10 +177,11 @@ function HubPage({ displayName, onSignOut }: HubPageProps) {
   );
 }
 
-export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE }: AppProps) {
+export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, renderStockRoute }: AppProps) {
   const [path, setPath] = useState(() => window.location.pathname);
   const [logoutStatus, setLogoutStatus] = useState<LogoutStatus>(() => authService?.hasPendingSignOut() ? 'failed' : 'idle');
-  const isProtectedRoute = logoutStatus === 'idle' && path === hubRoute.destination;
+  const route = matchRoute(path, hubRoute.destination);
+  const isProtectedRoute = logoutStatus === 'idle' && route !== null;
   const {
     authState,
     replaceAuthState,
@@ -189,7 +192,7 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE }: AppProps) {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (logoutStatus === 'idle' && window.location.pathname === hubRoute.destination) {
+      if (logoutStatus === 'idle' && matchRoute(window.location.pathname, hubRoute.destination) !== null) {
         beginProtectedRouteResolution();
       } else {
         cancelSessionResolution();
@@ -202,7 +205,7 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE }: AppProps) {
 
   const navigate = (destination: string) => {
     if (window.location.pathname === destination) return;
-    if (destination === hubRoute.destination) {
+    if (matchRoute(destination, hubRoute.destination) !== null) {
       beginProtectedRouteResolution();
     } else {
       cancelSessionResolution();
@@ -235,14 +238,16 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE }: AppProps) {
 
   if (logoutStatus !== 'idle') return <LogoutPage status={logoutStatus} onRetry={signOut} />;
 
-  if (path === hubRoute.destination) {
+  if (route !== null) {
     return (
       <ProtectedRoute
-        requiredProfile={hubRoute.requiredProfile}
+        requiredProfile={route.name === 'hub' ? hubRoute.requiredProfile : undefined}
         authState={authState}
         onNavigate={navigate}
       >
-        <HubPage displayName={displayName} onSignOut={signOut} />
+        {route.name === 'hub'
+          ? <HubPage displayName={displayName} onSignOut={signOut} />
+          : renderStockRoute?.(route.name)}
       </ProtectedRoute>
     );
   }
