@@ -13,6 +13,7 @@ import './stock.css';
 export interface OriginsPageProps {
   readonly stockApi: StockApi;
   readonly onSessionExpired?: () => void;
+  readonly canWrite?: boolean;
 }
 
 const ACCESS_DENIED_MESSAGE = 'Seu perfil não possui permissão para esta operação.';
@@ -45,7 +46,7 @@ function OriginList({ origins }: { readonly origins: Page<StockOrigin> }) {
   );
 }
 
-export function OriginsPage({ stockApi, onSessionExpired }: OriginsPageProps) {
+export function OriginsPage({ stockApi, onSessionExpired, canWrite = true }: OriginsPageProps) {
   const [kindFilter, setKindFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -171,7 +172,7 @@ export function OriginsPage({ stockApi, onSessionExpired }: OriginsPageProps) {
           )}
         </section>
       ) : null}
-      {loadState.status === 'ready' && !showForm ? (
+      {loadState.status === 'ready' && !showForm && canWrite ? (
         <button type="button" onClick={() => { setShowForm(true); }}>Nova origem</button>
       ) : null}
       {loadState.status === 'ready' && showForm ? (

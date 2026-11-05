@@ -14,6 +14,9 @@ import {
   type ProtectedRouteDefinition,
 } from './navigation/protected-route.tsx';
 import { matchRoute, type StockRouteName } from './navigation/routes.ts';
+import { CatalogPage } from './social-stock/catalog-page.tsx';
+import { OriginsPage } from './social-stock/origins-page.tsx';
+import type { StockApi } from './social-stock/stock-api.ts';
 
 const LOGOUT_RECOVERY_MESSAGE = 'Não foi possível concluir a saída. Tente sair novamente.';
 const DEFAULT_HUB_ROUTE: ProtectedRouteDefinition = { destination: '/hub' };
@@ -23,6 +26,7 @@ type LogoutStatus = 'idle' | 'pending' | 'failed';
 export interface AppProps {
   readonly authService?: AuthService;
   readonly hubRoute?: ProtectedRouteDefinition;
+  readonly stockApi?: StockApi;
   readonly renderStockRoute?: (name: StockRouteName) => ReactNode;
 }
 
@@ -131,10 +135,16 @@ function useAuthState(authService: AuthService | undefined, isProtectedRoute: bo
     setAuthState(createInitialAuthState());
   }, [cancelSessionResolution]);
 
+  const clearAuthSessionState = useCallback(() => {
+    cancelSessionResolution();
+    setAuthState((state) => clearAuthSession(state));
+  }, [cancelSessionResolution]);
+
   return {
     authState,
     replaceAuthState,
     clearSession,
+    clearAuthSessionState,
     beginProtectedRouteResolution,
     cancelSessionResolution,
   };
@@ -177,7 +187,7 @@ function HubPage({ displayName, onSignOut }: HubPageProps) {
   );
 }
 
-export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, renderStockRoute }: AppProps) {
+export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, stockApi, renderStockRoute }: AppProps) {
   const [path, setPath] = useState(() => window.location.pathname);
   const [logoutStatus, setLogoutStatus] = useState<LogoutStatus>(() => authService?.hasPendingSignOut() ? 'failed' : 'idle');
   const route = matchRoute(path, hubRoute.destination);
@@ -186,6 +196,7 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, renderStockRout
     authState,
     replaceAuthState,
     clearSession,
+    clearAuthSessionState,
     beginProtectedRouteResolution,
     cancelSessionResolution,
   } = useAuthState(authService, isProtectedRoute);
@@ -236,6 +247,23 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, renderStockRout
     ? authState.session.operator.displayName
     : '';
 
+  const handleSessionExpired = useCallback(() => {
+    clearAuthSessionState();
+    window.history.pushState({}, '', '/login');
+    setPath('/login');
+  }, [clearAuthSessionState]);
+
+  const operatorProfiles = authState.status === 'authenticated' ? authState.session.operator.profiles : [];
+  const canWriteStock = operatorProfiles.some((profile) => profile === 'COORDINATOR' || profile === 'STOCK_DISTRIBUTION');
+
+  const renderStockRouteOrDefault = renderStockRoute ?? ((name: StockRouteName) => {
+    if (stockApi === undefined) return null;
+    if (name === 'stock-catalog') {
+      return <CatalogPage stockApi={stockApi} canWrite={canWriteStock} onSessionExpired={handleSessionExpired} />;
+    }
+    return <OriginsPage stockApi={stockApi} canWrite={canWriteStock} onSessionExpired={handleSessionExpired} />;
+  });
+
   if (logoutStatus !== 'idle') return <LogoutPage status={logoutStatus} onRetry={signOut} />;
 
   if (route !== null) {
@@ -247,7 +275,7 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, renderStockRout
       >
         {route.name === 'hub'
           ? <HubPage displayName={displayName} onSignOut={signOut} />
-          : renderStockRoute?.(route.name)}
+          : renderStockRouteOrDefault(route.name)}
       </ProtectedRoute>
     );
   }

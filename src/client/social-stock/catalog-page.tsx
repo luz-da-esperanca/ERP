@@ -18,6 +18,7 @@ export interface CatalogPageProps {
   readonly stockApi: StockApi;
   readonly initialTab?: CatalogTab;
   readonly onSessionExpired?: () => void;
+  readonly canWrite?: boolean;
 }
 
 const TABS: readonly { readonly id: CatalogTab; readonly label: string }[] = [
@@ -113,7 +114,7 @@ function ItemList({ items }: { readonly items: Page<StockItem> }) {
   );
 }
 
-export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired }: CatalogPageProps) {
+export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired, canWrite = true }: CatalogPageProps) {
   const [tab, setTab] = useState<CatalogTab>(initialTab);
   const [pageNumber, setPageNumber] = useState(1);
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
@@ -232,7 +233,7 @@ export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired }
           />
         </section>
       ) : null}
-      {loadState.status === 'ready' && !showForm ? (
+      {loadState.status === 'ready' && !showForm && canWrite ? (
         <button type="button" onClick={() => { setShowForm(true); }}>
           {NEW_BUTTON_LABELS[tab]}
         </button>
