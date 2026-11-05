@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 it('shows a loading state while fetching categories', async () => {
-  const gate = { resolve: () => {} };
+  const gate: { resolve: (page: Page<CatalogOption>) => void } = { resolve: () => {} };
   const pending = new Promise<Page<CatalogOption>>((resolve) => { gate.resolve = resolve; });
   render(<CatalogPage stockApi={stubStockApi({ listOptions: () => pending })} initialTab="CATEGORY" />);
 
