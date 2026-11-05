@@ -12,6 +12,7 @@
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
+    "db:backup": "node --env-file-if-exists=.env src/server/backup-database.ts",
     "admin:bootstrap": "node --env-file-if-exists=.env src/server/provision-initial-admin.ts",
     "test": "vitest run",
     "test:watch": "vitest",
