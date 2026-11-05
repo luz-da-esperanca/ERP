@@ -1,8 +1,12 @@
 import { mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, it, vi } from 'vitest';
-import { runDatabaseBackup } from '../../src/server/backup.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  parsePostgresToolMajor,
+  postgresToolsMismatchError,
+  runDatabaseBackup,
+} from '../../src/server/backup.ts';
 
 const recorded: Array<{ command: string; args: readonly string[] }> = [];
 let temporaryDirectories: string[] = [];
@@ -18,6 +22,28 @@ async function createTemporaryDirectory(): Promise<string> {
   temporaryDirectories.push(directory);
   return directory;
 }
+
+describe('PostgreSQL client and server version matching', () => {
+  it('parses tool major versions from --version output', () => {
+    expect(parsePostgresToolMajor('pg_dump (PostgreSQL) 17.10')).toBe(17);
+    expect(parsePostgresToolMajor('pg_restore (PostgreSQL) 16.4')).toBe(16);
+    expect(parsePostgresToolMajor('pg_dump (PostgreSQL) 9.6.24')).toBe(9);
+  });
+
+  it('rejects unreadable version output as unknown', () => {
+    expect(parsePostgresToolMajor('')).toBeNull();
+    expect(parsePostgresToolMajor('pg_dump 17.10')).toBeNull();
+  });
+
+  it('reports a mismatch only when the client is older than the server', () => {
+    expect(postgresToolsMismatchError(17, 17)).toBeNull();
+    expect(postgresToolsMismatchError(18, 17)).toBeNull();
+    expect(postgresToolsMismatchError(16, 17)).toContain('16');
+    expect(postgresToolsMismatchError(16, 17)).toContain('17');
+    expect(postgresToolsMismatchError(null, 17)).not.toBeNull();
+    expect(postgresToolsMismatchError(17, null)).not.toBeNull();
+  });
+});
 
 function backingRunner() {
   return async (command: string, args: readonly string[]): Promise<void> => {

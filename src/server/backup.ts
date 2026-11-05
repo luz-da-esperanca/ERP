@@ -39,6 +39,36 @@ function assertPostgresUrl(databaseUrl: string): void {
 }
 
 /**
+ * Reads the major version from PostgreSQL client `--version` output such as
+ * `pg_dump (PostgreSQL) 17.10`. Returns null when the output is unreadable so
+ * callers fail with an actionable prerequisite message instead of guessing.
+ */
+export function parsePostgresToolMajor(versionOutput: string): number | null {
+  const match = /\(PostgreSQL\)\s(\d+)/.exec(versionOutput);
+  if (match === null || match[1] === undefined) return null;
+  const major = Number(match[1]);
+  return Number.isSafeInteger(major) ? major : null;
+}
+
+/**
+ * An older pg_dump cannot back up a newer server and aborts immediately, so a
+ * client older than the server is a hard prerequisite failure. Newer clients
+ * remain compatible with older servers.
+ */
+export function postgresToolsMismatchError(
+  clientMajor: number | null,
+  serverMajor: number | null,
+): string | null {
+  if (clientMajor === null || serverMajor === null) {
+    return 'Could not determine the PostgreSQL client and server major versions.';
+  }
+  if (clientMajor < serverMajor) {
+    return `pg_dump ${clientMajor}.x cannot back up PostgreSQL ${serverMajor}.x: client tools must match the server major version.`;
+  }
+  return null;
+}
+
+/**
  * Writes a timestamped custom-format logical backup with pg_dump. The
  * connection URL is passed to pg_dump but never logged; failures report the
  * target directory only. Restoring a backup remains a separate approved

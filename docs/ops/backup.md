@@ -17,7 +17,10 @@ are explicitly out of scope here.
 ## Running a backup
 
 Prerequisites: the PostgreSQL client tools (`pg_dump`, `pg_restore`) and a
-`DATABASE_URL` pointing at the database to back up.
+`DATABASE_URL` pointing at the database to back up. The client tools must
+match the server major version: an older `pg_dump` cannot back up a newer
+server and aborts immediately. CI selects the matching client explicitly;
+see `.github/workflows/quality.yaml`.
 
 ```sh
 npm run db:backup

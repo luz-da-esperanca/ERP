@@ -47,6 +47,13 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+      - name: Select PostgreSQL 17 client tools
+        run: |
+          if [ ! -x /usr/lib/postgresql/17/bin/pg_dump ] || [ ! -x /usr/lib/postgresql/17/bin/pg_restore ]; then
+            echo "::error::PostgreSQL 17 client tools are required (pg_dump/pg_restore must match the service major version)."
+            exit 1
+          fi
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
       - run: npm ci --no-fund
       - run: npm run prisma:generate
       - run: npm run db:migrate
