@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
+import { identifyOperation, type OperationIdentity } from './operation-identity.ts';
 import { CREATABLE_STOCK_ORIGIN_KINDS, STOCK_ORIGIN_KIND_LABELS, toCreatableStockOriginKind } from './origin-labels.ts';
-import { StockApiError, type StockApi } from './stock-api.ts';
+import { StockApiError, type NewStockOriginInput, type StockApi } from './stock-api.ts';
 
 interface OriginFieldErrors {
   readonly kind?: string;
@@ -18,6 +19,7 @@ const KIND_MESSAGE = 'Selecione o tipo de origem.';
 const NAME_LENGTH_MESSAGE = 'Informe um nome entre 1 e 150 caracteres.';
 const ACCESS_DENIED_MESSAGE = 'Seu perfil não possui permissão para esta operação.';
 const IDEMPOTENCY_CONFLICT_MESSAGE = 'Esta operação já foi registrada com dados diferentes. Recarregue a lista e confira antes de tentar novamente.';
+const UNKNOWN_RESULT_MESSAGE = 'Não foi possível confirmar o envio. Confira a lista antes de tentar novamente — o registro pode já ter sido criado.';
 const SAVE_ERROR_MESSAGE = 'Não foi possível salvar. Tente novamente.';
 
 function validate(kind: string, name: string): OriginFieldErrors {
@@ -38,9 +40,9 @@ export function OriginForm({ stockApi, onCreated, onCancel, onSessionExpired }: 
   const [fieldErrors, setFieldErrors] = useState<OriginFieldErrors>({});
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // One operation identity per mounted form: retries of the same submission
-  // replay instead of duplicating; a new mount starts a new operation.
-  const [idempotencyKey] = useState(() => globalThis.crypto.randomUUID());
+  // One operation identity per mounted form, bound to the submitted payload:
+  // identical retries replay instead of duplicating; a new mount starts over.
+  const operationRef = useRef<OperationIdentity | null>(null);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,7 +59,13 @@ export function OriginForm({ stockApi, onCreated, onCancel, onSessionExpired }: 
 
     setIsSubmitting(true);
     try {
-      await stockApi.createOrigin({ kind: creatableKind, name: name.trim() }, { idempotencyKey });
+      const input: NewStockOriginInput = { kind: creatableKind, name: name.trim() };
+      operationRef.current = identifyOperation(
+        operationRef.current,
+        JSON.stringify(input),
+        () => globalThis.crypto.randomUUID(),
+      );
+      await stockApi.createOrigin(input, { idempotencyKey: operationRef.current.key });
     } catch (error) {
       if (error instanceof StockApiError && error.code === 'AUTH_REQUIRED') {
         setIsSubmitting(false);
@@ -66,6 +74,8 @@ export function OriginForm({ stockApi, onCreated, onCancel, onSessionExpired }: 
       }
       if (error instanceof StockApiError && error.code === 'FORBIDDEN') {
         setSubmissionError(ACCESS_DENIED_MESSAGE);
+      } else if (error instanceof StockApiError && error.code === 'NETWORK_ERROR') {
+        setSubmissionError(UNKNOWN_RESULT_MESSAGE);
       } else if (error instanceof StockApiError && error.code === 'IDEMPOTENCY_CONFLICT') {
         setSubmissionError(IDEMPOTENCY_CONFLICT_MESSAGE);
       } else if (error instanceof StockApiError && error.code === 'VALIDATION_FAILED') {

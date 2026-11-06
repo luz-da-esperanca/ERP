@@ -183,7 +183,7 @@ it('reuses the same idempotency key when resubmitting an origin after a network 
   fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Doadora Maria' } });
   fireEvent.click(screen.getByRole('button', { name: 'Criar origem' }));
 
-  expect(await screen.findByText('Não foi possível salvar. Tente novamente.')).toBeTruthy();
+  expect(await screen.findByText('Não foi possível confirmar o envio. Confira a lista antes de tentar novamente — o registro pode já ter sido criado.')).toBeTruthy();
   createOrigin.mockResolvedValueOnce(origin());
   fireEvent.click(screen.getByRole('button', { name: 'Criar origem' }));
 
@@ -192,6 +192,33 @@ it('reuses the same idempotency key when resubmitting an origin after a network 
   const secondKey = (createOrigin.mock.calls[1] as unknown as readonly unknown[])[1];
   expect(firstKey).toEqual(secondKey);
   expect((firstKey as { idempotencyKey?: unknown }).idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
+});
+
+it('starts a new identity when resubmitting an edited origin after a network failure', async () => {
+  const createOrigin = vi.fn(async (): Promise<StockOrigin> => {
+    throw new StockApiError({ status: 0, code: 'NETWORK_ERROR', traceId: null, errors: [] });
+  });
+  render(<OriginsPage stockApi={stubStockApi({
+    listOrigins: async () => emptyOriginsPage(),
+    createOrigin,
+  })} />);
+
+  expect(await screen.findByText('Nenhuma origem cadastrada.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Nova origem' }));
+  fireEvent.change(screen.getByLabelText('Tipo de origem'), { target: { value: 'INDIVIDUAL_DONOR' } });
+  fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Doadora Maria' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Criar origem' }));
+
+  expect(await screen.findByText(/Confira a lista antes de tentar novamente/)).toBeTruthy();
+  createOrigin.mockResolvedValueOnce(origin({ kind: 'CAMPAIGN', name: 'Campanha Inverno' }));
+  fireEvent.change(screen.getByLabelText('Tipo de origem'), { target: { value: 'CAMPAIGN' } });
+  fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Campanha Inverno' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Criar origem' }));
+
+  expect(await screen.findByText('Origem criada com sucesso.')).toBeTruthy();
+  const initialKey = (createOrigin.mock.calls[0] as unknown as readonly unknown[])[1];
+  const editedKey = (createOrigin.mock.calls[1] as unknown as readonly unknown[])[1];
+  expect(editedKey).not.toEqual(initialKey);
 });
 
 it('shows server field errors without losing typed values', async () => {
