@@ -45,18 +45,33 @@ const NEW_BUTTON_LABELS: Record<CatalogTab, string> = {
 const ACCESS_DENIED_MESSAGE = 'Seu perfil não possui permissão para esta operação.';
 const LOAD_ERROR_MESSAGE = 'Não foi possível carregar os dados. Tente novamente.';
 const OPTION_FORM_PAGE_SIZE = 100;
+const OPTION_PAGE_CONCURRENCY = 4;
 
 /**
- * Loads every option page for form selects. The list endpoints stay paginated;
- * creation forms must still reach options beyond the first page.
+ * Loads every option page for form selects. Pages may overlap when the
+ * catalog changes mid-load, so identities are deduplicated; remaining pages
+ * load in small concurrent chunks instead of all at once.
  */
 async function listAllOptions(stockApi: StockApi, kind: CatalogKind): Promise<readonly CatalogOption[]> {
   const first = await stockApi.listOptions(kind, { page: 1, pageSize: OPTION_FORM_PAGE_SIZE });
-  const remaining = await Promise.all(
-    Array.from({ length: Math.max(first.totalPages - 1, 0) }, (_, index) =>
-      stockApi.listOptions(kind, { page: index + 2, pageSize: OPTION_FORM_PAGE_SIZE })),
-  );
-  return [first, ...remaining].flatMap((page) => page.items);
+  const remainingPages = Array.from({ length: Math.max(first.totalPages - 1, 0) }, (_, index) => index + 2);
+  const seen = new Set<string>(first.items.map((option) => option.id));
+  const collected: CatalogOption[] = [...first.items];
+  for (let offset = 0; offset < remainingPages.length; offset += OPTION_PAGE_CONCURRENCY) {
+    const chunk = remainingPages.slice(offset, offset + OPTION_PAGE_CONCURRENCY);
+    const pages = await Promise.all(
+      chunk.map((page) => stockApi.listOptions(kind, { page, pageSize: OPTION_FORM_PAGE_SIZE })),
+    );
+    for (const page of pages) {
+      for (const option of page.items) {
+        if (!seen.has(option.id)) {
+          seen.add(option.id);
+          collected.push(option);
+        }
+      }
+    }
+  }
+  return collected;
 }
 
 type LoadState =
@@ -139,6 +154,7 @@ export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired, 
   const [showForm, setShowForm] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const loadVersion = useRef(0);
+  const optionsLoaded = useRef(false);
 
   const load = useCallback(async () => {
     const version = loadVersion.current + 1;
@@ -146,17 +162,23 @@ export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired, 
     setLoadState({ status: 'loading' });
     try {
       if (tab === 'items') {
+        // Form options load once per mount: paginating the item list must not
+        // refetch them, and read-only profiles never need them.
+        const shouldLoadOptions = canWrite && !optionsLoaded.current;
         const [items, fetchedCategories, fetchedUnits, fetchedSizes] = await Promise.all([
           stockApi.listItems({ page: pageNumber }),
-          listAllOptions(stockApi, 'CATEGORY'),
-          listAllOptions(stockApi, 'UNIT'),
-          listAllOptions(stockApi, 'SIZE'),
+          shouldLoadOptions ? listAllOptions(stockApi, 'CATEGORY') : Promise.resolve<readonly CatalogOption[]>([]),
+          shouldLoadOptions ? listAllOptions(stockApi, 'UNIT') : Promise.resolve<readonly CatalogOption[]>([]),
+          shouldLoadOptions ? listAllOptions(stockApi, 'SIZE') : Promise.resolve<readonly CatalogOption[]>([]),
         ]);
         if (loadVersion.current !== version) return;
         setItemPage(items);
-        setCategories(fetchedCategories);
-        setUnits(fetchedUnits);
-        setSizes(fetchedSizes);
+        if (shouldLoadOptions) {
+          setCategories(fetchedCategories);
+          setUnits(fetchedUnits);
+          setSizes(fetchedSizes);
+          optionsLoaded.current = true;
+        }
       } else {
         const options = await stockApi.listOptions(tab, { page: pageNumber });
         if (loadVersion.current !== version) return;
@@ -175,7 +197,7 @@ export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired, 
       }
       setLoadState({ status: 'error', message: LOAD_ERROR_MESSAGE });
     }
-  }, [stockApi, tab, pageNumber, onSessionExpired]);
+  }, [stockApi, tab, pageNumber, canWrite, onSessionExpired]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -192,11 +214,13 @@ export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired, 
     setPageNumber(1);
     setShowForm(false);
     setSuccessMessage(null);
+    optionsLoaded.current = false;
   };
 
   const handleCreated = () => {
     setShowForm(false);
     setSuccessMessage(CREATED_MESSAGES[tab]);
+    optionsLoaded.current = false;
     void load();
   };
 
