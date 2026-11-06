@@ -28,6 +28,7 @@ const KIND_LABELS: Record<CatalogKind, { title: string; action: string; idPrefix
 const NAME_LENGTH_MESSAGE = 'Informe um nome entre 1 e 150 caracteres.';
 const PRECISION_MESSAGE = 'Informe uma precisão inteira de 0 a 18.';
 const ACCESS_DENIED_MESSAGE = 'Seu perfil não possui permissão para esta operação.';
+const IDEMPOTENCY_CONFLICT_MESSAGE = 'Esta operação já foi registrada com dados diferentes. Recarregue a lista e confira antes de tentar novamente.';
 const SAVE_ERROR_MESSAGE = 'Não foi possível salvar. Tente novamente.';
 
 function validate(name: string, precisionText: string, kind: CatalogKind): CatalogFieldErrors {
@@ -52,6 +53,9 @@ export function CatalogForm({ kind, stockApi, onCreated, onCancel, onSessionExpi
   const [fieldErrors, setFieldErrors] = useState<CatalogFieldErrors>({});
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // One operation identity per mounted form: retries of the same submission
+  // replay instead of duplicating; a new mount starts a new operation.
+  const [idempotencyKey] = useState(() => globalThis.crypto.randomUUID());
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -65,7 +69,7 @@ export function CatalogForm({ kind, stockApi, onCreated, onCancel, onSessionExpi
       const input: NewCatalogOptionInput = kind === 'UNIT'
         ? { name: name.trim(), precision: Number(precisionText.trim()) }
         : { name: name.trim() };
-      await stockApi.createOption(kind, input);
+      await stockApi.createOption(kind, input, { idempotencyKey });
     } catch (error) {
       if (error instanceof StockApiError && error.code === 'AUTH_REQUIRED') {
         setIsSubmitting(false);
@@ -74,6 +78,8 @@ export function CatalogForm({ kind, stockApi, onCreated, onCancel, onSessionExpi
       }
       if (error instanceof StockApiError && error.code === 'FORBIDDEN') {
         setSubmissionError(ACCESS_DENIED_MESSAGE);
+      } else if (error instanceof StockApiError && error.code === 'IDEMPOTENCY_CONFLICT') {
+        setSubmissionError(IDEMPOTENCY_CONFLICT_MESSAGE);
       } else if (error instanceof StockApiError && error.code === 'VALIDATION_FAILED') {
         const fields: { name?: string; precision?: string } = {};
         const rest: string[] = [];

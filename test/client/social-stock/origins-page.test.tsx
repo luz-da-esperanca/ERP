@@ -133,7 +133,8 @@ it('creates an origin and refreshes the list', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Criar origem' }));
 
   expect(await screen.findByText('Origem criada com sucesso.')).toBeTruthy();
-  expect(createOrigin).toHaveBeenCalledWith({ kind: 'CAMPAIGN', name: 'Campanha Inverno' });
+    expect(createOrigin).toHaveBeenCalledWith({ kind: 'CAMPAIGN', name: 'Campanha Inverno' },
+      { idempotencyKey: expect.any(String) });
   expect(listOrigins).toHaveBeenCalledTimes(2);
 });
 
@@ -165,6 +166,32 @@ it('shows client validation before submitting', async () => {
   expect(await screen.findByText('Selecione o tipo de origem.')).toBeTruthy();
   expect(await screen.findByText('Informe um nome entre 1 e 150 caracteres.')).toBeTruthy();
   expect(createOrigin).not.toHaveBeenCalled();
+});
+
+it('reuses the same idempotency key when resubmitting an origin after a network failure', async () => {
+  const createOrigin = vi.fn(async (): Promise<StockOrigin> => {
+    throw new StockApiError({ status: 0, code: 'NETWORK_ERROR', traceId: null, errors: [] });
+  });
+  render(<OriginsPage stockApi={stubStockApi({
+    listOrigins: async () => emptyOriginsPage(),
+    createOrigin,
+  })} />);
+
+  expect(await screen.findByText('Nenhuma origem cadastrada.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Nova origem' }));
+  fireEvent.change(screen.getByLabelText('Tipo de origem'), { target: { value: 'INDIVIDUAL_DONOR' } });
+  fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Doadora Maria' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Criar origem' }));
+
+  expect(await screen.findByText('Não foi possível salvar. Tente novamente.')).toBeTruthy();
+  createOrigin.mockResolvedValueOnce(origin());
+  fireEvent.click(screen.getByRole('button', { name: 'Criar origem' }));
+
+  expect(await screen.findByText('Origem criada com sucesso.')).toBeTruthy();
+  const firstKey = (createOrigin.mock.calls[0] as unknown as readonly unknown[])[1];
+  const secondKey = (createOrigin.mock.calls[1] as unknown as readonly unknown[])[1];
+  expect(firstKey).toEqual(secondKey);
+  expect((firstKey as { idempotencyKey?: unknown }).idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
 });
 
 it('shows server field errors without losing typed values', async () => {

@@ -6,6 +6,7 @@ import {
   type CatalogOption,
   type CatalogReference,
   type CreatableStockOriginKind,
+  type MutationOptions,
   type NewCatalogOptionInput,
   type NewStockItemInput,
   type NewStockOriginInput,
@@ -195,7 +196,12 @@ export function createHttpStockApi(options: HttpStockApiOptions): StockApi {
     return parsed;
   }
 
-  async function post<T>(path: string, payload: Record<string, unknown>, parse: (body: unknown) => T | null): Promise<T> {
+  async function post<T>(
+    path: string,
+    payload: Record<string, unknown>,
+    parse: (body: unknown) => T | null,
+    idempotencyKey?: string,
+  ): Promise<T> {
     const csrfToken = csrfProvider.getCsrfToken();
     if (csrfToken === null) {
       throw new StockApiError({ status: 0, code: 'MISSING_CSRF_TOKEN', traceId: null, errors: [] });
@@ -207,7 +213,7 @@ export function createHttpStockApi(options: HttpStockApiOptions): StockApi {
         credentials: 'same-origin',
         headers: {
           'content-type': 'application/json',
-          'Idempotency-Key': generateIdempotencyKey(),
+          'Idempotency-Key': idempotencyKey ?? generateIdempotencyKey(),
           'X-CSRF-Token': csrfToken,
         },
         body: JSON.stringify(payload),
@@ -246,8 +252,9 @@ export function createHttpStockApi(options: HttpStockApiOptions): StockApi {
       return get(`/api/v1/${CATALOG_RESOURCES[kind]}/${id}`, readCatalogOption);
     },
 
-    async createOption(kind: CatalogKind, input: NewCatalogOptionInput): Promise<CatalogOption> {
-      return post(`/api/v1/${CATALOG_RESOURCES[kind]}`, createOptionPayload(input), readCatalogOption);
+    async createOption(kind: CatalogKind, input: NewCatalogOptionInput, options?: MutationOptions): Promise<CatalogOption> {
+      return post(`/api/v1/${CATALOG_RESOURCES[kind]}`, createOptionPayload(input), readCatalogOption,
+        options?.idempotencyKey);
     },
 
     async listItems(pagination?: PaginationInput): Promise<Page<StockItem>> {
@@ -259,8 +266,8 @@ export function createHttpStockApi(options: HttpStockApiOptions): StockApi {
       return get(`/api/v1/stock-items/${id}`, readStockItem);
     },
 
-    async createItem(input: NewStockItemInput): Promise<StockItem> {
-      return post('/api/v1/stock-items', createItemPayload(input), readStockItem);
+    async createItem(input: NewStockItemInput, options?: MutationOptions): Promise<StockItem> {
+      return post('/api/v1/stock-items', createItemPayload(input), readStockItem, options?.idempotencyKey);
     },
 
     async listOrigins(filter?: StockOriginFilter, pagination?: PaginationInput): Promise<Page<StockOrigin>> {
@@ -272,9 +279,9 @@ export function createHttpStockApi(options: HttpStockApiOptions): StockApi {
       return get(`/api/v1/stock-origins/${id}`, readStockOrigin);
     },
 
-    async createOrigin(input: NewStockOriginInput): Promise<StockOrigin> {
+    async createOrigin(input: NewStockOriginInput, options?: MutationOptions): Promise<StockOrigin> {
       const kind: CreatableStockOriginKind = input.kind;
-      return post('/api/v1/stock-origins', { kind, name: input.name }, readStockOrigin);
+      return post('/api/v1/stock-origins', { kind, name: input.name }, readStockOrigin, options?.idempotencyKey);
     },
   };
 }

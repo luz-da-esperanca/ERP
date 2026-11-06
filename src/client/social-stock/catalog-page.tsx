@@ -46,6 +46,19 @@ const ACCESS_DENIED_MESSAGE = 'Seu perfil não possui permissão para esta opera
 const LOAD_ERROR_MESSAGE = 'Não foi possível carregar os dados. Tente novamente.';
 const OPTION_FORM_PAGE_SIZE = 100;
 
+/**
+ * Loads every option page for form selects. The list endpoints stay paginated;
+ * creation forms must still reach options beyond the first page.
+ */
+async function listAllOptions(stockApi: StockApi, kind: CatalogKind): Promise<readonly CatalogOption[]> {
+  const first = await stockApi.listOptions(kind, { page: 1, pageSize: OPTION_FORM_PAGE_SIZE });
+  const remaining = await Promise.all(
+    Array.from({ length: Math.max(first.totalPages - 1, 0) }, (_, index) =>
+      stockApi.listOptions(kind, { page: index + 2, pageSize: OPTION_FORM_PAGE_SIZE })),
+  );
+  return [first, ...remaining].flatMap((page) => page.items);
+}
+
 type LoadState =
   | { readonly status: 'loading' }
   | { readonly status: 'ready' }
@@ -135,15 +148,15 @@ export function CatalogPage({ stockApi, initialTab = 'items', onSessionExpired, 
       if (tab === 'items') {
         const [items, fetchedCategories, fetchedUnits, fetchedSizes] = await Promise.all([
           stockApi.listItems({ page: pageNumber }),
-          stockApi.listOptions('CATEGORY', { page: 1, pageSize: OPTION_FORM_PAGE_SIZE }),
-          stockApi.listOptions('UNIT', { page: 1, pageSize: OPTION_FORM_PAGE_SIZE }),
-          stockApi.listOptions('SIZE', { page: 1, pageSize: OPTION_FORM_PAGE_SIZE }),
+          listAllOptions(stockApi, 'CATEGORY'),
+          listAllOptions(stockApi, 'UNIT'),
+          listAllOptions(stockApi, 'SIZE'),
         ]);
         if (loadVersion.current !== version) return;
         setItemPage(items);
-        setCategories(fetchedCategories.items);
-        setUnits(fetchedUnits.items);
-        setSizes(fetchedSizes.items);
+        setCategories(fetchedCategories);
+        setUnits(fetchedUnits);
+        setSizes(fetchedSizes);
       } else {
         const options = await stockApi.listOptions(tab, { page: pageNumber });
         if (loadVersion.current !== version) return;

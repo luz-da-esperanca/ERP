@@ -144,6 +144,25 @@ describe('HTTP stock API', () => {
     expect(page.items).toHaveLength(1);
   });
 
+  it('reuses the caller-provided idempotency key across calls', async () => {
+    const seen: (string | null)[] = [];
+    const fetchClient = vi.fn<StockApiFetchClient>(async (_input, init) => {
+      seen.push(new Headers(init.headers).get('Idempotency-Key'));
+      return jsonResponse(201, { id: 'category-1', code: 'CAT-000001', name: 'Roupas',
+        precision: null, isActive: true, version: 1, createdAt, updatedAt: createdAt });
+    });
+    const api = createHttpStockApi({
+      fetchClient,
+      csrfProvider: { getCsrfToken: () => 'opaque-csrf-token' },
+      generateIdempotencyKey: () => 'generated-key',
+    });
+
+    await api.createOption('CATEGORY', { name: 'Roupas' }, { idempotencyKey: 'form-key' });
+    await api.createOption('CATEGORY', { name: 'Roupas' }, { idempotencyKey: 'form-key' });
+
+    expect(seen).toEqual(['form-key', 'form-key']);
+  });
+
   it('maps validation failures to field errors', async () => {
     const fetchClient = vi.fn<StockApiFetchClient>(async () => problemResponse(422, 'VALIDATION_FAILED', {
       errors: [{ field: 'name', code: 'REQUIRED_FIELD', message: 'Synthetic required.' }],

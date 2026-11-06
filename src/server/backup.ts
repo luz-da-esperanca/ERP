@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { chmod, mkdir } from 'node:fs/promises';
+import { chmod, mkdir, rename, rm } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { join, resolve } from 'node:path';
 
@@ -69,6 +69,29 @@ export function postgresToolsMismatchError(
 }
 
 /**
+ * Prisma accepts datasource parameters that libpq does not understand, such
+ * as `schema`. Passing them through makes pg_dump abort on connect, so they
+ * are removed while genuine libpq parameters (for example `sslmode`) are
+ * preserved. URLs that are already libpq-compatible pass through unchanged.
+ */
+export function toLibpqConnectionString(databaseUrl: string): string {
+  const url = new URL(databaseUrl);
+  for (const parameter of PRISMA_ONLY_QUERY_PARAMETERS) {
+    url.searchParams.delete(parameter);
+  }
+  return url.toString();
+}
+
+const PRISMA_ONLY_QUERY_PARAMETERS: readonly string[] = [
+  'schema',
+  'connection_limit',
+  'pool_timeout',
+  'socket_timeout',
+  'pgbouncer',
+  'statement_cache_size',
+];
+
+/**
  * Writes a timestamped custom-format logical backup with pg_dump. The
  * connection URL is passed to pg_dump but never logged; failures report the
  * target directory only. Restoring a backup remains a separate approved
@@ -82,12 +105,16 @@ export async function runDatabaseBackup(options: DatabaseBackupOptions): Promise
   await chmod(targetDirectory, DIRECTORY_MODE);
   const timestamp = (options.now ?? new Date()).toISOString().replace(/[:.]/g, '-');
   const file = join(targetDirectory, `erp-backup-${timestamp}.dump`);
+  const partialFile = `${file}.partial`;
   const runCommand = options.runCommand ?? defaultRunner;
+  const libpqUrl = toLibpqConnectionString(databaseUrl);
   try {
-    await runCommand('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', `--file=${file}`, databaseUrl]);
+    await runCommand('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', `--file=${partialFile}`, libpqUrl]);
   } catch {
+    await rm(partialFile, { force: true });
     throw new Error(`Database backup failed for ${targetDirectory}. Verify pg_dump and the database connection.`);
   }
-  await chmod(file, FILE_MODE);
+  await chmod(partialFile, FILE_MODE);
+  await rename(partialFile, file);
   return { file };
 }

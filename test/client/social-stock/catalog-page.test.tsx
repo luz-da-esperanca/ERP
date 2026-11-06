@@ -129,7 +129,8 @@ it('creates a category and refreshes the list', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Criar categoria' }));
 
   expect(await screen.findByText('Categoria criada com sucesso.')).toBeTruthy();
-  expect(createOption).toHaveBeenCalledWith('CATEGORY', { name: 'Calçados' });
+    expect(createOption).toHaveBeenCalledWith('CATEGORY', { name: 'Calçados' },
+      { idempotencyKey: expect.any(String) });
   expect(listOptions).toHaveBeenCalledTimes(2);
 });
 
@@ -146,6 +147,88 @@ it('shows client validation before submitting', async () => {
 
   expect(await screen.findByText('Informe um nome entre 1 e 150 caracteres.')).toBeTruthy();
   expect(createOption).not.toHaveBeenCalled();
+});
+
+it('reuses the same idempotency key when resubmitting a category after a network failure', async () => {
+  const createOption = vi.fn(async (): Promise<CatalogOption> => {
+    throw new StockApiError({ status: 0, code: 'NETWORK_ERROR', traceId: null, errors: [] });
+  });
+  render(<CatalogPage stockApi={stubStockApi({
+    listOptions: async () => emptyOptionsPage(),
+    createOption,
+  })} initialTab="CATEGORY" />);
+
+  expect(await screen.findByText('Nenhuma categoria cadastrada.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Nova categoria' }));
+  fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Roupas' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Criar categoria' }));
+
+  expect(await screen.findByText('Não foi possível salvar. Tente novamente.')).toBeTruthy();
+  createOption.mockResolvedValueOnce(category());
+  fireEvent.click(screen.getByRole('button', { name: 'Criar categoria' }));
+
+  expect(await screen.findByText('Categoria criada com sucesso.')).toBeTruthy();
+  const firstKey = (createOption.mock.calls[0] as unknown as readonly unknown[])[2];
+  const secondKey = (createOption.mock.calls[1] as unknown as readonly unknown[])[2];
+  expect(firstKey).toEqual(secondKey);
+  expect((firstKey as { idempotencyKey?: unknown }).idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
+});
+
+it('reuses the same idempotency key when resubmitting an item after a network failure', async () => {
+  const listOptions = async (kind: string) => kind === 'CATEGORY'
+    ? { items: [category()], page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+    : kind === 'UNIT'
+      ? { items: [unit()], page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+      : emptyOptionsPage();
+  const createItem = vi.fn(async (): Promise<StockItem> => {
+    throw new StockApiError({ status: 0, code: 'NETWORK_ERROR', traceId: null, errors: [] });
+  });
+  render(<CatalogPage stockApi={stubStockApi({
+    listItems: async () => ({ items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }),
+    listOptions,
+    createItem,
+  })} />);
+
+  expect(await screen.findByText('Nenhum item cadastrado.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Novo item' }));
+  fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Cobertor' } });
+  fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'category-1' } });
+  fireEvent.change(screen.getByLabelText('Unidade'), { target: { value: 'unit-1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Criar item' }));
+
+  expect(await screen.findByText('Não foi possível salvar. Tente novamente.')).toBeTruthy();
+  createItem.mockResolvedValueOnce(item());
+  fireEvent.click(screen.getByRole('button', { name: 'Criar item' }));
+
+  expect(await screen.findByText('Item criado com sucesso.')).toBeTruthy();
+  const firstKey = (createItem.mock.calls[0] as unknown as readonly unknown[])[1];
+  const secondKey = (createItem.mock.calls[1] as unknown as readonly unknown[])[1];
+  expect(firstKey).toEqual(secondKey);
+  expect((firstKey as { idempotencyKey?: unknown }).idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
+});
+
+it('explains idempotency conflicts instead of duplicating the item', async () => {
+  const createItem = vi.fn(async (): Promise<StockItem> => {
+    throw new StockApiError({ status: 409, code: 'IDEMPOTENCY_CONFLICT', traceId: null, errors: [] });
+  });
+  render(<CatalogPage stockApi={stubStockApi({
+    listItems: async () => ({ items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }),
+    listOptions: async (kind) => kind === 'CATEGORY'
+      ? { items: [category()], page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+      : kind === 'UNIT'
+        ? { items: [unit()], page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+        : emptyOptionsPage(),
+    createItem,
+  })} />);
+
+  expect(await screen.findByText('Nenhum item cadastrado.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Novo item' }));
+  fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Cobertor' } });
+  fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'category-1' } });
+  fireEvent.change(screen.getByLabelText('Unidade'), { target: { value: 'unit-1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Criar item' }));
+
+  expect(await screen.findByText('Esta operação já foi registrada com dados diferentes. Recarregue a lista e confira antes de tentar novamente.')).toBeTruthy();
 });
 
 it('shows server field errors without losing typed values', async () => {
@@ -181,7 +264,8 @@ it('creates a unit with precision', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Criar unidade' }));
 
   expect(await screen.findByText('Unidade criada com sucesso.')).toBeTruthy();
-  expect(createOption).toHaveBeenCalledWith('UNIT', { name: 'Par', precision: 0 });
+    expect(createOption).toHaveBeenCalledWith('UNIT', { name: 'Par', precision: 0 },
+      { idempotencyKey: expect.any(String) });
 });
 
 it('creates an item without size when none is selected', async () => {
@@ -204,7 +288,29 @@ it('creates an item without size when none is selected', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Criar item' }));
 
   expect(await screen.findByText('Item criado com sucesso.')).toBeTruthy();
-  expect(createItem).toHaveBeenCalledWith({ name: 'Cobertor', categoryId: 'category-1', unitId: 'unit-1' });
+    expect(createItem).toHaveBeenCalledWith({ name: 'Cobertor', categoryId: 'category-1', unitId: 'unit-1' },
+      { idempotencyKey: expect.any(String) });
+});
+
+it('loads every catalog page for the item form selects', async () => {
+  const firstCategories = { items: [category()], page: 1, pageSize: 1, totalItems: 2, totalPages: 2 };
+  const secondCategories = { items: [category({ id: 'category-2', code: 'CAT-000002', name: 'Calçados' })],
+    page: 2, pageSize: 1, totalItems: 2, totalPages: 2 };
+  const listOptions = vi.fn(async (kind: string, pagination?: { page?: number }) => {
+    if (kind === 'CATEGORY') return (pagination?.page ?? 1) === 2 ? secondCategories : firstCategories;
+    return emptyOptionsPage();
+  });
+  render(<CatalogPage stockApi={stubStockApi({
+    listItems: async () => ({ items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }),
+    listOptions,
+  })} />);
+
+  expect(await screen.findByText('Nenhum item cadastrado.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Novo item' }));
+
+  expect(await screen.findByRole('option', { name: 'Calçados' })).toBeTruthy();
+  expect(listOptions).toHaveBeenCalledWith('CATEGORY', { page: 1, pageSize: 100 });
+  expect(listOptions).toHaveBeenCalledWith('CATEGORY', { page: 2, pageSize: 100 });
 });
 
 it('only offers active options in the item form', async () => {

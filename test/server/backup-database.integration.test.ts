@@ -66,11 +66,16 @@ afterAll(async () => {
 });
 
 it('backs up a real database through the published CLI without leaking credentials', async () => {
+  // Mirror the project default configuration, which carries the Prisma-only
+  // `schema` parameter that libpq does not understand.
+  const prismaUrl = new URL(connectionString);
+  prismaUrl.searchParams.set('schema', 'public');
+  const schemaDatabaseUrl = prismaUrl.toString();
   const password = new URL(connectionString).password;
   const child = await promisify(execFile)(process.execPath, ['src/server/backup-database.ts'], {
     windowsHide: true,
     timeout: 60_000,
-    env: { ...process.env, DATABASE_URL: connectionString, BACKUP_DIRECTORY: backupDirectory },
+    env: { ...process.env, DATABASE_URL: schemaDatabaseUrl, BACKUP_DIRECTORY: backupDirectory },
   });
 
   expect(child.stdout).toContain('Database backup written to');

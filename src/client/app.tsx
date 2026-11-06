@@ -30,7 +30,7 @@ export interface AppProps {
   readonly renderStockRoute?: (name: StockRouteName) => ReactNode;
 }
 
-function useAuthState(authService: AuthService | undefined, isProtectedRoute: boolean) {
+function useAuthState(authService: AuthService | undefined, isProtectedRoute: boolean, routeKey: string) {
   const [authState, setAuthState] = useState(createInitialAuthState);
   const resolutionVersion = useRef(0);
   const activeSessionRequest = useRef<AbortController | null>(null);
@@ -82,7 +82,7 @@ function useAuthState(authService: AuthService | undefined, isProtectedRoute: bo
       isCurrent = false;
       cancelSessionResolution();
     };
-  }, [cancelSessionResolution, isProtectedRoute, revalidateSession]);
+  }, [cancelSessionResolution, isProtectedRoute, routeKey, revalidateSession]);
 
   useEffect(() => {
     if (!isProtectedRoute) return;
@@ -191,6 +191,7 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, stockApi, rende
   const [path, setPath] = useState(() => window.location.pathname);
   const [logoutStatus, setLogoutStatus] = useState<LogoutStatus>(() => authService?.hasPendingSignOut() ? 'failed' : 'idle');
   const route = matchRoute(path, hubRoute.destination);
+  const routeKey = route === null ? 'public' : route.name;
   const isProtectedRoute = logoutStatus === 'idle' && route !== null;
   const {
     authState,
@@ -199,7 +200,7 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, stockApi, rende
     clearAuthSessionState,
     beginProtectedRouteResolution,
     cancelSessionResolution,
-  } = useAuthState(authService, isProtectedRoute);
+  } = useAuthState(authService, isProtectedRoute, routeKey);
 
   useEffect(() => {
     const handlePopState = () => {

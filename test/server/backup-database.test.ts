@@ -6,6 +6,7 @@ import {
   parsePostgresToolMajor,
   postgresToolsMismatchError,
   runDatabaseBackup,
+  toLibpqConnectionString,
 } from '../../src/server/backup.ts';
 
 const recorded: Array<{ command: string; args: readonly string[] }> = [];
@@ -45,6 +46,43 @@ describe('PostgreSQL client and server version matching', () => {
   });
 });
 
+describe('Libpq connection string', () => {
+  it('strips Prisma-only parameters while preserving libpq ones', () => {
+    expect(toLibpqConnectionString(
+      'postgresql://erp:secret@127.0.0.1:5432/erp?schema=public&connection_limit=5&pool_timeout=10&sslmode=require',
+    )).toBe('postgresql://erp:secret@127.0.0.1:5432/erp?sslmode=require');
+  });
+
+  it('leaves parameterless URLs untouched', () => {
+    expect(toLibpqConnectionString('postgresql://erp:secret@127.0.0.1:5432/erp'))
+      .toBe('postgresql://erp:secret@127.0.0.1:5432/erp');
+  });
+});
+
+describe('Partial backup cleanup', () => {
+  it('removes the partial archive when pg_dump fails after starting to write', async () => {
+    const parent = await createTemporaryDirectory();
+    const directory = join(parent, 'backups');
+    const failingRunner = async (_command: string, args: readonly string[]): Promise<void> => {
+      const fileArgument = args.find((argument) => argument.startsWith('--file='));
+      if (fileArgument === undefined) throw new Error('pg_dump file argument is missing.');
+      await writeFile(fileArgument.slice('--file='.length), 'partial-dump');
+      throw new Error('pg_dump exited with code 1.');
+    };
+
+    const failure = await runDatabaseBackup({
+      databaseUrl,
+      directory,
+      now: fixedNow,
+      runCommand: failingRunner,
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).not.toContain(databaseUrl);
+    expect(await readdir(directory)).toHaveLength(0);
+  });
+});
+
 function backingRunner() {
   return async (command: string, args: readonly string[]): Promise<void> => {
     recorded.push({ command, args });
@@ -69,10 +107,10 @@ it('writes a timestamped custom-format dump with restricted permissions', async 
   });
 
   expect(result.file).toBe(join(directory, 'erp-backup-2026-10-26T16-45-00-000Z.dump'));
-  expect(recorded).toEqual([{
-    command: 'pg_dump',
-    args: ['--format=custom', '--no-owner', '--no-privileges', `--file=${result.file}`, databaseUrl],
-  }]);
+    expect(recorded).toEqual([{
+      command: 'pg_dump',
+      args: ['--format=custom', '--no-owner', '--no-privileges', `--file=${result.file}.partial`, databaseUrl],
+    }]);
   expect((await stat(directory)).mode & 0o777).toBe(0o700);
   expect((await stat(result.file)).mode & 0o777).toBe(0o600);
 });

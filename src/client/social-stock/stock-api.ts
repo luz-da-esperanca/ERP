@@ -84,6 +84,10 @@ export interface StockOriginFilter {
   readonly search?: string;
 }
 
+export interface MutationOptions {
+  readonly idempotencyKey?: string;
+}
+
 export interface FieldValidationIssue {
   readonly field: string;
   readonly code: string;
@@ -139,11 +143,11 @@ export class StockApiError extends Error {
 export interface StockApi {
   listOptions(kind: CatalogKind, pagination?: PaginationInput): Promise<Page<CatalogOption>>;
   getOption(kind: CatalogKind, id: string): Promise<CatalogOption>;
-  createOption(kind: CatalogKind, input: NewCatalogOptionInput): Promise<CatalogOption>;
+  createOption(kind: CatalogKind, input: NewCatalogOptionInput, options?: MutationOptions): Promise<CatalogOption>;
   listItems(pagination?: PaginationInput): Promise<Page<StockItem>>;
   getItem(id: string): Promise<StockItem>;
-  createItem(input: NewStockItemInput): Promise<StockItem>;
+  createItem(input: NewStockItemInput, options?: MutationOptions): Promise<StockItem>;
   listOrigins(filter?: StockOriginFilter, pagination?: PaginationInput): Promise<Page<StockOrigin>>;
   getOrigin(id: string): Promise<StockOrigin>;
-  createOrigin(input: NewStockOriginInput): Promise<StockOrigin>;
+  createOrigin(input: NewStockOriginInput, options?: MutationOptions): Promise<StockOrigin>;
 }
