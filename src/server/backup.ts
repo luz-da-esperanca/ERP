@@ -68,20 +68,6 @@ export function postgresToolsMismatchError(
   return null;
 }
 
-/**
- * Prisma accepts datasource parameters that libpq does not understand, such
- * as `schema`. Passing them through makes pg_dump abort on connect, so they
- * are removed while genuine libpq parameters (for example `sslmode`) are
- * preserved. URLs that are already libpq-compatible pass through unchanged.
- */
-export function toLibpqConnectionString(databaseUrl: string): string {
-  const url = new URL(databaseUrl);
-  for (const parameter of PRISMA_ONLY_QUERY_PARAMETERS) {
-    url.searchParams.delete(parameter);
-  }
-  return url.toString();
-}
-
 const PRISMA_ONLY_QUERY_PARAMETERS: readonly string[] = [
   'schema',
   'connection_limit',
@@ -90,6 +76,39 @@ const PRISMA_ONLY_QUERY_PARAMETERS: readonly string[] = [
   'pgbouncer',
   'statement_cache_size',
 ];
+
+function isPrismaOnlyParameter(rawKey: string): boolean {
+  if (PRISMA_ONLY_QUERY_PARAMETERS.includes(rawKey)) return true;
+  try {
+    return PRISMA_ONLY_QUERY_PARAMETERS.includes(decodeURIComponent(rawKey.replaceAll('+', ' ')));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Removes Prisma-only query parameters so libpq accepts the connection URL.
+ * The query string is filtered pair by pair instead of being re-serialized:
+ * percent-encoded values keep their exact original bytes, which libpq
+ * requires (`%20` must not become `+`). Undecodable pairs are preserved.
+ */
+export function toLibpqConnectionString(databaseUrl: string): string {
+  const queryIndex = databaseUrl.indexOf('?');
+  if (queryIndex === -1) return databaseUrl;
+  const base = databaseUrl.slice(0, queryIndex);
+  const afterQuery = databaseUrl.slice(queryIndex + 1);
+  const fragmentIndex = afterQuery.indexOf('#');
+  const fragment = fragmentIndex === -1 ? '' : afterQuery.slice(fragmentIndex);
+  const query = fragmentIndex === -1 ? afterQuery : afterQuery.slice(0, fragmentIndex);
+  const kept = query.split('&').filter((pair) => {
+    if (pair === '') return false;
+    const equalsIndex = pair.indexOf('=');
+    const rawKey = equalsIndex === -1 ? pair : pair.slice(0, equalsIndex);
+    return !isPrismaOnlyParameter(rawKey);
+  });
+  if (kept.length === 0) return `${base}${fragment}`;
+  return `${base}?${kept.join('&')}${fragment}`;
+}
 
 /**
  * Writes a timestamped custom-format logical backup with pg_dump. The
@@ -114,7 +133,12 @@ export async function runDatabaseBackup(options: DatabaseBackupOptions): Promise
     await rm(partialFile, { force: true });
     throw new Error(`Database backup failed for ${targetDirectory}. Verify pg_dump and the database connection.`);
   }
-  await chmod(partialFile, FILE_MODE);
-  await rename(partialFile, file);
+  try {
+    await chmod(partialFile, FILE_MODE);
+    await rename(partialFile, file);
+  } catch {
+    await rm(partialFile, { force: true });
+    throw new Error(`Database backup failed for ${targetDirectory}. Verify pg_dump and the database connection.`);
+  }
   return { file };
 }
