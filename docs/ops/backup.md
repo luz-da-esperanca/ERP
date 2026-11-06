@@ -19,8 +19,10 @@ are explicitly out of scope here.
 Prerequisites: the PostgreSQL client tools (`pg_dump`, `pg_restore`) and a
 `DATABASE_URL` pointing at the database to back up. The client tools must
 match the server major version: an older `pg_dump` cannot back up a newer
-server and aborts immediately. CI installs the matching PostgreSQL 17 client
-tools from the PostgreSQL Apt repository; see `.github/workflows/quality.yaml`.
+server and aborts immediately. Where several client versions are installed,
+the matching major version must come first on `PATH`. CI installs the
+matching PostgreSQL 17 client tools from the PostgreSQL Apt repository and
+prepends their directory to `PATH`; see `.github/workflows/quality.yaml`.
 
 ```sh
 npm run db:backup
