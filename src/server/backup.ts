@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, rename, rm } from 'node:fs/promises';
+import { chmod, link, mkdir, rm } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { join, resolve } from 'node:path';
 
@@ -110,6 +111,20 @@ export function toLibpqConnectionString(databaseUrl: string): string {
   return `${base}?${kept.join('&')}${fragment}`;
 }
 
+function errorCode(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return null;
+  const code: unknown = error.code;
+  return typeof code === 'string' ? code : null;
+}
+
+async function removeQuietly(path: string): Promise<void> {
+  try {
+    await rm(path, { force: true });
+  } catch {
+    // Best effort: the primary failure below carries the safe diagnostic.
+  }
+}
+
 /**
  * Writes a timestamped custom-format logical backup with pg_dump. The
  * connection URL is passed to pg_dump but never logged; failures report the
@@ -124,21 +139,32 @@ export async function runDatabaseBackup(options: DatabaseBackupOptions): Promise
   await chmod(targetDirectory, DIRECTORY_MODE);
   const timestamp = (options.now ?? new Date()).toISOString().replace(/[:.]/g, '-');
   const file = join(targetDirectory, `erp-backup-${timestamp}.dump`);
-  const partialFile = `${file}.partial`;
+  // Unique per execution so concurrent runs never share a temporary file.
+  const partialFile = `${file}.partial-${process.pid}-${randomUUID().slice(0, 8)}`;
   const runCommand = options.runCommand ?? defaultRunner;
   const libpqUrl = toLibpqConnectionString(databaseUrl);
   try {
     await runCommand('pg_dump', ['--format=custom', '--no-owner', '--no-privileges', `--file=${partialFile}`, libpqUrl]);
   } catch {
-    await rm(partialFile, { force: true });
+    await removeQuietly(partialFile);
     throw new Error(`Database backup failed for ${targetDirectory}. Verify pg_dump and the database connection.`);
   }
   try {
     await chmod(partialFile, FILE_MODE);
-    await rename(partialFile, file);
-  } catch {
-    await rm(partialFile, { force: true });
+    // Atomically claim the final name: link() fails with EEXIST when another
+    // completed backup already owns it, so a finished backup is never replaced.
+    await link(partialFile, file);
+  } catch (error) {
+    await removeQuietly(partialFile);
+    if (errorCode(error) === 'EEXIST') {
+      // Deliberately no `cause`: child-process errors embed the full command
+      // line, which carries the database URL and must never enter the chain.
+      // eslint-disable-next-line preserve-caught-error
+      throw new Error(`Database backup already exists for ${targetDirectory}. Refusing to overwrite.`);
+    }
+    // eslint-disable-next-line preserve-caught-error
     throw new Error(`Database backup failed for ${targetDirectory}. Verify pg_dump and the database connection.`);
   }
+  await removeQuietly(partialFile);
   return { file };
 }

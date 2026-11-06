@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -124,12 +124,57 @@ describe('Partial backup cleanup', () => {
   });
 });
 
-function backingRunner() {
+describe('Completed backup preservation', () => {
+  it('refuses to overwrite an existing completed backup', async () => {
+    const parent = await createTemporaryDirectory();
+    const directory = join(parent, 'backups');
+    await mkdir(directory, { recursive: true });
+    const finalName = join(directory, 'erp-backup-2026-10-26T16-45-00-000Z.dump');
+    await writeFile(finalName, 'original-backup');
+
+    const failure = await runDatabaseBackup({
+      databaseUrl,
+      directory,
+      now: fixedNow,
+      runCommand: backingRunner('replacement-dump'),
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toContain('already exists');
+    expect((failure as Error).message).not.toContain(databaseUrl);
+    expect(await readFile(finalName, 'utf8')).toBe('original-backup');
+    const entries = await readdir(directory, { recursive: true, withFileTypes: true });
+    expect(entries.filter((entry) => entry.isFile() && entry.name.includes('.partial'))).toHaveLength(0);
+  });
+
+  it('lets concurrent runs race without mixing contents or leaving partials', async () => {
+    const parent = await createTemporaryDirectory();
+    const directory = join(parent, 'backups');
+    await mkdir(directory, { recursive: true });
+
+    const [firstOutcome, secondOutcome] = await Promise.allSettled([
+      runDatabaseBackup({ databaseUrl, directory, now: fixedNow, runCommand: backingRunner('first-dump') }),
+      runDatabaseBackup({ databaseUrl, directory, now: fixedNow, runCommand: backingRunner('second-dump') }),
+    ]);
+
+    const fulfilled = [firstOutcome, secondOutcome].filter((outcome) => outcome.status === 'fulfilled');
+    const rejected = [firstOutcome, secondOutcome].filter((outcome) => outcome.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(String((rejected[0] as PromiseRejectedResult).reason)).toContain('already exists');
+    const finalName = join(directory, 'erp-backup-2026-10-26T16-45-00-000Z.dump');
+    expect(['first-dump', 'second-dump']).toContain(await readFile(finalName, 'utf8'));
+    const entries = await readdir(directory, { recursive: true, withFileTypes: true });
+    expect(entries.filter((entry) => entry.isFile() && entry.name.includes('.partial'))).toHaveLength(0);
+  });
+});
+
+function backingRunner(content = 'synthetic-dump') {
   return async (command: string, args: readonly string[]): Promise<void> => {
     recorded.push({ command, args });
     const fileArgument = args.find((argument) => argument.startsWith('--file='));
     if (fileArgument === undefined) throw new Error('pg_dump file argument is missing.');
-    await writeFile(fileArgument.slice('--file='.length), 'synthetic-dump');
+    await writeFile(fileArgument.slice('--file='.length), content);
   };
 }
 
@@ -148,10 +193,14 @@ it('writes a timestamped custom-format dump with restricted permissions', async 
   });
 
   expect(result.file).toBe(join(directory, 'erp-backup-2026-10-26T16-45-00-000Z.dump'));
-  expect(recorded).toEqual([{
-    command: 'pg_dump',
-    args: ['--format=custom', '--no-owner', '--no-privileges', `--file=${result.file}.partial`, databaseUrl],
-  }]);
+  expect(recorded).toHaveLength(1);
+  const invocation = recorded[0];
+  expect(invocation?.command).toBe('pg_dump');
+  const invocationArgs = invocation?.args ?? [];
+  expect(invocationArgs.slice(0, 3)).toEqual(['--format=custom', '--no-owner', '--no-privileges']);
+  const fileArgument = invocationArgs.find((argument) => argument.startsWith('--file='));
+  expect(fileArgument?.startsWith(`--file=${result.file}.partial-`)).toBe(true);
+  expect(invocationArgs[invocationArgs.length - 1]).toBe(databaseUrl);
   // POSIX-only: Windows emulates file modes and ignores chmod bits.
   if (process.platform !== 'win32') {
     expect((await stat(directory)).mode & 0o777).toBe(0o700);
