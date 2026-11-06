@@ -98,6 +98,39 @@ it('revalidates the session when navigating between protected routes', async () 
   expect(sessionCalls).toBe(2);
 });
 
+it('revalidates the session when navigating history on the same route', async () => {
+  let sessionCalls = 0;
+  const countingService: AuthService = {
+    ...authenticatedAuthService(['COORDINATOR']),
+    getSession: async () => {
+      sessionCalls += 1;
+      return createSession(['COORDINATOR']);
+    },
+  };
+  window.history.replaceState({}, '', '/stock/catalog');
+  render(<App
+    authService={countingService}
+    stockApi={stubStockApi({
+      listItems: async () => ({ items: [{
+        id: 'item-1', code: 'ITEM-000001', revisionId: 'revision-1', version: 1, name: 'Cobertor',
+        category: { id: 'category-1', code: 'CAT-000001', name: 'Cama e banho' },
+        unit: { id: 'unit-1', code: 'UNIT-000001', name: 'Peça', precision: 0 },
+        size: null, isActive: true, createdAt, updatedAt: createdAt,
+      }], page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }),
+      listOptions: async () => ({ items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }),
+    })}
+  />);
+
+  expect(await screen.findByText('Cobertor')).toBeTruthy();
+  expect(sessionCalls).toBe(1);
+
+  window.history.pushState({}, '', '/stock/catalog?page=2');
+  fireEvent(window, new PopStateEvent('popstate'));
+
+  expect(await screen.findByText('Cobertor')).toBeTruthy();
+  expect(sessionCalls).toBe(2);
+});
+
 it('redirects to login when the stock api reports session expiry', async () => {
   window.history.replaceState({}, '', '/stock/catalog');
   render(<App

@@ -30,7 +30,7 @@ export interface AppProps {
   readonly renderStockRoute?: (name: StockRouteName) => ReactNode;
 }
 
-function useAuthState(authService: AuthService | undefined, isProtectedRoute: boolean, routeKey: string) {
+function useAuthState(authService: AuthService | undefined, isProtectedRoute: boolean, protectedNavigationVersion: number) {
   const [authState, setAuthState] = useState(createInitialAuthState);
   const resolutionVersion = useRef(0);
   const activeSessionRequest = useRef<AbortController | null>(null);
@@ -82,7 +82,7 @@ function useAuthState(authService: AuthService | undefined, isProtectedRoute: bo
       isCurrent = false;
       cancelSessionResolution();
     };
-  }, [cancelSessionResolution, isProtectedRoute, routeKey, revalidateSession]);
+  }, [cancelSessionResolution, isProtectedRoute, protectedNavigationVersion, revalidateSession]);
 
   useEffect(() => {
     if (!isProtectedRoute) return;
@@ -191,8 +191,8 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, stockApi, rende
   const [path, setPath] = useState(() => window.location.pathname);
   const [logoutStatus, setLogoutStatus] = useState<LogoutStatus>(() => authService?.hasPendingSignOut() ? 'failed' : 'idle');
   const route = matchRoute(path, hubRoute.destination);
-  const routeKey = route === null ? 'public' : route.name;
   const isProtectedRoute = logoutStatus === 'idle' && route !== null;
+  const [protectedNavigationVersion, setProtectedNavigationVersion] = useState(0);
   const {
     authState,
     replaceAuthState,
@@ -200,12 +200,13 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, stockApi, rende
     clearAuthSessionState,
     beginProtectedRouteResolution,
     cancelSessionResolution,
-  } = useAuthState(authService, isProtectedRoute, routeKey);
+  } = useAuthState(authService, isProtectedRoute, protectedNavigationVersion);
 
   useEffect(() => {
     const handlePopState = () => {
       if (logoutStatus === 'idle' && matchRoute(window.location.pathname, hubRoute.destination) !== null) {
         beginProtectedRouteResolution();
+        setProtectedNavigationVersion((version) => version + 1);
       } else {
         cancelSessionResolution();
       }
@@ -219,6 +220,7 @@ export function App({ authService, hubRoute = DEFAULT_HUB_ROUTE, stockApi, rende
     if (window.location.pathname === destination) return;
     if (matchRoute(destination, hubRoute.destination) !== null) {
       beginProtectedRouteResolution();
+      setProtectedNavigationVersion((version) => version + 1);
     } else {
       cancelSessionResolution();
     }
