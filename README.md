@@ -54,6 +54,14 @@ finally {
 
 On other shells or for a compiled deployment, provide the same `BOOTSTRAP_ADMIN_*` variables through a protected process environment, then run `npm run admin:bootstrap` or `node dist/server/provision-initial-admin.js`, respectively. Keep passwords out of command arguments, shell history, committed files, and shared logs. Later accounts and profiles are managed by the authenticated ADMIN API. Account recovery after deactivating every administrator requires a separate approved procedure; this command does not bypass that guard.
 
+## Operation backups
+
+The initial backup routine writes a timestamped `pg_dump` custom-format archive with restricted permissions. It never logs connection URLs or credentials. See [docs/ops/backup.md](docs/ops/backup.md) for commands, environment variables, and the S6 restore scope.
+
+```sh
+npm run db:backup
+```
+
 ## Authentication and contracts
 
 The [access/session contract](docs/contracts/access-and-session.md) defines the public `loginIdentifier`, `sessionToken`, and `expiresAt` fields. The [institute/project contract](docs/contracts/institutes-and-projects.md) defines protected operations and paginated lists. An ADMIN-only account has no implicit permission to manage projects; assign approved operational profiles explicitly.

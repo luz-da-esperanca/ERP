@@ -182,4 +182,46 @@ describe('HTTP auth service', () => {
     expect(window.sessionStorage.length).toBe(1);
     expect(window.sessionStorage.getItem(window.sessionStorage.key(0) ?? '')).toBe('pending');
   });
+
+  it('exposes the current CSRF verifier to authorized client adapters', async () => {
+    const fetchClient = vi.fn<FetchClient>()
+      .mockResolvedValueOnce(jsonResponse(200, authenticatedResponse));
+    const authService = createHttpAuthService({ fetchClient });
+
+    expect(authService.getCsrfToken()).toBeNull();
+
+    await authService.signIn({
+      loginIdentifier: 'coord@example.invalid',
+      password: 'SyntheticPassword!123',
+    });
+
+    expect(authService.getCsrfToken()).toBe('opaque-csrf-token');
+  });
+
+  it('refreshes the exposed CSRF verifier when the session is bootstrapped', async () => {
+    const fetchClient = vi.fn<FetchClient>()
+      .mockResolvedValueOnce(jsonResponse(200, authenticatedResponse));
+    const authService = createHttpAuthService({ fetchClient });
+
+    await authService.getSession();
+
+    expect(authService.getCsrfToken()).toBe('opaque-csrf-token');
+  });
+
+  it('clears the exposed CSRF verifier when the session ends', async () => {
+    const fetchClient = vi.fn<FetchClient>()
+      .mockResolvedValueOnce(jsonResponse(200, authenticatedResponse))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const authService = createHttpAuthService({ fetchClient });
+
+    await authService.signIn({
+      loginIdentifier: 'coord@example.invalid',
+      password: 'SyntheticPassword!123',
+    });
+    expect(authService.getCsrfToken()).toBe('opaque-csrf-token');
+
+    await authService.signOut();
+
+    expect(authService.getCsrfToken()).toBeNull();
+  });
 });

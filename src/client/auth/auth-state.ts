@@ -42,9 +42,12 @@ export type SignInResult =
 
 /**
  * Client port for C-02. Pending logout prevents automatic session restoration.
+ * The CSRF verifier is exposed so authorized client adapters can sign their
+ * own protected mutations; the HttpOnly session cookie stays under browser control.
  */
 export interface AuthService {
   hasPendingSignOut(): boolean;
+  getCsrfToken(): string | null;
   signIn(credentials: AuthCredentials): Promise<SignInResult>;
   getSession(signal?: AbortSignal): Promise<AuthSession | null>;
   signOut(): Promise<void>;

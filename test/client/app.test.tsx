@@ -28,6 +28,7 @@ function createSession(
 
 const unauthenticatedAuthService: AuthService = {
   hasPendingSignOut: () => false,
+  getCsrfToken: () => null,
   signIn: async () => ({ status: 'invalid-credentials' }),
   getSession: async () => null,
   signOut: async () => undefined,
@@ -35,6 +36,7 @@ const unauthenticatedAuthService: AuthService = {
 
 const authenticatedAuthService: AuthService = {
   hasPendingSignOut: () => false,
+  getCsrfToken: () => null,
   signIn: async () => ({
     status: 'authenticated',
     session: createSession(),
@@ -78,6 +80,7 @@ it('removes protected content before a pending failed logout shows neutral recov
   let rejectSignOut: ((reason?: unknown) => void) | undefined;
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: async () => createSession(),
     signOut: () => new Promise((_resolve, reject) => { rejectSignOut = reject; }),
@@ -100,6 +103,7 @@ it('keeps the same neutral logout recovery for CSRF rejection without rendering 
   window.history.replaceState({}, '', '/hub');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: async () => createSession(),
     signOut: async () => { throw new Error('CSRF_REJECTED synthetic-csrf-verifier'); },
@@ -121,6 +125,7 @@ it('waits for logout confirmation before allowing another login', async () => {
   let resolveSignOut: (() => void) | undefined;
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'authenticated', session: createSession() }),
     getSession: async () => createSession(),
     signOut: () => new Promise((resolve) => { resolveSignOut = resolve; }),
@@ -147,6 +152,7 @@ it('validates required login fields before requesting authentication', () => {
   const signIn = vi.fn();
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn,
     getSession: async () => null,
     signOut: async () => undefined,
@@ -179,6 +185,7 @@ it('preserves invalid field values and identifies the login field to correct', (
   const signIn = vi.fn();
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn,
     getSession: async () => null,
     signOut: async () => undefined,
@@ -200,6 +207,7 @@ it('submits a login identifier with internal spaces allowed by C-02', async () =
   const signIn = vi.fn(async () => ({ status: 'invalid-credentials' as const }));
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn,
     getSession: async () => null,
     signOut: async () => undefined,
@@ -224,6 +232,7 @@ it('uses credential autocomplete fields and shows loading until authentication r
   }));
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn,
     getSession: async () => null,
     signOut: async () => undefined,
@@ -255,6 +264,7 @@ it('opens the hub after valid sign-in without rendering the submitted password',
   }));
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn,
     getSession: async () => createSession(),
     signOut: async () => undefined,
@@ -275,6 +285,7 @@ it('revalidates before mounting protected content after sign-in', async () => {
   window.history.replaceState({}, '', '/login');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({
       status: 'authenticated',
       session: createSession(),
@@ -296,6 +307,7 @@ it('shows a neutral error for invalid credentials without exposing the submitted
   window.history.replaceState({}, '', '/login');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: async () => null,
     signOut: async () => undefined,
@@ -315,6 +327,7 @@ it('shows a safe recovery message when authentication is unavailable', async () 
   window.history.replaceState({}, '', '/login');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'unavailable' }),
     getSession: async () => null,
     signOut: async () => undefined,
@@ -334,6 +347,7 @@ it('routes an authenticated operator without the required profile to access deni
   window.history.replaceState({}, '', '/hub');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: async () => createSession(['PERIODIC_ACTIVITY']),
     signOut: async () => undefined,
@@ -349,6 +363,7 @@ it('hides protected content when session verification is unavailable', async () 
   window.history.replaceState({}, '', '/hub');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'unavailable' }),
     getSession: async () => { throw new Error('network unavailable'); },
     signOut: async () => undefined,
@@ -365,6 +380,7 @@ it('removes protected content when the published session expiry is reached', asy
   window.history.replaceState({}, '', '/hub');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: async () => createSession(['COORDINATOR'], '2026-10-25T12:01:00.000Z'),
     signOut: async () => undefined,
@@ -388,6 +404,7 @@ it('removes protected content when foreground revalidation loses the session', a
     .mockResolvedValueOnce(null);
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession,
     signOut: async () => undefined,
@@ -406,6 +423,7 @@ it('routes to access denied when foreground revalidation removes the required pr
   window.history.replaceState({}, '', '/hub');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: vi.fn<() => Promise<AuthSession | null>>()
       .mockResolvedValueOnce(createSession())
@@ -426,6 +444,7 @@ it('shows safe recovery when foreground revalidation is unavailable or malformed
   const malformedSession = Object.assign(createSession(), { expiresAt: 'not-a-date' });
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: vi.fn<() => Promise<AuthSession | null>>()
       .mockResolvedValueOnce(createSession())
@@ -450,6 +469,7 @@ it('ignores a stale foreground response after a newer session response', async (
     .mockResolvedValueOnce(createSession(['COORDINATOR'], '2099-10-25T13:30:00.000Z'));
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession,
     signOut: async () => undefined,
@@ -472,6 +492,7 @@ it('cancels an older expiry timer after a newer session response', async () => {
   window.history.replaceState({}, '', '/hub');
   const authService: AuthService = {
     hasPendingSignOut: () => false,
+    getCsrfToken: () => null,
     signIn: async () => ({ status: 'invalid-credentials' }),
     getSession: vi.fn<() => Promise<AuthSession | null>>()
       .mockResolvedValueOnce(createSession(['COORDINATOR'], '2026-10-25T12:01:00.000Z'))

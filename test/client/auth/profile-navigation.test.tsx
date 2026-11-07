@@ -12,7 +12,8 @@ function serviceFor(profile: AuthProfile): AuthService {
   const session: AuthSession = { expiresAt: '2099-10-25T12:00:00.000Z', operator: {
     loginIdentifier: 'synthetic.operator', displayName: 'Synthetic Operator', profiles: [profile],
   } };
-  return { hasPendingSignOut: () => false, signIn: async () => ({ status: 'authenticated', session }),
+  return { hasPendingSignOut: () => false, getCsrfToken: () => null,
+    signIn: async () => ({ status: 'authenticated', session }),
     getSession: async () => session, signOut: async () => {} };
 }
 
